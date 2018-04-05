@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 
+import kodkod.engine.fol2sat.FOL2BoolCache;
+
 /**
  * AMALGAM smt2 external solver z3
  */
@@ -77,6 +79,15 @@ public class Z3 implements SATProver {
         clauses++;
         if (lits.length == 0) {
             writeln("(assert false)");
+        } else if (lits.length == 1) {
+            int lit = lits[0];
+            int i = Math.abs(lit);
+            String l = lit > 0 ? "v" + i : "(not v" + i + ")";
+            if (FOL2BoolCache.softcache.contains(Math.abs(lit))) {
+                writeln("(assert-soft " + l + ")");
+            } else {
+                writeln("(assert " + l + ")");
+            }
         } else {
             String clause = "(assert (or";
             for (int lit : lits) {
@@ -105,7 +116,8 @@ public class Z3 implements SATProver {
             p = Runtime.getRuntime().exec(command);
             BufferedReader out = new BufferedReader(new InputStreamReader(p.getInputStream()));
             // parse the output into a sat/solution
-            String line = out.readLine();
+            String line;
+            while (!(line = out.readLine()).contains("sat")) {}
             sat = line.equals("sat");
             if (sat) {
                 solution = new boolean[vars];

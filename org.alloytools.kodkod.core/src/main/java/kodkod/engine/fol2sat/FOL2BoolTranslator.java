@@ -312,6 +312,11 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         return cache.cache(formula, translation, env);
     }
 
+    // AMALGAM
+    BooleanValue softcache(Integer label, Formula formula, BooleanValue translation) {
+        return cache.softcache(label, formula, translation, env);
+    }
+
     /**
      * Calls lookup(decls) and returns the cached value, if any. If a translation
      * has not been cached, translates decls into a list of translations of its
@@ -745,10 +750,11 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
      */
     @Override
     public final BooleanValue visit(QuantifiedFormula quantFormula) {
+        // AMALGAM
+        int softlabel = -1;
         BooleanValue ret = lookup(quantFormula);
         if (ret != null)
             return ret;
-
         final Quantifier quantifier = quantFormula.quantifier();
         switch (quantifier) {
             // AMALGAM
@@ -756,6 +762,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 final BooleanAccumulator nd = BooleanAccumulator.treeGate(Operator.AND);
                 all(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, nd);
                 ret = interpreter.factory().accumulate(nd);
+                softlabel = Math.abs(ret.label());
                 break;
             case ALL :
                 final BooleanAccumulator and = BooleanAccumulator.treeGate(Operator.AND);
@@ -770,7 +777,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             default :
                 throw new IllegalArgumentException("Unknown quantifier: " + quantifier);
         }
-        return cache(quantFormula, ret);
+        return softlabel > 0 ? softcache(softlabel, quantFormula, ret) : cache(quantFormula, ret);
     }
 
     @Override

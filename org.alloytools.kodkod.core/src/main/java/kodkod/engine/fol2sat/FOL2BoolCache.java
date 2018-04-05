@@ -21,7 +21,9 @@
  */
 package kodkod.engine.fol2sat;
 
+import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -42,9 +44,11 @@ import kodkod.util.nodes.AnnotatedNode;
  * @specfield cache: cached -> (Object ->lone Environment)
  * @author Emina Torlak
  */
-final class FOL2BoolCache {
+public final class FOL2BoolCache {
 
-    private final Map<Node,Record> cache;
+    private final Map<Node,Record>    cache;
+    // AMALGAM
+    public static final List<Integer> softcache = new ArrayList<>();
 
     /**
      * Constructs a new translation cache for the given annotated node.
@@ -63,6 +67,8 @@ final class FOL2BoolCache {
             else
                 this.cache.put(e.getKey(), new MultiVarRecord(freeVars));
         }
+        // AMALGAM
+        softcache.clear();
     }
 
     /**
@@ -93,6 +99,12 @@ final class FOL2BoolCache {
             info.set(translation, env);
         }
         return translation;
+    }
+
+    // AMALGAM
+    final <T> T softcache(Integer label, Node node, T translation, Environment<BooleanMatrix,Expression> env) {
+        softcache.add(label);
+        return cache(node, translation, env);
     }
 
     /**
