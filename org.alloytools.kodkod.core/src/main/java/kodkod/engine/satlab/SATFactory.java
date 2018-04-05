@@ -205,6 +205,27 @@ public abstract class SATFactory {
                                                  };
 
     /**
+     * AMALGAM z3
+     */
+    public static final SATFactory Z3            = new SATFactory() {
+
+                                                     @Override
+                                                     public SATSolver instance() {
+                                                         return new Z3();
+                                                     }
+
+                                                     @Override
+                                                     public boolean incremental() {
+                                                         return true;
+                                                     }
+
+                                                     @Override
+                                                     public String toString() {
+                                                         return "Z3";
+                                                     }
+                                                 };
+
+    /**
      * Returns a SATFactory that produces SATSolver wrappers for Armin Biere's
      * Plingeling solver. This is a parallel solver that is invoked as an external
      * program rather than via the Java Native Interface. As a result, it cannot be
