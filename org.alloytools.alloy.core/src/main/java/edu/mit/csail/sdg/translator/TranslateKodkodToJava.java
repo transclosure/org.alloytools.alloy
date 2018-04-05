@@ -808,6 +808,10 @@ public final class TranslateKodkodToJava implements VoidVisitor {
         String d = make(x.decls());
         String f = make(x.formula());
         switch (x.quantifier()) {
+            // AMALGAM
+            case MOST :
+                file.printf("Formula %s=%s.forAll(%s);%n", newname, f, d);
+                break;
             case ALL :
                 file.printf("Formula %s=%s.forAll(%s);%n", newname, f, d);
                 break;

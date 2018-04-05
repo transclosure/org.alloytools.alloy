@@ -751,6 +751,12 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
 
         final Quantifier quantifier = quantFormula.quantifier();
         switch (quantifier) {
+            // AMALGAM
+            case MOST :
+                final BooleanAccumulator nd = BooleanAccumulator.treeGate(Operator.AND);
+                all(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, nd);
+                ret = interpreter.factory().accumulate(nd);
+                break;
             case ALL :
                 final BooleanAccumulator and = BooleanAccumulator.treeGate(Operator.AND);
                 all(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, and);

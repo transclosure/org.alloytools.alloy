@@ -53,6 +53,8 @@ import static edu.mit.csail.sdg.parser.CompSym.LONE_ARROW_SOME;
 import static edu.mit.csail.sdg.parser.CompSym.LT;
 import static edu.mit.csail.sdg.parser.CompSym.LTE;
 import static edu.mit.csail.sdg.parser.CompSym.MINUS;
+import static edu.mit.csail.sdg.parser.CompSym.MOST;
+import static edu.mit.csail.sdg.parser.CompSym.MOST2;
 import static edu.mit.csail.sdg.parser.CompSym.NO;
 import static edu.mit.csail.sdg.parser.CompSym.NO2;
 import static edu.mit.csail.sdg.parser.CompSym.NONE;
@@ -177,6 +179,8 @@ final class CompFilter implements Scanner {
                 c = NO2;
             else if (a.sym == ALL)
                 c = ALL2;
+            else if (a.sym == MOST)
+                c = MOST2; // AMALGAM
             else if (a.sym == SUM)
                 c = SUM2;
             else if (a.sym == LONE)

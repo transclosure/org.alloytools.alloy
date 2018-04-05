@@ -80,7 +80,7 @@ public final class QuantifiedFormula extends Formula {
     public Formula formula() {
         if (domain == Formula.TRUE)
             return body;
-        if (quantifier == Quantifier.ALL)
+        if (quantifier == Quantifier.ALL || quantifier == Quantifier.MOST)
             return domain.implies(body);
         else
             return domain.and(body);
