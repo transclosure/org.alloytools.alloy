@@ -1,5 +1,5 @@
 # Amalgam
-[![Build Status](https://travis-ci.org/transclosure/org.alloytools.alloy.svg?branch=master)](https://travis-ci.org/transclosure/org.alloytools.alloy.svg)
+[![Build Status](https://travis-ci.org/transclosure/org.alloytools.alloy.svg?branch=master)](https://travis-ci.org/transclosure/org.alloytools.alloy)
 - Mark all code modifications with AMALGAM
 - Merges to master should be large milestones or bug fixes, that pass the Travis CI Build
 - Keep feature addition history cleanly separated in individual branches, so we can contribute pull requests!
