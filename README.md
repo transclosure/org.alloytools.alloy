@@ -1,6 +1,12 @@
+# Amalgam
+[![Build Status](https://travis-ci.org/transclosure/org.alloytools.alloy.svg?branch=master)](https://travis-ci.org/transclosure/org.alloytools.alloy.svg)
+- Mark all code modifications with AMALGAM
+- Merges to master should be large milestones or bug fixes, that pass the Travis CI Build
+- Keep feature addition history cleanly separated in individual branches, so we can contribute pull requests!
+
+# Alloy
 ![Logo](https://avatars3.githubusercontent.com/u/30268214?v=4&s=200)
 [![Build Status](https://travis-ci.org/AlloyTools/org.alloytools.alloy.svg?branch=master)](https://travis-ci.org/AlloyTools/org.alloytools.alloy)
-# Alloy
 
 Alloy 4 is a self-contained executable, which includes the Kodkod
 model finder and a variety of SAT solvers, as well as the standard
