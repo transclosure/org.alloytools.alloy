@@ -26,7 +26,8 @@ import static kodkod.ast.operator.FormulaOperator.IFF;
 import static kodkod.ast.operator.FormulaOperator.IMPLIES;
 import static kodkod.ast.operator.FormulaOperator.OR;
 import static kodkod.ast.operator.Quantifier.ALL;
-import static kodkod.ast.operator.Quantifier.MOST;
+import static kodkod.ast.operator.Quantifier.MAXALL;
+import static kodkod.ast.operator.Quantifier.MAXSOME;
 import static kodkod.ast.operator.Quantifier.SOME;
 
 import java.util.Arrays;
@@ -223,26 +224,23 @@ public abstract class Formula extends Node {
      * over the given declarations. The effect of this method is the same as calling
      * this.quantify(ALL, decls).
      *
-     * @param b
-     *
      * @return this.quantify(ALL, decls)
      */
-    // AMALGAM
-    public final Formula forMost(Decls decls) {
-        return quantify(MOST, decls);
-    }
-
-    // AMALGAM
-    public final Formula forMost(Decls decls, Formula domain) {
-        return quantify(MOST, decls, domain);
-    }
-
     public final Formula forAll(Decls decls) {
         return quantify(ALL, decls);
     }
 
     public final Formula forAll(Decls decls, Formula domain) {
         return quantify(ALL, decls, domain);
+    }
+
+    // AMALGAM
+    public final Formula forMaxAll(Decls decls) {
+        return quantify(MAXALL, decls);
+    }
+
+    public final Formula forMaxAll(Decls decls, Formula domain) {
+        return quantify(MAXALL, decls, domain);
     }
 
     /**
@@ -258,6 +256,15 @@ public abstract class Formula extends Node {
 
     public final Formula forSome(Decls decls, Formula domain) {
         return quantify(SOME, decls, domain);
+    }
+
+    // AMALGAM
+    public final Formula forMaxSome(Decls decls) {
+        return quantify(MAXSOME, decls);
+    }
+
+    public final Formula forMaxSome(Decls decls, Formula domain) {
+        return quantify(MAXSOME, decls, domain);
     }
 
     /**

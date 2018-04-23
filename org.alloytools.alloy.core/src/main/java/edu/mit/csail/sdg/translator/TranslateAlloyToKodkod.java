@@ -1529,10 +1529,16 @@ public final class TranslateAlloyToKodkod extends VisitReturn<Object> {
             return Formula.and(guards).forSome(dd);
         }
         // AMALGAM
-        if (op == ExprQt.Op.MOST) {
+        if (op == ExprQt.Op.MAXSOME) {
             if (guards.size() == 0)
-                return ans.forMost(dd);
-            return Formula.and(guards).implies(ans).forMost(dd);
+                return ans.forMaxSome(dd);
+            guards.add(ans);
+            return Formula.and(guards).forMaxSome(dd);
+        }
+        if (op == ExprQt.Op.MAXALL) {
+            if (guards.size() == 0)
+                return ans.forMaxAll(dd);
+            return Formula.and(guards).implies(ans).forMaxAll(dd);
         } else {
             if (guards.size() == 0)
                 return ans.forAll(dd);

@@ -52,9 +52,11 @@ import static edu.mit.csail.sdg.parser.CompSym.LONE_ARROW_ONE;
 import static edu.mit.csail.sdg.parser.CompSym.LONE_ARROW_SOME;
 import static edu.mit.csail.sdg.parser.CompSym.LT;
 import static edu.mit.csail.sdg.parser.CompSym.LTE;
+import static edu.mit.csail.sdg.parser.CompSym.MAXALL;
+import static edu.mit.csail.sdg.parser.CompSym.MAXALL2;
+import static edu.mit.csail.sdg.parser.CompSym.MAXSOME;
+import static edu.mit.csail.sdg.parser.CompSym.MAXSOME2;
 import static edu.mit.csail.sdg.parser.CompSym.MINUS;
-import static edu.mit.csail.sdg.parser.CompSym.MOST;
-import static edu.mit.csail.sdg.parser.CompSym.MOST2;
 import static edu.mit.csail.sdg.parser.CompSym.NO;
 import static edu.mit.csail.sdg.parser.CompSym.NO2;
 import static edu.mit.csail.sdg.parser.CompSym.NONE;
@@ -179,8 +181,8 @@ final class CompFilter implements Scanner {
                 c = NO2;
             else if (a.sym == ALL)
                 c = ALL2;
-            else if (a.sym == MOST)
-                c = MOST2; // AMALGAM
+            else if (a.sym == MAXALL)
+                c = MAXALL2; // AMALGAM
             else if (a.sym == SUM)
                 c = SUM2;
             else if (a.sym == LONE)
@@ -189,6 +191,8 @@ final class CompFilter implements Scanner {
                 c = ONE2;
             else if (a.sym == SOME)
                 c = SOME2;
+            else if (a.sym == MAXSOME)
+                c = MAXSOME2; // AMALGAM
             else
                 return last = a;
             final ArrayList<Symbol> temp = new ArrayList<Symbol>();

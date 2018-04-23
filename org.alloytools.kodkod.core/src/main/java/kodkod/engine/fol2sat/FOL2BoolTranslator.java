@@ -757,13 +757,6 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             return ret;
         final Quantifier quantifier = quantFormula.quantifier();
         switch (quantifier) {
-            // AMALGAM
-            case MOST :
-                final BooleanAccumulator nd = BooleanAccumulator.treeGate(Operator.AND);
-                all(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, nd);
-                ret = interpreter.factory().accumulate(nd);
-                softlabel = Math.abs(ret.label());
-                break;
             case ALL :
                 final BooleanAccumulator and = BooleanAccumulator.treeGate(Operator.AND);
                 all(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, and);
@@ -773,6 +766,21 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 final BooleanAccumulator or = BooleanAccumulator.treeGate(Operator.OR);
                 some(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, or);
                 ret = interpreter.factory().accumulate(or);
+                break;
+            // AMALGAM
+            case MAXALL :
+                // FIXME AMALGAM incorrect semantics
+                final BooleanAccumulator maxand = BooleanAccumulator.treeGate(Operator.AND);
+                all(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, maxand);
+                ret = interpreter.factory().accumulate(maxand);
+                softlabel = Math.abs(ret.label());
+                break;
+            case MAXSOME :
+                // FIXME AMALGAM incorrect semantics
+                final BooleanAccumulator maxor = BooleanAccumulator.treeGate(Operator.OR);
+                some(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, maxor);
+                ret = interpreter.factory().accumulate(maxor);
+                softlabel = Math.abs(ret.label());
                 break;
             default :
                 throw new IllegalArgumentException("Unknown quantifier: " + quantifier);
