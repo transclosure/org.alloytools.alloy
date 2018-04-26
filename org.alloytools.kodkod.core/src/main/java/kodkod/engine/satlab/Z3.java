@@ -77,19 +77,14 @@ public class Z3 implements SATProver {
     @Override
     public boolean addClause(int[] lits) {
         clauses++;
+        // naive maxSET: softens top level soft clause
+        //boolean naiveMax = lits.length == 1 && FOL2BoolCache.softcache.contains(Math.abs(lits[0]));
+        // proper maxSET: softens each subformula of the top-level conjunction
+        boolean soft = lits.length == 2 && (FOL2BoolCache.softcache.contains(Math.abs(lits[0])) || FOL2BoolCache.softcache.contains(Math.abs(lits[1])));
         if (lits.length == 0) {
             writeln("(assert false)");
-        } else if (lits.length == 1) {
-            int lit = lits[0];
-            int i = Math.abs(lit);
-            String l = lit > 0 ? "v" + i : "(not v" + i + ")";
-            if (FOL2BoolCache.softcache.contains(Math.abs(lit))) {
-                writeln("(assert-soft " + l + ")");
-            } else {
-                writeln("(assert " + l + ")");
-            }
         } else {
-            String clause = "(assert (or";
+            String clause = soft ? "(assert-soft (or" : "(assert (or";
             for (int lit : lits) {
                 int i = Math.abs(lit);
                 String l = lit > 0 ? "v" + i : "(not v" + i + ")";

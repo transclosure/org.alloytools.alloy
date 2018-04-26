@@ -47,7 +47,7 @@ import kodkod.util.nodes.AnnotatedNode;
 public final class FOL2BoolCache {
 
     private final Map<Node,Record>    cache;
-    // FIXME AMALGAM class should not be public, this should not be static
+    // FIXME AMALGAM class should not be public / no singleton, need better FOL2Bool Translation Hook
     public static final List<Integer> softcache = new ArrayList<>();
 
     /**
