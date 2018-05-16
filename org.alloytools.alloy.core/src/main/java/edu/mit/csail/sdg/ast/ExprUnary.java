@@ -162,6 +162,8 @@ public final class ExprUnary extends Expr {
                     NO("no"),
                     /** some x (where x is a set or relation) */
                     SOME("some"),
+                    /** AMALGAM maxsome x (where x is a set or relation) */
+                    MAXSOME("maxsome"),
                     /** lone x (where x is a set or relation) */
                     LONE("lone"),
                     /** one x (where x is a set or relation) */

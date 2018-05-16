@@ -808,11 +808,19 @@ public final class TranslateKodkodToJava implements VoidVisitor {
         String d = make(x.decls());
         String f = make(x.formula());
         switch (x.quantifier()) {
+            // AMALGAM
+            case MAXALL :
+                file.printf("Formula %s=%s.forMaxAll(%s);%n", newname, f, d);
+                break;
             case ALL :
                 file.printf("Formula %s=%s.forAll(%s);%n", newname, f, d);
                 break;
             case SOME :
                 file.printf("Formula %s=%s.forSome(%s);%n", newname, f, d);
+                break;
+            // AMALGAM
+            case MAXSOME :
+                file.printf("Formula %s=%s.forMaxSome(%s);%n", newname, f, d);
                 break;
             default :
                 throw new RuntimeException("Unknown kodkod quantifier \"" + x.quantifier() + "\" encountered");

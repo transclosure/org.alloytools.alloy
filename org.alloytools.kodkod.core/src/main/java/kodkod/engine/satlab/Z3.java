@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 
+import kodkod.engine.fol2sat.FOL2BoolCache;
+
 /**
  * AMALGAM smt2 external solver z3
  */
@@ -75,10 +77,14 @@ public class Z3 implements SATProver {
     @Override
     public boolean addClause(int[] lits) {
         clauses++;
+        // naive maxSET: softens top level soft clause
+        //boolean naiveMax = lits.length == 1 && FOL2BoolCache.softcache.contains(Math.abs(lits[0]));
+        // proper maxSET: softens each subformula of the top-level conjunction
+        boolean soft = lits.length == 2 && (FOL2BoolCache.softcache.contains(Math.abs(lits[0])) || FOL2BoolCache.softcache.contains(Math.abs(lits[1])));
         if (lits.length == 0) {
             writeln("(assert false)");
         } else {
-            String clause = "(assert (or";
+            String clause = soft ? "(assert-soft (or" : "(assert (or";
             for (int lit : lits) {
                 int i = Math.abs(lit);
                 String l = lit > 0 ? "v" + i : "(not v" + i + ")";
@@ -105,7 +111,8 @@ public class Z3 implements SATProver {
             p = Runtime.getRuntime().exec(command);
             BufferedReader out = new BufferedReader(new InputStreamReader(p.getInputStream()));
             // parse the output into a sat/solution
-            String line = out.readLine();
+            String line;
+            while (!(line = out.readLine()).contains("sat")) {}
             sat = line.equals("sat");
             if (sat) {
                 solution = new boolean[vars];

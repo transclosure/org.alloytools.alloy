@@ -173,6 +173,7 @@ import java_cup.runtime.*;
 "~"                   { return alloy_sym(yytext(), CompSym.TILDE       );}
 "abstract"            { return alloy_sym(yytext(), CompSym.ABSTRACT    );}
 "all"                 { return alloy_sym(yytext(), CompSym.ALL         );}
+"maxall"                 { return alloy_sym(yytext(), CompSym.MAXALL         );} // AMALGAM
 "and"                 { return alloy_sym(yytext(), CompSym.AND         );}
 "assert"              { return alloy_sym(yytext(), CompSym.ASSERT      );}
 "as"                  { return alloy_sym(yytext(), CompSym.AS          );}
@@ -214,6 +215,7 @@ import java_cup.runtime.*;
 "set"                 { return alloy_sym(yytext(), CompSym.SET         );}
 "sig"                 { return alloy_sym(yytext(), CompSym.SIG         );}
 "some"                { return alloy_sym(yytext(), CompSym.SOME        );}
+"maxsome"                { return alloy_sym(yytext(), CompSym.MAXSOME        );} // AMALGAM
 "String"              { return alloy_sym(yytext(), CompSym.STRING      );}
 "sum"                 { return alloy_sym(yytext(), CompSym.SUM         );}
 "this"                { return alloy_sym(yytext(), CompSym.THIS        );}

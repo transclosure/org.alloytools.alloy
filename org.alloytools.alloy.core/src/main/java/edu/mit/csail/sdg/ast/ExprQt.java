@@ -167,6 +167,9 @@ public final class ExprQt extends Expr {
      * This class contains all possible quantification operators.
      */
     public enum Op {
+                    /** AMALGAM maxall/maxsome a,b:x | formula */
+                    MAXALL("maxall"),
+                    MAXSOME("maxsome"),
                     /** all a,b:x | formula */
                     ALL("all"),
                     /** no a,b:x | formula */
@@ -327,6 +330,13 @@ public final class ExprQt extends Expr {
                 break;
             case ALL :
                 sub = guard.implies(this.sub);
+                break;
+            // AMALGAM
+            case MAXALL :
+                sub = guard.implies(this.sub);
+                break;
+            case MAXSOME :
+                sub = guard.and(this.sub);
                 break;
             default :
                 sub = guard.and(this.sub);

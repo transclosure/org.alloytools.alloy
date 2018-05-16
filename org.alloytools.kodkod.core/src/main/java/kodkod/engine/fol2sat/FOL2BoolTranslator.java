@@ -312,6 +312,11 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         return cache.cache(formula, translation, env);
     }
 
+    // AMALGAM
+    BooleanValue softcache(Integer label, Formula formula, BooleanValue translation) {
+        return cache.softcache(label, formula, translation, env);
+    }
+
     /**
      * Calls lookup(decls) and returns the cached value, if any. If a translation
      * has not been cached, translates decls into a list of translations of its
@@ -686,6 +691,31 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         env = env.parent();
     }
 
+    // AMALGAM max_all(decls, formula) := {decl in decls | formula(decl) \/ declConstraints(FALSE) \/ {entry in decl | not entry} }
+    private void maxall(Decls decls, Formula formula, int currentDecl, BooleanValue declConstraints, BooleanAccumulator acc) {
+        if (acc.isShortCircuited())
+            return;
+        final BooleanFactory factory = interpreter.factory();
+
+        if (decls.size() == currentDecl) {
+            BooleanValue formulaCircuit = formula.accept(this);
+            BooleanValue finalCircuit = factory.or(declConstraints, formulaCircuit);
+            acc.add(finalCircuit);
+            return;
+        }
+
+        final Decl decl = decls.get(currentDecl);
+        final BooleanMatrix declTransl = visit(decl);
+        final BooleanMatrix groundValue = factory.matrix(declTransl.dimensions());
+        env = env.extend(decl.variable(), decl.expression(), groundValue, Quantifier.MAXALL);
+        for (IndexedEntry<BooleanValue> entry : declTransl) {
+            groundValue.set(entry.index(), BooleanConstant.TRUE);
+            all(decls, formula, currentDecl + 1, factory.or(factory.not(entry.value()), declConstraints), acc);
+            groundValue.set(entry.index(), BooleanConstant.FALSE);
+        }
+        env = env.parent();
+    }
+
     /**
      * Translates the given existentially quantified formula as follows (where
      * A_0...A_|A| stand for boolean variables that represent the tuples of the
@@ -735,6 +765,31 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         env = env.parent();
     }
 
+    // AMALGAM max_some(decls, formula) := {decl in decls | formula(decl) /\ declConstraints(TRUE) /\ {entry in decl | entry} }
+    private void maxsome(Decls decls, Formula formula, int currentDecl, BooleanValue declConstraints, BooleanAccumulator acc) {
+        if (acc.isShortCircuited())
+            return;
+        final BooleanFactory factory = interpreter.factory();
+
+        if (decls.size() == currentDecl) {
+            BooleanValue formulaCircuit = formula.accept(this);
+            BooleanValue finalCircuit = factory.and(declConstraints, formulaCircuit);
+            acc.add(finalCircuit);
+            return;
+        }
+
+        final Decl decl = decls.get(currentDecl);
+        final BooleanMatrix declTransl = visit(decl);
+        final BooleanMatrix groundValue = factory.matrix(declTransl.dimensions());
+        env = env.extend(decl.variable(), decl.expression(), groundValue, Quantifier.MAXSOME);
+        for (IndexedEntry<BooleanValue> entry : declTransl) {
+            groundValue.set(entry.index(), BooleanConstant.TRUE);
+            some(decls, formula, currentDecl + 1, factory.and(entry.value(), declConstraints), acc);
+            groundValue.set(entry.index(), BooleanConstant.FALSE);
+        }
+        env = env.parent();
+    }
+
     /**
      * Calls lookup(quantFormula) and returns the cached value, if any. If a
      * translation has not been cached, translates the formula, calls cache(...) on
@@ -745,10 +800,11 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
      */
     @Override
     public final BooleanValue visit(QuantifiedFormula quantFormula) {
+        // AMALGAM
+        int softlabel = -1;
         BooleanValue ret = lookup(quantFormula);
         if (ret != null)
             return ret;
-
         final Quantifier quantifier = quantFormula.quantifier();
         switch (quantifier) {
             case ALL :
@@ -761,10 +817,24 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 some(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, or);
                 ret = interpreter.factory().accumulate(or);
                 break;
+            // AMALGAM max_all := maxSET (soft AND) max_all(decls, formula)
+            case MAXALL :
+                final BooleanAccumulator maxall = BooleanAccumulator.treeGate(Operator.AND);
+                maxall(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, maxall);
+                ret = interpreter.factory().accumulate(maxall);
+                softlabel = Math.abs(ret.label());
+                break;
+            // AMALGAM max_some:= maxSET (soft AND) max_some(decls, formula)
+            case MAXSOME :
+                final BooleanAccumulator maxsome = BooleanAccumulator.treeGate(Operator.AND);
+                maxsome(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, maxsome);
+                ret = interpreter.factory().accumulate(maxsome);
+                softlabel = Math.abs(ret.label());
+                break;
             default :
                 throw new IllegalArgumentException("Unknown quantifier: " + quantifier);
         }
-        return cache(quantFormula, ret);
+        return softlabel > 0 ? softcache(softlabel, quantFormula, ret) : cache(quantFormula, ret);
     }
 
     @Override

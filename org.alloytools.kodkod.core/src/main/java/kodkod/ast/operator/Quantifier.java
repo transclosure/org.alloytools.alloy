@@ -26,12 +26,28 @@ package kodkod.ast.operator;
  */
 public enum Quantifier {
 
+                        /** AMALGAM Soft Universal quantifier. */
+                        MAXALL {
+
+                            @Override
+                            public String toString() {
+                                return "maxall";
+                            }
+                        },
                         /** Universal quantifier. */
                         ALL {
 
                             @Override
                             public String toString() {
                                 return "all";
+                            }
+                        },
+                        /** AMALGAM Soft Existential quantifier. */
+                        MAXSOME {
+
+                            @Override
+                            public String toString() {
+                                return "maxsome";
                             }
                         },
                         /** Existential quantifier. */
@@ -54,5 +70,12 @@ public enum Quantifier {
         SOME.opposite = ALL;
         SOME.universal = false;
         SOME.existential = true;
+        // AMALGAM
+        MAXALL.opposite = MAXSOME;
+        MAXALL.universal = true;
+        MAXALL.existential = false;
+        MAXSOME.opposite = MAXALL;
+        MAXSOME.universal = false;
+        MAXSOME.existential = true;
     }
 }
