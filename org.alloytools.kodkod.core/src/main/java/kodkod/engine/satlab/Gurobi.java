@@ -97,8 +97,8 @@ public class Gurobi implements SATProver {
 
     @Override
     public boolean solve() throws SATAbortedException {
-        // FIXME gurobi semantic bug, model always all truth
-        writeln("spec.solve()");
+        String solveline = "spec.solve()";
+        writeln(solveline);
         String sol = "";
         try {
             // run Gurobi on the python file
@@ -138,6 +138,7 @@ public class Gurobi implements SATProver {
             } else {
                 solution = null;
             }
+            python.setLength(python.length() - solveline.length() - 1);
         } catch (Exception e) {
             StringWriter w = new StringWriter();
             PrintWriter pw = new PrintWriter(w);
@@ -145,7 +146,6 @@ public class Gurobi implements SATProver {
             pw.flush();
             throw new SATAbortedException(w.toString()+"\n\n\n"+sol);
         }
-        // FIXME delete last solve line
         return sat;
     }
 
