@@ -87,10 +87,11 @@ public class Gurobi implements SATProver {
         for (int lit : lits) {
             int i = Math.abs(lit);
             String l = lit > 0 ? "v" + i : "!v" + i;
-            clause += l + ", ";
+            clause += "\"" + l + "\", ";
         }
         clause = clause.substring(0, clause.length()-2);
         clause += "])";
+        writeln(clause);
         return true;
     }
 
