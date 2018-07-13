@@ -379,9 +379,13 @@ public final class A4Solution {
             solver.options().setSolver(SATFactory.MiniSatProver);
             solver.options().setLogTranslation(2);
             solver.options().setCoreGranularity(opt.coreGranularity);
+        // AMALGAM additional solvers
         } else if (opt.solver.equals(A4Options.SatSolver.Z3)) {
-            // AMALGAM z3
             solver.options().setSolver(SATFactory.Z3);
+            solver.options().setLogTranslation(2);
+            solver.options().setCoreGranularity(opt.coreGranularity);
+        } else if (opt.solver.equals(A4Options.SatSolver.Gurobi)) {
+            solver.options().setSolver(SATFactory.Gurobi);
             solver.options().setLogTranslation(2);
             solver.options().setCoreGranularity(opt.coreGranularity);
         } else {

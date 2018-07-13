@@ -453,6 +453,8 @@ public final class SimpleGUI implements ComponentListener, Listener {
         // Record the locations
         System.setProperty("alloy.theme0", alloyHome() + fs + "models");
         System.setProperty("alloy.home", alloyHome());
+        // AMALGAM copy files to temp directory
+        Util.copy(false, true, System.getProperty("java.io.tmpdir"), "gurobiAPI.py");
     }
 
     /** Called when this window is resized. */

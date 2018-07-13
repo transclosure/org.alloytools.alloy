@@ -186,8 +186,9 @@ public final class A4Options implements Serializable {
         public static final SatSolver CNF              = new SatSolver("cnf", "Output CNF to file", null, null, true);
         /** Outputs the raw Kodkod file only */
         public static final SatSolver KK               = new SatSolver("kodkod", "Output Kodkod to file", null, null, true);
-        /** AMALGAM z3 */
+        /** AMALGAM additional solvers */
         public static final SatSolver Z3               = new SatSolver("z3", "Z3", null, null, true);
+        public static final SatSolver Gurobi           = new SatSolver("gurobi", "Gurobi", null, null, true);
     }
 
     /** This ensures the class can be serialized reliably. */

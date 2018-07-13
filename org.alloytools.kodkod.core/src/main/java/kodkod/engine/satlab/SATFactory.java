@@ -205,7 +205,7 @@ public abstract class SATFactory {
                                                  };
 
     /**
-     * AMALGAM z3
+     * AMALGAM addtional solvers
      */
     public static final SATFactory Z3            = new SATFactory() {
 
@@ -222,6 +222,23 @@ public abstract class SATFactory {
                                                      @Override
                                                      public String toString() {
                                                          return "Z3";
+                                                     }
+                                                 };
+    public static final SATFactory Gurobi        = new SATFactory() {
+
+                                                     @Override
+                                                     public SATSolver instance() {
+                                                         return new Gurobi();
+                                                     }
+
+                                                     @Override
+                                                     public boolean incremental() {
+                                                         return true;
+                                                     }
+
+                                                     @Override
+                                                     public String toString() {
+                                                         return "Gurobi";
                                                      }
                                                  };
 
