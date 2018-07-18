@@ -1,0 +1,33 @@
+SPEC		SOLVER		TRANSLATION TIME (ms)		SOLVING TIME (ms)
+
+authn		sat4j		184000						167
+cddiff1		sat4j		210							104
+cddiff2		sat4j		236							100
+flow		sat4j		110							141
+gene		sat4j		38							52
+gwh			sat4j		65							22
+resfm		sat4j		109							293
+
+authn		minisatp	191000						49
+cddiff1		minisatp	116							17
+cddiff2		minisatp	158							31
+flow		minisatp	74							35
+gene		minisatp	12							4
+gwh			minisatp	51							7
+resfm		minisatp	92							68
+
+authn		z3			205000						419
+cddiff1		z3			343							464
+cddiff2		z3			294							548
+flow		z3			104							257
+gene		z3			23							52
+gwh			z3			116							153
+resfm		z3			262							1000
+
+authn		gurobi		207000						6000
+cddiff1		gurobi		186							12000
+cddiff2		gurobi		267							15000
+flow		gurobi		112							2000
+gene		gurobi		27							617
+gwh			gurobi		100							5000
+resfm		gurobi		274							126000
