@@ -16,18 +16,34 @@ gene		minisatp	12							4
 gwh			minisatp	51							7
 resfm		minisatp	92							68
 
-authn		z3			205000						419
-cddiff1		z3			343							464
-cddiff2		z3			294							548
-flow		z3			104							257
-gene		z3			23							52
-gwh			z3			116							153
-resfm		z3			262							1000
+authn		z3+i/o		205000						419
+cddiff1		z3+i/o		343							464
+cddiff2		z3+i/o		294							548
+flow		z3+i/o		104							257
+gene		z3+i/o		23							52
+gwh			z3+i/o		116							153
+resfm		z3+i/o		262							1000
 
-authn		gurobi		207000						6000
-cddiff1		gurobi		186							12000
-cddiff2		gurobi		267							15000
-flow		gurobi		112							2000
-gene		gurobi		27							617
-gwh			gurobi		100							5000
-resfm		gurobi		274							126000
+authn		z3			-							324
+cddiff1		z3			-							411
+cddiff2		z3			-							559
+flow		z3			-							167
+gene		z3			-							48
+gwh			z3			-							133
+resfm		z3			-							1000
+
+authn		gurobi+boot	207000						6000
+cddiff1		gurobi+boot	186							12000
+cddiff2		gurobi+boot	267							15000
+flow		gurobi+boot	112							2000
+gene		gurobi+boot	27							617
+gwh			gurobi+boot	100							5000
+resfm		gurobi+boot	274							126000
+
+authn		gurobi		-							770+780
+cddiff1		gurobi		-							1060+1070
+cddiff2		gurobi		-							1640+1660
+flow		gurobi		-							410+400
+gene		gurobi		-							90+90
+gwh			gurobi		-							160+160
+resfm		gurobi		-							9890+116960
