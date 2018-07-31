@@ -19,9 +19,11 @@ public class Z3 implements SATProver {
 
     private String           inTemp;
     private RandomAccessFile smt2;
+    private RandomAccessFile smt2resugared;
     private int              vars, clauses;
     private boolean          sat;
     private boolean[]        solution;
+    Translation.Whole        translation;
 
     private static void close(Closeable closeable) {
         try {
@@ -30,25 +32,26 @@ public class Z3 implements SATProver {
         } catch (IOException e) {} // ignore
     }
 
-    private static String varMap(int v) {
-        return "";
-    }
-
     @Override
     public boolean solve(Translation translation) throws SATAbortedException {
+        this.translation = (Translation.Whole)translation;
         return solve();
     }
 
     public Z3() {
         smt2 = null;
+        smt2resugared = null;
         try {
             inTemp = File.createTempFile("kodkod", String.valueOf("z3".hashCode())).getAbsolutePath();
             smt2 = new RandomAccessFile(inTemp, "rw");
             smt2.setLength(0);
+            smt2resugared = new RandomAccessFile(inTemp+".resugar", "rw");
+            smt2resugared.setLength(0);
         } catch (FileNotFoundException e) {
             throw new SATAbortedException(e);
         } catch (IOException e) {
             close(smt2);
+            close(smt2resugared);
             throw new SATAbortedException(e);
         }
         vars = 0;
@@ -70,6 +73,17 @@ public class Z3 implements SATProver {
             smt2.writeBytes(line + "\n");
         } catch (IOException e) {
             close(smt2);
+            close(smt2resugared);
+            throw new SATAbortedException(e);
+        }
+    }
+
+    private void sugarln(String line) {
+        try {
+            smt2resugared.writeBytes(line + "\n");
+        } catch (IOException e) {
+            close(smt2);
+            close(smt2resugared);
             throw new SATAbortedException(e);
         }
     }
@@ -79,7 +93,7 @@ public class Z3 implements SATProver {
         if (numVars < 0)
             throw new IllegalArgumentException("vars < 0: " + numVars);
         for (int i = vars + 1; i <= vars + numVars; i++) {
-            String v = "v" + i;
+            String v = "VAR_" + i;
             writeln("(declare-const " + v + " Bool)");
         }
         vars += numVars;
@@ -98,7 +112,7 @@ public class Z3 implements SATProver {
             String clause = soft ? "(assert-soft (or" : "(assert (or";
             for (int lit : lits) {
                 int i = Math.abs(lit);
-                String l = lit > 0 ? "v" + i : "(not v" + i + ")";
+                String l = lit > 0 ? "VAR_" + i : "(not VAR_" + i + ")";
                 clause += " " + l;
             }
             clause += "))";
@@ -129,8 +143,8 @@ public class Z3 implements SATProver {
                 solution = new boolean[vars];
                 int i = -1;
                 while ((line = out.readLine()) != null) {
-                    if (line.contains("(define-fun v")) {
-                        i = Integer.parseInt(line.split("v")[1].split(" ")[0]);
+                    if (line.contains("(define-fun VAR_")) {
+                        i = Integer.parseInt(line.split("VAR_")[1].split(" ")[0]);
                         assert 0 < i && i <= vars;
                     } else if (line.contains("true")) {
                         assert 0 < i && i <= vars;
