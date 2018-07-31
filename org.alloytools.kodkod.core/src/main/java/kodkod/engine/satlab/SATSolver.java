@@ -91,7 +91,7 @@ public interface SATSolver {
      */
     public abstract boolean solve() throws SATAbortedException;
     // AMALGAM expose translation to solver
-    boolean solve(Translation.Whole translation) throws SATAbortedException;
+    boolean solve(Translation translation) throws SATAbortedException;
 
     /**
      * Returns the boolean value assigned to the given variable by the last

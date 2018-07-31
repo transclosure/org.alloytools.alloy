@@ -330,7 +330,7 @@ public abstract class HOLTranslationNew extends HOLTranslation {
             }
 
             @Override
-            public boolean solve(Translation.Whole translation) throws SATAbortedException {
+            public boolean solve(Translation translation) throws SATAbortedException {
                 return solve();
             }
         }
@@ -512,9 +512,8 @@ public abstract class HOLTranslationNew extends HOLTranslation {
                 rep.holFixpointStart(Fixpoint.this, convTr.formula(), convTr.bounds());
                 return solveNext();
             }
-
             @Override
-            public boolean solve(Translation.Whole translation) throws SATAbortedException {
+            public boolean solve(Translation translation) throws SATAbortedException {
                 return solve();
             }
         }
@@ -690,7 +689,7 @@ public abstract class HOLTranslationNew extends HOLTranslation {
             }
 
             @Override
-            public boolean solve(Translation.Whole translation) throws SATAbortedException {
+            public boolean solve(Translation translation) throws SATAbortedException {
                 return solve();
             }
         }

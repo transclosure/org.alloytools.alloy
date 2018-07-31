@@ -97,9 +97,4 @@ final class Glucose extends NativeSolver {
      */
     @Override
     native boolean valueOf(long peer, int literal);
-
-    @Override
-    public boolean solve(Translation.Whole translation) throws SATAbortedException {
-        return solve();
-    }
 }

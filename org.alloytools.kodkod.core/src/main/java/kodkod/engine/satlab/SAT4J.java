@@ -412,7 +412,7 @@ final class SAT4J implements SATSolver {
     }
 
     @Override
-    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+    public boolean solve(Translation translation) throws SATAbortedException {
         return solve();
     }
 }

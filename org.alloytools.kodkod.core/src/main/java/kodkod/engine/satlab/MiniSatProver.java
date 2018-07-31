@@ -267,9 +267,4 @@ final class MiniSatProver extends NativeSolver implements SATProver {
      *         resolution trace
      */
     native int[][] trace(long peer, boolean recordAxioms);
-
-    @Override
-    public boolean solve(Translation.Whole translation) throws SATAbortedException {
-        return solve();
-    }
 }

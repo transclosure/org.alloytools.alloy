@@ -144,7 +144,7 @@ public final class Solver implements KodkodSolver {
 
             options.reporter().solvingCNF(translation.numPrimaryVariables(), cnf.numberOfVariables(), cnf.numberOfClauses());
             final long startSolve = System.currentTimeMillis();
-            final boolean isSat = cnf.solve();
+            final boolean isSat = cnf.solve(translation);
             final long endSolve = System.currentTimeMillis();
 
             final Statistics stats = new Statistics(translation, endTransl - startTransl, endSolve - startSolve);
@@ -260,7 +260,7 @@ public final class Solver implements KodkodSolver {
     static Solution trivial(Translation.Whole translation, long translTime) {
         final Statistics stats = new Statistics(0, 0, 0, translTime, 0);
         final Solution sol;
-        if (translation.cnf().solve()) {
+        if (translation.cnf().solve(translation)) {
             sol = Solution.triviallySatisfiable(stats, translation.interpret());
         } else {
             sol = Solution.triviallyUnsatisfiable(stats, trivialProof(translation.log()));
@@ -285,7 +285,7 @@ public final class Solver implements KodkodSolver {
         final Solution solution;
         if (translation.trivial()) {
             final Statistics stats = new Statistics(translation, translTime, 0);
-            if (translation.cnf().solve()) {
+            if (translation.cnf().solve(translation)) {
                 solution = Solution.triviallySatisfiable(stats, translation.interpret());
             } else {
                 solution = Solution.triviallyUnsatisfiable(stats, null);
@@ -295,7 +295,7 @@ public final class Solver implements KodkodSolver {
 
             translation.options().reporter().solvingCNF(translation.numPrimaryVariables(), cnf.numberOfVariables(), cnf.numberOfClauses());
             final long startSolve = System.currentTimeMillis();
-            final boolean sat = cnf.solve();
+            final boolean sat = cnf.solve(translation);
             final long endSolve = System.currentTimeMillis();
 
             final Statistics stats = new Statistics(translation, translTime, endSolve - startSolve);

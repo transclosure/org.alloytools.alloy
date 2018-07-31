@@ -23,6 +23,7 @@ package kodkod.engine.satlab;
 
 import java.io.File;
 
+import kodkod.engine.fol2sat.Translation;
 import org.alloytools.nativecode.util.NativeCode;
 
 /**
@@ -267,6 +268,10 @@ abstract class NativeSolver implements SATSolver {
      * @return true if the clauses in the solver are SAT; otherwise returns false.
      */
     abstract boolean solve(long peer);
+    @Override
+    public boolean solve(Translation translation) throws SATAbortedException {
+        return solve();
+    }
 
     /**
      * Returns the assignment for the given literal by the specified native peer

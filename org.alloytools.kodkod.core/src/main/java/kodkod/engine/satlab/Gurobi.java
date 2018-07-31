@@ -177,7 +177,7 @@ public class Gurobi implements SATProver {
     }
 
     @Override
-    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+    public boolean solve(Translation translation) throws SATAbortedException {
         return solve();
     }
 }
