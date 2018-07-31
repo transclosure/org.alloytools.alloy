@@ -90,7 +90,7 @@ public final class SolutionIterator implements Iterator<Solution> {
         transl.options().reporter().solvingCNF(primaryVars, cnf.numberOfVariables(), cnf.numberOfClauses());
 
         final long startSolve = System.currentTimeMillis();
-        final boolean isSat = cnf.solve();
+        final boolean isSat = cnf.solve(translation);
         final long endSolve = System.currentTimeMillis();
 
         final Statistics stats = new Statistics(transl, translTime, endSolve - startSolve);
