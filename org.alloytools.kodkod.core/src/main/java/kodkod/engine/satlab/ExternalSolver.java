@@ -21,6 +21,8 @@
  */
 package kodkod.engine.satlab;
 
+import kodkod.engine.fol2sat.Translation;
+
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.File;
@@ -331,5 +333,10 @@ final class ExternalSolver implements SATSolver {
     @Override
     public String toString() {
         return executable + " " + options;
+    }
+
+    @Override
+    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+        return solve();
     }
 }

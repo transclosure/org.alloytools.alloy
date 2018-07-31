@@ -328,6 +328,11 @@ public abstract class HOLTranslationNew extends HOLTranslation {
                 rep.holLoopStart(Some4All.this, candTr.formula(), candTr.bounds());
                 return solveNext();
             }
+
+            @Override
+            public boolean solve(Translation.Whole translation) throws SATAbortedException {
+                return solve();
+            }
         }
 
         public Relation findSkolemRelation(Collection<Relation> holSkolems, Variable variable) {
@@ -507,6 +512,11 @@ public abstract class HOLTranslationNew extends HOLTranslation {
                 rep.holFixpointStart(Fixpoint.this, convTr.formula(), convTr.bounds());
                 return solveNext();
             }
+
+            @Override
+            public boolean solve(Translation.Whole translation) throws SATAbortedException {
+                return solve();
+            }
         }
 
         public Relation findSkolemRelation(Collection<Relation> holSkolems, Variable variable) {
@@ -677,6 +687,11 @@ public abstract class HOLTranslationNew extends HOLTranslation {
                 rep.holSplitStart(OR.this, formula());
                 currTrIdx = 0;
                 return solveNext();
+            }
+
+            @Override
+            public boolean solve(Translation.Whole translation) throws SATAbortedException {
+                return solve();
             }
         }
     }

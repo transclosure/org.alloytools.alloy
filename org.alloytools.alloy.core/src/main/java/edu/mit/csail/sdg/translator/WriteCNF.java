@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 
 import edu.mit.csail.sdg.alloy4.Util;
+import kodkod.engine.fol2sat.Translation;
+import kodkod.engine.satlab.SATAbortedException;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.satlab.SATSolver;
 
@@ -177,5 +179,10 @@ final class WriteCNF implements SATSolver {
     @Override
     public boolean valueOf(int variable) {
         throw new IllegalStateException("This solver just writes the CNF without solving them.");
+    }
+
+    @Override
+    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+        return solve();
     }
 }

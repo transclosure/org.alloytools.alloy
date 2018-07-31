@@ -21,6 +21,8 @@
  */
 package kodkod.engine.satlab;
 
+import kodkod.engine.fol2sat.Translation;
+
 /**
  * Java wrapper for the Glucose solver by G. Audemard and L. Simon.
  *
@@ -96,4 +98,8 @@ final class Glucose extends NativeSolver {
     @Override
     native boolean valueOf(long peer, int literal);
 
+    @Override
+    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+        return solve();
+    }
 }

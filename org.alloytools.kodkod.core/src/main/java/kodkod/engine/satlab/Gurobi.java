@@ -11,6 +11,7 @@ import java.io.RandomAccessFile;
 import java.io.StringWriter;
 
 import kodkod.engine.fol2sat.FOL2BoolCache;
+import kodkod.engine.fol2sat.Translation;
 
 /**
  * AMALGAM external LINEAR PROGRAMMING solver gurobi
@@ -173,5 +174,10 @@ public class Gurobi implements SATProver {
     public void reduce(ReductionStrategy strategy) {
         // TODO Gurobi proofs
         throw new UnsupportedOperationException("not implemented yet");
+    }
+
+    @Override
+    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+        return solve();
     }
 }

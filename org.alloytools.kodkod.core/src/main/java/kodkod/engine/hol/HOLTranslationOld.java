@@ -242,6 +242,11 @@ public abstract class HOLTranslationOld extends HOLTranslation {
                 rep.holLoopStart(Some4All.this, convTr.formula(), convTr.bounds());
                 return solveNext();
             }
+
+            @Override
+            public boolean solve(Translation.Whole translation) throws SATAbortedException {
+                return solve();
+            }
         }
     }
 

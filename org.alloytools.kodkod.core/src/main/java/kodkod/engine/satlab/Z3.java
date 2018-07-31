@@ -9,6 +9,8 @@ import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 
 import kodkod.engine.fol2sat.FOL2BoolCache;
+import kodkod.engine.fol2sat.Translation;
+import kodkod.engine.fol2sat.TranslationLog;
 
 /**
  * AMALGAM smt2 external solver z3
@@ -26,6 +28,15 @@ public class Z3 implements SATProver {
             if (closeable != null)
                 closeable.close();
         } catch (IOException e) {} // ignore
+    }
+
+    private static String varMap(int v) {
+        return "";
+    }
+
+    @Override
+    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+        return solve();
     }
 
     public Z3() {

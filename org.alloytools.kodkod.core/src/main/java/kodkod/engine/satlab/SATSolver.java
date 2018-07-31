@@ -21,6 +21,8 @@
  */
 package kodkod.engine.satlab;
 
+import kodkod.engine.fol2sat.Translation;
+
 /**
  * Provides an interface to a SAT solver.
  *
@@ -88,6 +90,8 @@ public interface SATSolver {
      *             terminate normally.
      */
     public abstract boolean solve() throws SATAbortedException;
+    // AMALGAM expose translation to solver
+    boolean solve(Translation.Whole translation) throws SATAbortedException;
 
     /**
      * Returns the boolean value assigned to the given variable by the last

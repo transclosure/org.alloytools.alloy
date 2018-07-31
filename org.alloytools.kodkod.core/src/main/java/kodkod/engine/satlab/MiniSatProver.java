@@ -23,6 +23,7 @@ package kodkod.engine.satlab;
 
 import java.util.Iterator;
 
+import kodkod.engine.fol2sat.Translation;
 import kodkod.util.ints.IntBitSet;
 import kodkod.util.ints.IntIterator;
 import kodkod.util.ints.IntSet;
@@ -266,4 +267,9 @@ final class MiniSatProver extends NativeSolver implements SATProver {
      *         resolution trace
      */
     native int[][] trace(long peer, boolean recordAxioms);
+
+    @Override
+    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+        return solve();
+    }
 }

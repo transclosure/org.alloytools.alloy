@@ -21,6 +21,8 @@
  */
 package kodkod.engine.satlab;
 
+import kodkod.engine.fol2sat.Translation;
+
 /**
  * Java wrapper for the MiniSat solver by Niklas E&eacute;n and Niklas
  * S&ouml;rensson.
@@ -96,4 +98,9 @@ final class MiniSat extends NativeSolver {
      */
     @Override
     native boolean valueOf(long peer, int literal);
+
+    @Override
+    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+        return solve();
+    }
 }

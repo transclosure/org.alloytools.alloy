@@ -23,6 +23,7 @@ package kodkod.engine.satlab;
 
 import java.util.NoSuchElementException;
 
+import kodkod.engine.fol2sat.Translation;
 import org.sat4j.specs.ContradictionException;
 import org.sat4j.specs.ISolver;
 import org.sat4j.specs.IVecInt;
@@ -410,4 +411,8 @@ final class SAT4J implements SATSolver {
 
     }
 
+    @Override
+    public boolean solve(Translation.Whole translation) throws SATAbortedException {
+        return solve();
+    }
 }
