@@ -6,38 +6,90 @@ import java.util.Map;
 
 import kodkod.ast.Formula;
 import kodkod.ast.Node;
+import kodkod.ast.Relation;
 import kodkod.ast.Variable;
 import kodkod.engine.bool.Int;
 import kodkod.engine.fol2sat.*;
 import kodkod.instance.TupleSet;
+import kodkod.util.ints.IntIterator;
+import kodkod.util.ints.IntSet;
 
 /**
  * AMALGAM smt2 external solver z3
  */
 public class Z3 implements SATProver {
 
-    private String           inTemp;
-    private RandomAccessFile smt2;
-    private RandomAccessFile smt2resugared;
-    private int              vars, clauses;
-    private boolean          sat;
-    private boolean[]        solution;
-    Translation.Whole        translation;
+    private static final boolean    resugar = true;
+    private String                  inTemp;
+    private RandomAccessFile        smt2, smt2resugared;
+    private int                     vars, clauses;
+    private Translation.Whole       translation;
+    private boolean                 sat;
+    private boolean[]               solution;
 
+    /** Helpers **/
     private static void close(Closeable closeable) {
         try {
             if (closeable != null)
                 closeable.close();
         } catch (IOException e) {} // ignore
     }
-
-    @Override
-    public boolean solve(Translation translation) throws SATAbortedException {
-        if(translation==null) throw new SATAbortedException("translation given is null");
-        this.translation = (Translation.Whole)translation;
-        return solve();
+    private void writeln(String line) {
+        try {
+            smt2.writeBytes(line + "\n");
+        } catch (IOException e) {
+            close(smt2);
+            close(smt2resugared);
+            throw new SATAbortedException(e);
+        }
+    }
+    private void sugarln(String line) {
+        try {
+            int i,j = 0;
+            while(line.substring(j).contains("VAR_")) {
+                // Parse bitter variable
+                i = j+line.substring(j).indexOf("VAR_")+4;
+                int a = line.substring(i).indexOf(' ');
+                int b = line.substring(i).indexOf(')');
+                a = a<0 ? Integer.MAX_VALUE : a;
+                b = b<0 ? Integer.MAX_VALUE : b;
+                j = i+Math.min(a, b);
+                int lit = Integer.parseInt(line.substring(i, j));
+                // Primary Variable
+                if(lit < translation.numPrimaryVariables()) {
+                    for(Relation relation : translation.bounds().relations()) {
+                        IntIterator primaries = translation.primaryVariables(relation).iterator();
+                        int k = 0;
+                        while(primaries.hasNext()) {
+                            int primary = primaries.next();
+                            if(lit==primary) {
+                                String var = relation.name()+"_"+k;
+                                line = line.replace("VAR_"+lit+" ", var+" ");
+                                line = line.replace("VAR_"+lit+")", var+")");
+                            }
+                            k++;
+                        }
+                    }
+                }
+                /* Secondary Variable FIXME wrong and inefficient
+                else {
+                    RecordFilter rf = (node, translated, literal, env) -> literal == lit;
+                    Iterator<TranslationRecord> records = translation.log().replay(rf);
+                    if (records.hasNext()) {
+                        String var = records.next().translated().toString().replace(" ", "_");
+                        line = line.replace("VAR_" + lit, var);
+                    }
+                } */
+            }
+            smt2resugared.writeBytes(line + "\n");
+        } catch (Exception e) {
+            close(smt2);
+            close(smt2resugared);
+            throw new SATAbortedException(line, e);
+        }
     }
 
+    /** Solver **/
     public Z3() {
         smt2 = null;
         smt2resugared = null;
@@ -57,57 +109,14 @@ public class Z3 implements SATProver {
         vars = 0;
         clauses = 0;
     }
-
     @Override
     public int numberOfVariables() {
         return vars;
     }
-
     @Override
     public int numberOfClauses() {
         return clauses;
     }
-
-    private void writeln(String line) {
-        try {
-            smt2.writeBytes(line + "\n");
-        } catch (IOException e) {
-            close(smt2);
-            close(smt2resugared);
-            throw new SATAbortedException(e);
-        }
-    }
-
-    private void sugarln(String line) {
-        try {
-            int i,j = 0;
-            while(line.substring(j).contains("VAR_")) {
-                i = j+line.substring(j).indexOf("VAR_")+4;
-                int a = line.substring(i).indexOf(' ');
-                int b = line.substring(i).indexOf(')');
-                a = a<0 ? Integer.MAX_VALUE : a;
-                b = b<0 ? Integer.MAX_VALUE : b;
-                j = i+Math.min(a, b);
-                String l;
-                try { l = line.substring(i, j); }
-                catch (Exception e) { throw new RuntimeException("\n"+line+"\n"+line.substring(i)+"\n"+j); }
-                int lit = Integer.parseInt(l);
-                RecordFilter rf = (node, translated, literal, env) -> literal==lit;
-                TranslationLog log = translation.log();
-                Iterator<TranslationRecord> records = log.replay(rf);
-                if(records.hasNext()) {
-                    String var = records.next().translated().toString().replace(" ", "_");
-                    line = line.replace("VAR_"+lit, var);
-                }
-            }
-            smt2resugared.writeBytes(line + "\n");
-        } catch (Exception e) {
-            close(smt2);
-            close(smt2resugared);
-            throw new SATAbortedException(line, e);
-        }
-    }
-
     @Override
     public void addVariables(int numVars) {
         if (numVars < 0)
@@ -118,14 +127,15 @@ public class Z3 implements SATProver {
         }
         vars += numVars;
     }
-
     @Override
     public boolean addClause(int[] lits) {
         clauses++;
         // naive maxSET: softens top level soft clause
         //boolean naiveMax = lits.length == 1 && FOL2BoolCache.softcache.contains(Math.abs(lits[0]));
         // proper maxSET: softens each subformula of the top-level conjunction
-        boolean soft = lits.length == 2 && (FOL2BoolCache.softcache.contains(Math.abs(lits[0])) || FOL2BoolCache.softcache.contains(Math.abs(lits[1])));
+        boolean soft = (lits.length == 2 &&
+                (FOL2BoolCache.softcache.contains(Math.abs(lits[0]))
+                        || FOL2BoolCache.softcache.contains(Math.abs(lits[1]))));
         if (lits.length == 0) {
             writeln("(assert false)");
         } else {
@@ -140,7 +150,12 @@ public class Z3 implements SATProver {
         }
         return true;
     }
-
+    @Override
+    public boolean solve(Translation translation) throws SATAbortedException {
+        if(translation==null) throw new SATAbortedException("translation given is null");
+        this.translation = (Translation.Whole)translation;
+        return solve();
+    }
     @Override
     public boolean solve() throws SATAbortedException {
         if(this.translation==null) {
@@ -191,21 +206,22 @@ public class Z3 implements SATProver {
         }
         writeln("(pop)");
         // write out sugared smt2 file
-        try {
-            smt2.seek(0);
-            String line;
-            while((line = smt2.readLine()) != null) {
-                sugarln(line);
+        if(resugar) {
+            try {
+                smt2.seek(0);
+                String line;
+                while ((line = smt2.readLine()) != null) {
+                    sugarln(line);
+                }
+            } catch (Exception e) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                throw new SATAbortedException("Failed to write out sugared spec\n" + e.getMessage() + "\n" + sw.toString());
             }
-        } catch (Exception e) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            e.printStackTrace(pw);
-            throw new SATAbortedException("Failed to write out sugared spec\n"+e.getMessage()+"\n"+sw.toString());
         }
         return sat;
     }
-
     @Override
     public boolean valueOf(int variable) {
         if (!Boolean.TRUE.equals(sat))
@@ -214,18 +230,15 @@ public class Z3 implements SATProver {
             throw new IllegalArgumentException(variable + " !in [1.." + vars + "]");
         return solution[variable - 1];
     }
-
     @Override
     public void free() {
         close(smt2);
     }
-
     @Override
     public ResolutionTrace proof() {
         // TODO z3 proofs
         throw new UnsupportedOperationException("not implemented yet");
     }
-
     @Override
     public void reduce(ReductionStrategy strategy) {
         // TODO z3 proofs
