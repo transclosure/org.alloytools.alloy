@@ -44,8 +44,11 @@ org.alloytools.alloy.application/src/main/java/edu/mit/csail/sdg/alloy4compiler/
 .classpath
 .project
 
-# Gurobi
+# AMALGAM
 gurobi.log
 *.lp
 *.mps
+__pycache__/
+*.pyc
+*.class
 
