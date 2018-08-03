@@ -104,14 +104,11 @@ public final class BidirTrans {
                 attrs.add(factory.tuple("Class"+i, "Name"+j));
                 parents.add(factory.tuple("Class"+i, "Class"+j));
             }
+            for(int j=1; j<=i; j++) {
+                cols.add(factory.tuple("Table" + i, "Name" + j));
+            }
             pers.add(factory.tuple("Class"+i));
             pers.add(factory.tuple("Class"+(n+i)));
-        }
-        // FIXME semantically unclear in paper
-        for(int i=1; i<n; i++) {
-            cols.add(factory.tuple("Table" + i, "Name" + i));
-            cols.add(factory.tuple("Table" + (i + 1), "Name" + i));
-            cols.add(factory.tuple("Table" + (i + 1), "Name" + (i + 1)));
         }
         // Bounds
         final Bounds bounds = new Bounds(universe);
@@ -129,24 +126,30 @@ public final class BidirTrans {
 
     private final Formula constraints() {
         final List<Formula> formulas = new ArrayList<>();
-        final Variable c = Variable.unary("c");
-        final Variable n = Variable.unary("n");
-        final Variable t = Variable.unary("t");
         //
         formulas.add(per.in(thing));
         formulas.add(attr.in(thing.product(name)));
         formulas.add(namec.in(thing.product(name)));
         formulas.add(parent.in(thing.product(thing)));
         //
+        final Variable c = Variable.unary("c");
+        final Variable n = Variable.unary("n");
         formulas.add(c.join(namec).one().forAll(c.oneOf(thing)));
         formulas.add(namec.join(n).lone().forAll(n.oneOf(name)));
         formulas.add(c.join(parent).lone().forAll(c.oneOf(thing)));
         formulas.add(c.in(c.join(parent.closure())).not().forAll(c.oneOf(thing)));
         //
-        Formula l = c.join(namec).eq(t.join(namet));
-        Formula r = c.join(parent.reflexiveClosure()).join(attr).eq(t.join(col));
-        formulas.add(l.and(r).forSome(t.oneOf(table)).forAll(c.oneOf(per)));
-        formulas.add(l.and(r).forSome(c.oneOf(per)).forAll(t.oneOf(table)));
+        final Variable c1 = Variable.unary("c");
+        final Variable t1 = Variable.unary("t");
+        final Formula l1 = c1.join(namec).eq(t1.join(namet));
+        final Formula r1 = c1.join(parent.reflexiveClosure()).join(attr).eq(t1.join(col));
+        formulas.add(l1.and(r1).forSome(t1.oneOf(table)).forAll(c1.oneOf(per)));
+        // FIXME why unsat?
+        final Variable c2 = Variable.unary("c");
+        final Variable t2 = Variable.unary("t");
+        final Formula l2 = c2.join(namec).eq(t2.join(namet));
+        final Formula r2 = c2.join(parent.reflexiveClosure()).join(attr).eq(t2.join(col));
+        formulas.add(l2.and(r2).forSome(c2.oneOf(per)).forAll(t2.oneOf(table)));
         //
         return Formula.and(formulas);
     }
