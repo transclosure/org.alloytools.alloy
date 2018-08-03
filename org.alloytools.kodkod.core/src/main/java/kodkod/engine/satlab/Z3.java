@@ -58,19 +58,18 @@ public class Z3 implements SATProver {
                 // Primary Variable
                 if(lit < translation.numPrimaryVariables()) {
                     for(Relation relation : translation.bounds().relations()) {
-                        IntIterator primaries = translation.primaryVariables(relation).iterator();
-                        int k = 0;
-                        while(primaries.hasNext()) {
-                            int primary = primaries.next();
-                            if(lit==primary) {
-                                String var = relation.name()+"_"+k;
-                                line = line.replace("VAR_"+lit+" ", var+" ");
-                                line = line.replace("VAR_"+lit+")", var+")");
+                            IntIterator primaries = translation.primaryVariables(relation).iterator();
+                            int k = 0;
+                            while (primaries.hasNext()) {
+                                if (lit == primaries.next()) {
+                                    String var = relation.name() + "_" + k;
+                                    line = line.replace("VAR_" + lit + " ", var + " ");
+                                    line = line.replace("VAR_" + lit + ")", var + ")");
+                                }
+                                k++;
                             }
-                            k++;
                         }
                     }
-                }
                 /* Secondary Variable FIXME wrong and inefficient
                 else {
                     RecordFilter rf = (node, translated, literal, env) -> literal == lit;
