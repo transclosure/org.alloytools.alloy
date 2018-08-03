@@ -19,7 +19,8 @@ import kodkod.util.ints.IntSet;
  */
 public class Z3 implements SATProver {
 
-    private static final boolean    resugar = true;
+    private static final boolean    resugar =   false;
+    private static final boolean    solve =     true;
     private String                  inTemp;
     private RandomAccessFile        smt2, smt2resugared;
     private int                     vars, clauses;
@@ -153,17 +154,24 @@ public class Z3 implements SATProver {
     public boolean solve(Translation translation) throws SATAbortedException {
         if(translation==null) throw new SATAbortedException("translation given is null");
         this.translation = (Translation.Whole)translation;
-        return solve();
+        if(resugar) {
+            try {
+                smt2.seek(0);
+                String line;
+                while ((line = smt2.readLine()) != null) {
+                    sugarln(line);
+                }
+            } catch (Exception e) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                throw new SATAbortedException("Failed to write out sugared spec\n" + e.getMessage() + "\n" + sw.toString());
+            }
+        }
+        return solve ? solve() : false;
     }
     @Override
     public boolean solve() throws SATAbortedException {
-        if(this.translation==null) {
-            SATAbortedException e = new SATAbortedException("translation not given");
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            e.printStackTrace(pw);
-            throw new SATAbortedException(sw.toString());
-        }
         writeln("(push)");
         writeln("(check-sat)");
         writeln("(get-model)");
@@ -204,21 +212,6 @@ public class Z3 implements SATProver {
             throw new SATAbortedException(e);
         }
         writeln("(pop)");
-        // write out sugared smt2 file
-        if(resugar) {
-            try {
-                smt2.seek(0);
-                String line;
-                while ((line = smt2.readLine()) != null) {
-                    sugarln(line);
-                }
-            } catch (Exception e) {
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-                e.printStackTrace(pw);
-                throw new SATAbortedException("Failed to write out sugared spec\n" + e.getMessage() + "\n" + sw.toString());
-            }
-        }
         return sat;
     }
     @Override

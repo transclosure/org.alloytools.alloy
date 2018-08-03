@@ -36,12 +36,16 @@ import kodkod.instance.Universe;
 
 public final class DataRepair {
 
-    private static final int N = 2;
-
     public static void main(String[] args) {
         final DataRepair spec = new DataRepair();
         final Formula f = spec.constraints();
-        final Bounds b = spec.bounds(N);
+        final Bounds lowb = spec.bounds(20);
+        final Bounds highb = spec.bounds(100);
+        exec(f, lowb);
+        exec(f, highb);
+    }
+
+    private static void exec(Formula f, Bounds b) {
         final Solver solver = new Solver();
         solver.options().setSolver(SATFactory.Z3);
         solver.options().setSymmetryBreaking(0);
