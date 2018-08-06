@@ -1,4 +1,4 @@
-/*
+package examples;/*
  * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,46 +26,25 @@ import java.util.List;
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;
 import kodkod.ast.Variable;
-import kodkod.engine.Solution;
-import kodkod.engine.Solver;
-import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Bounds;
 import kodkod.instance.Tuple;
 import kodkod.instance.TupleFactory;
 import kodkod.instance.Universe;
 
-public final class DataRepair {
-
-    public static void main(String[] args) {
-        final DataRepair spec = new DataRepair();
-        final Formula f = spec.constraints();
-        final Bounds lowb = spec.bounds(20);
-        final Bounds highb = spec.bounds(100);
-        exec(f, lowb);
-        exec(f, highb);
-    }
-
-    private static void exec(Formula f, Bounds b) {
-        final Solver solver = new Solver();
-        solver.options().setSolver(SATFactory.Z3);
-        solver.options().setSymmetryBreaking(0);
-        solver.options().setSkolemDepth(-1);
-        solver.options().setLogTranslation(2);
-        final Solution s = solver.solve(f, b);
-        System.out.println(s);
-    }
+public final class DataRepair implements KodkodExample {
 
     private final Relation node, hue;
     private final Relation adj, color;
 
-    private DataRepair() {
+    public DataRepair() {
         node = Relation.unary("Node");
         hue = Relation.unary("Hue");
         adj = Relation.binary("adj");
         color = Relation.binary("color");
     }
 
-    private final Bounds bounds(int n) {
+    @Override
+    public Bounds bounds(int n) {
         // Universe
         List<String> atoms = new ArrayList<>();
         for(int i=1; i<=n; i++) {
@@ -96,7 +75,8 @@ public final class DataRepair {
         return bounds;
     }
 
-    private final Formula constraints() {
+    @Override
+    public Formula formula() {
         final List<Formula> formulas = new ArrayList<>();
         final Variable n = Variable.unary("n");
         final Variable m = Variable.unary("m");

@@ -51,4 +51,4 @@ gurobi.log
 __pycache__/
 *.pyc
 *.class
-
+out/*
