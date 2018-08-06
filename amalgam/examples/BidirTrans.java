@@ -26,13 +26,12 @@ import kodkod.ast.Variable;
 import kodkod.engine.Solution;
 import kodkod.engine.Solver;
 import kodkod.engine.satlab.SATFactory;
-import kodkod.instance.Bounds;
-import kodkod.instance.Tuple;
-import kodkod.instance.TupleFactory;
-import kodkod.instance.Universe;
+import kodkod.instance.*;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class BidirTrans implements KodkodExample {
 
@@ -128,7 +127,6 @@ public class BidirTrans implements KodkodExample {
         final Formula l1 = c1.join(namec).eq(t1.join(namet));
         final Formula r1 = c1.join(parent.reflexiveClosure()).join(attr).eq(t1.join(col));
         formulas.add(l1.and(r1).forSome(t1.oneOf(table)).forAll(c1.oneOf(per)));
-        // FIXME why unsat?
         final Variable c2 = Variable.unary("c");
         final Variable t2 = Variable.unary("t");
         final Formula l2 = c2.join(namec).eq(t2.join(namet));
@@ -136,5 +134,37 @@ public class BidirTrans implements KodkodExample {
         formulas.add(l2.and(r2).forSome(c2.oneOf(per)).forAll(t2.oneOf(table)));
         //
         return Formula.and(formulas);
+    }
+
+    @Override
+    public Map<Relation,TupleSet> targets(Bounds bounds) {
+        Map<Relation,TupleSet> targets = new LinkedHashMap<>();
+        List<Tuple> things = new ArrayList<>();
+        List<Tuple> names = new ArrayList<>();
+        List<Tuple> namecs = new ArrayList<>();
+        List<Tuple> attrs = new ArrayList<>();
+        List<Tuple> pers = new ArrayList<>();
+        List<Tuple> parents = new ArrayList<>();
+        int n = bounds.upperBound(table).size();
+        for(int i=1; i<=2*n; i++) {
+            things.add(bounds.universe().factory().tuple("Class"+i));
+            names.add(bounds.universe().factory().tuple("Name"+i));
+            namecs.add(bounds.universe().factory().tuple("Class"+i, "Name"+i));
+            attrs.add(bounds.universe().factory().tuple("Class"+i, "Name"+i));
+        }
+        for(int i=1; i<=n; i++) {
+            pers.add(bounds.universe().factory().tuple("Class"+i));
+        }
+        for(int i=1; i<2*n; i++) {
+            // FIXME paper typo or wrong bound?
+            parents.add(bounds.universe().factory().tuple("Class"+(i+1), "Name"+i));
+        }
+        targets.put(bounds.findRelByName("Class"), bounds.universe().factory().setOf(things));
+        targets.put(bounds.findRelByName("Name"), bounds.universe().factory().setOf(names));
+        targets.put(bounds.findRelByName("namec"), bounds.universe().factory().setOf(namecs));
+        targets.put(bounds.findRelByName("attributes"), bounds.universe().factory().setOf(attrs));
+        targets.put(bounds.findRelByName("persistent"), bounds.universe().factory().setOf(pers));
+        targets.put(bounds.findRelByName("parent"), bounds.universe().factory().setOf(parents));
+        return targets;
     }
 }

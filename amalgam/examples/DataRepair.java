@@ -21,15 +21,14 @@ package examples;/*
  */
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;
 import kodkod.ast.Variable;
-import kodkod.instance.Bounds;
-import kodkod.instance.Tuple;
-import kodkod.instance.TupleFactory;
-import kodkod.instance.Universe;
+import kodkod.instance.*;
 
 public final class DataRepair implements KodkodExample {
 
@@ -67,7 +66,7 @@ public final class DataRepair implements KodkodExample {
             }
         }
         // Bounds
-        final Bounds bounds = new Bounds(universe);
+        Bounds bounds = new Bounds(universe);
         bounds.boundExactly(node, factory.setOf(nodes));
         bounds.boundExactly(hue, factory.setOf(hues));
         bounds.boundExactly(adj, factory.setOf(adjs));
@@ -87,5 +86,17 @@ public final class DataRepair implements KodkodExample {
         Formula r = n.join(color).eq(m.join(color));
         formulas.add(l.iff(r).forAll(n.oneOf(node).and(m.oneOf(node))));
         return Formula.and(formulas);
+    }
+
+    @Override
+    public Map<Relation,TupleSet> targets(Bounds bounds) {
+        Map<Relation,TupleSet> targets = new LinkedHashMap<>();
+        List<Tuple> colors = new ArrayList<>();
+        int n = bounds.upperBound(node).size();
+        for(int i=1; i<=n; i++) {
+            colors.add(bounds.universe().factory().tuple("Node"+i, "Hue"+i));
+        }
+        targets.put(bounds.findRelByName("color"), bounds.universe().factory().setOf(colors));
+        return targets;
     }
 }

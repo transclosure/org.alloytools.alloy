@@ -76,7 +76,7 @@ import kodkod.util.ints.TreeSequence;
 public final class Bounds implements Cloneable {
 
     private final TupleFactory             factory;
-    private final Map<Relation,TupleSet>   lowers, uppers;
+    private final Map<Relation,TupleSet>   lowers, uppers, targets; // AMALGAM
     private final SparseSequence<TupleSet> intbounds;
     private final Set<Relation>            relations;
     private final Map<Object,Relation>     atom2rel;
@@ -84,10 +84,11 @@ public final class Bounds implements Cloneable {
     /**
      * Constructs a Bounds object with the given factory and mappings.
      */
-    private Bounds(TupleFactory factory, Map<Relation,TupleSet> lower, Map<Relation,TupleSet> upper, SparseSequence<TupleSet> intbounds) {
+    private Bounds(TupleFactory factory, Map<Relation,TupleSet> lower, Map<Relation,TupleSet> upper,  Map<Relation,TupleSet> target, SparseSequence<TupleSet> intbounds) {
         this.factory = factory;
         this.lowers = lower;
         this.uppers = upper;
+        this.targets = target;
         this.intbounds = intbounds;
         this.relations = relations(lowers, uppers);
         this.atom2rel = new HashMap<Object,Relation>();
@@ -106,6 +107,7 @@ public final class Bounds implements Cloneable {
         this.factory = universe.factory();
         this.lowers = new LinkedHashMap<Relation,TupleSet>();
         this.uppers = new LinkedHashMap<Relation,TupleSet>();
+        this.targets = new LinkedHashMap<Relation, TupleSet>();
         this.intbounds = new TreeSequence<TupleSet>();
         this.relations = relations(lowers, uppers);
         this.atom2rel = new HashMap<Object,Relation>();
@@ -379,6 +381,17 @@ public final class Bounds implements Cloneable {
     }
 
     /**
+     * AMALGAM
+     */
+    public void boundTargets(Map<Relation,TupleSet> targets) {
+        for(Relation r : targets.keySet()) {
+            checkBound(r.arity(), targets.get(r));
+            putBound(targets, r, targets.get(r).clone().unmodifiableView());
+        }
+
+    }
+
+    /**
      * Creates atom relations for all atoms present in this Bounds for which
      * corresponding atom relations don't already exist.
      */
@@ -425,7 +438,7 @@ public final class Bounds implements Cloneable {
      * @return an unmodifiable view of his Bounds object.
      */
     public Bounds unmodifiableView() {
-        return new Bounds(factory, unmodifiableMap(lowers), unmodifiableMap(uppers), unmodifiableSequence(intbounds));
+        return new Bounds(factory, unmodifiableMap(lowers), unmodifiableMap(uppers), unmodifiableMap(targets), unmodifiableSequence(intbounds));
     }
 
     /**
@@ -436,7 +449,7 @@ public final class Bounds implements Cloneable {
     @Override
     public Bounds clone() {
         try {
-            return new Bounds(factory, new LinkedHashMap<Relation,TupleSet>(lowers), new LinkedHashMap<Relation,TupleSet>(uppers), intbounds.clone());
+            return new Bounds(factory, new LinkedHashMap<Relation,TupleSet>(lowers), new LinkedHashMap<Relation,TupleSet>(uppers), new LinkedHashMap<Relation,TupleSet>(targets), intbounds.clone());
         } catch (CloneNotSupportedException cnse) {
             throw new InternalError(); // should not be reached
         }
@@ -495,5 +508,4 @@ public final class Bounds implements Cloneable {
                 return r;
         return null;
     }
-
 }

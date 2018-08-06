@@ -17,8 +17,14 @@ public class Evaluation {
 
         spec = new DataRepair();
         solver = SATFactory.Z3;
-        exec(spec.formula(), spec.bounds(20), solver);
-        //exec(spec.formula(), spec.bounds(100), solver);
+        Bounds lowb = spec.bounds(20);
+        Bounds highb = spec.bounds(100);
+        exec(spec.formula(), lowb, solver);
+        //exec(spec.formula(), highb, solver); timeout!
+        lowb.boundTargets(spec.targets(lowb));
+        highb.boundTargets(spec.targets(highb));
+        //exec(spec.formula(), lowb, solver);
+        //exec(spec.formula(), highb, solver);
 
         spec = new BidirTrans();
         solver = SATFactory.Z3;
