@@ -101,6 +101,7 @@ public final class BidirTrans {
             namets.add(factory.tuple("Table"+i, "Name"+(n+i)));
             for(int j=1; j<=n; j++) {
                 namecs.add(factory.tuple("Class"+i, "Name"+j));
+                namecs.add(factory.tuple("Class"+i, "Name"+(n+j)));
                 attrs.add(factory.tuple("Class"+i, "Name"+j));
                 parents.add(factory.tuple("Class"+i, "Class"+j));
             }
