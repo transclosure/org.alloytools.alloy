@@ -12,7 +12,9 @@ import kodkod.util.ints.IntSet;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 public class Toolbox {
 
@@ -30,22 +32,28 @@ public class Toolbox {
     }
 
     /** In-Bound Target -> CNF **/
-    private static int[] desugar(Translation translation, Relation relation, TupleSet target) {
-        int[] lits = new int[target.size()];
-        if(target!=null) {
-            Iterator<Tuple> tuples = target.iterator();
-            int i = 0;
-            while(tuples.hasNext()) {
-                Tuple tuple = tuples.next();
-                lits[i] = desugar(translation, relation, tuple);
-                i++;
+    public static List<List<Integer>> desugar(Translation translation, Relation relation, TupleSet target) {
+        List<List<Integer>> clauses = new ArrayList<>();
+        Bounds bounds = translation.bounds();
+        TupleSet upper = bounds.upperBound(relation);
+        Iterator<Tuple> alltuples = upper.iterator();
+        Iterator<Tuple> targettuples = target.iterator();
+        while(alltuples.hasNext()) {
+            Tuple tuple = alltuples.next();
+            boolean targeted = false;
+            while(!targeted && targettuples.hasNext()) {
+                Tuple targettuple = targettuples.next();
+                targeted = tuple.toString().equals(targettuple.toString());
             }
+            List<Integer> clause = new ArrayList<>();
+            int lit = desugar(translation, relation, tuple);
+            lit = targeted ? lit : -1*lit;
+            clause.add(lit);
+            clauses.add(clause);
         }
-        return lits;
+        return clauses;
     }
-
-    /** Kodkod -> CNF */
-    private static int desugar(Translation translation, Relation relation, Tuple tuple) {
+    public static int desugar(Translation translation, Relation relation, Tuple tuple) {
         Bounds bounds = translation.bounds();
         TupleSet upper = bounds.upperBound(relation);
         IntIterator pvars = translation.primaryVariables(relation).iterator();

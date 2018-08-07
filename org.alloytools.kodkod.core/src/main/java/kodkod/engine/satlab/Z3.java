@@ -2,6 +2,7 @@ package kodkod.engine.satlab;
 
 import java.io.*;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import kodkod.ast.Formula;
@@ -10,6 +11,8 @@ import kodkod.ast.Relation;
 import kodkod.ast.Variable;
 import kodkod.engine.bool.Int;
 import kodkod.engine.fol2sat.*;
+import kodkod.instance.Bounds;
+import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
 import kodkod.util.ints.IntIterator;
 import kodkod.util.ints.IntSet;
@@ -81,6 +84,19 @@ public class Z3 implements SATProver {
     public boolean solve(Translation translation) throws SATAbortedException {
         if(translation==null) throw new SATAbortedException("translation given is null");
         this.translation = (Translation.Whole)translation;
+        // assert targets
+        Bounds bounds = translation.bounds();
+        for(Relation relation : bounds.relations()) {
+            TupleSet target = bounds.targetBound(relation);
+            if(target!=null) {
+                List<List<Integer>> targetclauses = desugar(translation, relation, target);
+                for (List<Integer> targetclause : targetclauses) {
+                    int[] clause = new int[1];
+                    clause[0] = targetclause.get(0);
+                    writeln(desugar(clause, true), smt2);
+                }
+            }
+        }
         return solve();
     }
     @Override

@@ -386,7 +386,7 @@ public final class Bounds implements Cloneable {
     public void boundTargets(Map<Relation,TupleSet> targets) {
         for(Relation r : targets.keySet()) {
             checkBound(r.arity(), targets.get(r));
-            putBound(targets, r, targets.get(r).clone().unmodifiableView());
+            putBound(this.targets, r, targets.get(r).clone().unmodifiableView());
         }
     }
     public TupleSet targetBound(Relation r) { return this.targets.get(r); }
