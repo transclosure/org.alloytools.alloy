@@ -13,97 +13,32 @@ import kodkod.engine.fol2sat.*;
 import kodkod.instance.TupleSet;
 import kodkod.util.ints.IntIterator;
 import kodkod.util.ints.IntSet;
+import scripting.Toolbox;
+
+import static scripting.Toolbox.*;
 
 /**
  * AMALGAM smt2 external solver z3
  */
 public class Z3 implements SATProver {
 
-    private static final boolean    resugar =   false;
-    private static final boolean    solve =     true;
     private String                  inTemp;
-    private RandomAccessFile        smt2, smt2resugared;
+    private RandomAccessFile        smt2;
     private int                     vars, clauses;
     private Translation.Whole       translation;
     private boolean                 sat;
     private boolean[]               solution;
 
-    /** Helpers **/
-    private static void close(Closeable closeable) {
-        try {
-            if (closeable != null)
-                closeable.close();
-        } catch (IOException e) {} // ignore
-    }
-    private void writeln(String line) {
-        try {
-            smt2.writeBytes(line + "\n");
-        } catch (IOException e) {
-            close(smt2);
-            close(smt2resugared);
-            throw new SATAbortedException(e);
-        }
-    }
-    private void sugarln(String line) {
-        try {
-            int i,j = 0;
-            while(line.substring(j).contains("VAR_")) {
-                // Parse bitter variable
-                i = j+line.substring(j).indexOf("VAR_")+4;
-                int a = line.substring(i).indexOf(' ');
-                int b = line.substring(i).indexOf(')');
-                a = a<0 ? Integer.MAX_VALUE : a;
-                b = b<0 ? Integer.MAX_VALUE : b;
-                j = i+Math.min(a, b);
-                int lit = Integer.parseInt(line.substring(i, j));
-                // Primary Variable
-                if(lit < translation.numPrimaryVariables()) {
-                    for(Relation relation : translation.bounds().relations()) {
-                            IntIterator primaries = translation.primaryVariables(relation).iterator();
-                            int k = 0;
-                            while (primaries.hasNext()) {
-                                if (lit == primaries.next()) {
-                                    String var = relation.name() + "_" + k;
-                                    line = line.replace("VAR_" + lit + " ", var + " ");
-                                    line = line.replace("VAR_" + lit + ")", var + ")");
-                                }
-                                k++;
-                            }
-                        }
-                    }
-                /* Secondary Variable FIXME wrong and inefficient
-                else {
-                    RecordFilter rf = (node, translated, literal, env) -> literal == lit;
-                    Iterator<TranslationRecord> records = translation.log().replay(rf);
-                    if (records.hasNext()) {
-                        String var = records.next().translated().toString().replace(" ", "_");
-                        line = line.replace("VAR_" + lit, var);
-                    }
-                } */
-            }
-            smt2resugared.writeBytes(line + "\n");
-        } catch (Exception e) {
-            close(smt2);
-            close(smt2resugared);
-            throw new SATAbortedException(line, e);
-        }
-    }
-
-    /** Solver **/
     public Z3() {
         smt2 = null;
-        smt2resugared = null;
         try {
             inTemp = File.createTempFile("kodkod", String.valueOf("z3".hashCode())).getAbsolutePath();
             smt2 = new RandomAccessFile(inTemp, "rw");
             smt2.setLength(0);
-            smt2resugared = new RandomAccessFile(inTemp+".resugar", "rw");
-            smt2resugared.setLength(0);
         } catch (FileNotFoundException e) {
             throw new SATAbortedException(e);
         } catch (IOException e) {
             close(smt2);
-            close(smt2resugared);
             throw new SATAbortedException(e);
         }
         vars = 0;
@@ -122,8 +57,7 @@ public class Z3 implements SATProver {
         if (numVars < 0)
             throw new IllegalArgumentException("vars < 0: " + numVars);
         for (int i = vars + 1; i <= vars + numVars; i++) {
-            String v = "VAR_" + i;
-            writeln("(declare-const " + v + " Bool)");
+            writeln(desugar(i), smt2);
         }
         vars += numVars;
     }
@@ -137,16 +71,9 @@ public class Z3 implements SATProver {
                 (FOL2BoolCache.softcache.contains(Math.abs(lits[0]))
                         || FOL2BoolCache.softcache.contains(Math.abs(lits[1]))));
         if (lits.length == 0) {
-            writeln("(assert false)");
+            writeln("(assert false)", smt2);
         } else {
-            String clause = soft ? "(assert-soft (or" : "(assert (or";
-            for (int lit : lits) {
-                int i = Math.abs(lit);
-                String l = lit > 0 ? "VAR_" + i : "(not VAR_" + i + ")";
-                clause += " " + l;
-            }
-            clause += "))";
-            writeln(clause);
+            writeln(desugar(lits, soft), smt2);
         }
         return true;
     }
@@ -154,27 +81,13 @@ public class Z3 implements SATProver {
     public boolean solve(Translation translation) throws SATAbortedException {
         if(translation==null) throw new SATAbortedException("translation given is null");
         this.translation = (Translation.Whole)translation;
-        if(resugar) {
-            try {
-                smt2.seek(0);
-                String line;
-                while ((line = smt2.readLine()) != null) {
-                    sugarln(line);
-                }
-            } catch (Exception e) {
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-                e.printStackTrace(pw);
-                throw new SATAbortedException("Failed to write out sugared spec\n" + e.getMessage() + "\n" + sw.toString());
-            }
-        }
-        return solve ? solve() : false;
+        return solve();
     }
     @Override
     public boolean solve() throws SATAbortedException {
-        writeln("(push)");
-        writeln("(check-sat)");
-        writeln("(get-model)");
+        writeln("(push)", smt2);
+        writeln("(check-sat)", smt2);
+        writeln("(get-model)", smt2);
         try {
             // run z3 on the smt2 file
             Process p = null;
@@ -211,7 +124,7 @@ public class Z3 implements SATProver {
         } catch (IOException e) {
             throw new SATAbortedException(e);
         }
-        writeln("(pop)");
+        writeln("(pop)", smt2);
         return sat;
     }
     @Override

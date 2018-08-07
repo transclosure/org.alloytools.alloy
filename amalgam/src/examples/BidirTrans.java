@@ -155,9 +155,12 @@ public class BidirTrans implements KodkodExample {
         for(int i=1; i<=n; i++) {
             pers.add(bounds.universe().factory().tuple("Class"+i));
         }
-        for(int i=1; i<2*n; i++) {
-            // FIXME paper typo or wrong bound?
-            parents.add(bounds.universe().factory().tuple("Class"+(i+1), "Name"+i));
+        for(int i=1; i<=2*n; i++) {
+            for(int j=1; j<=2*n; j++) {
+                if (i!=j) {
+                    parents.add(bounds.universe().factory().tuple("Class" + i, "Class" + j));
+                }
+            }
         }
         targets.put(bounds.findRelByName("Class"), bounds.universe().factory().setOf(things));
         targets.put(bounds.findRelByName("Name"), bounds.universe().factory().setOf(names));

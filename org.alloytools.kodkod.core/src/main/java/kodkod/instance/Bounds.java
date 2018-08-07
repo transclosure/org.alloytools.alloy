@@ -381,15 +381,15 @@ public final class Bounds implements Cloneable {
     }
 
     /**
-     * AMALGAM
+     * TODO AMALGAM
      */
     public void boundTargets(Map<Relation,TupleSet> targets) {
         for(Relation r : targets.keySet()) {
             checkBound(r.arity(), targets.get(r));
             putBound(targets, r, targets.get(r).clone().unmodifiableView());
         }
-
     }
+    public TupleSet targetBound(Relation r) { return this.targets.get(r); }
 
     /**
      * Creates atom relations for all atoms present in this Bounds for which
