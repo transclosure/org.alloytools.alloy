@@ -5,6 +5,7 @@ import kodkod.engine.fol2sat.Translation;
 import kodkod.engine.satlab.SATAbortedException;
 import kodkod.instance.Bounds;
 import kodkod.instance.Tuple;
+import kodkod.instance.TupleFactory;
 import kodkod.instance.TupleSet;
 import kodkod.util.ints.IntIterator;
 import kodkod.util.ints.IntSet;
@@ -32,39 +33,18 @@ public class Toolbox {
     }
 
     /** In-Bound Target -> CNF **/
-    public static List<List<Integer>> desugar(Translation translation, Relation relation, TupleSet target) {
+    public static List<List<Integer>> desugar(Bounds bounds, Relation relation, TupleSet target) {
         List<List<Integer>> clauses = new ArrayList<>();
-        Bounds bounds = translation.bounds();
-        TupleSet upper = bounds.upperBound(relation);
-        Iterator<Tuple> alltuples = upper.iterator();
-        Iterator<Tuple> targettuples = target.iterator();
+        IntIterator alltuples = bounds.upperBound(relation).indexView().iterator();
         while(alltuples.hasNext()) {
-            Tuple tuple = alltuples.next();
-            boolean targeted = false;
-            while(!targeted && targettuples.hasNext()) {
-                Tuple targettuple = targettuples.next();
-                targeted = tuple.toString().equals(targettuple.toString());
-            }
+            int lit = alltuples.next();
+            Tuple tuple = bounds.universe().factory().tuple(relation.arity(), lit);
+            lit = target.contains(tuple) ? lit : -1*lit;
             List<Integer> clause = new ArrayList<>();
-            int lit = desugar(translation, relation, tuple);
-            lit = targeted ? lit : -1*lit;
             clause.add(lit);
             clauses.add(clause);
         }
         return clauses;
-    }
-    public static int desugar(Translation translation, Relation relation, Tuple tuple) {
-        Bounds bounds = translation.bounds();
-        TupleSet upper = bounds.upperBound(relation);
-        IntIterator pvars = translation.primaryVariables(relation).iterator();
-        Iterator<Tuple> tuples = upper.iterator();
-        while(pvars.hasNext()) {
-            int pvar = pvars.next();
-            if(tuple.toString().equals(tuples.next().toString())) {
-                return pvar;
-            }
-        }
-        throw new RuntimeException("why");
     }
 
     /** CNF -> SMT2 **/
@@ -73,13 +53,21 @@ public class Toolbox {
         return "(declare-const " + v + " Bool)";
     }
     public static String desugar(int[] lits, boolean soft) {
-        String clause = soft ? "(assert-soft (or" : "(assert (or";
-        for (int lit : lits) {
+        String clause = soft ? "(assert-soft " : "(assert ";
+        if(lits.length==1) {
+            int lit = lits[0];
             int i = Math.abs(lit);
-            String l = lit > 0 ? "VAR_" + i : "(not VAR_" + i + ")";
-            clause += " " + l;
+            String l = lits[0] > 0 ? "VAR_" + i : "(not VAR_" + i + ")";
+            clause += l + ")";
+        } else {
+            clause += "(or";
+            for (int lit : lits) {
+                int i = Math.abs(lit);
+                String l = lit > 0 ? "VAR_" + i : "(not VAR_" + i + ")";
+                clause += " " + l;
+            }
+            clause += "))";
         }
-        clause += "))";
         return clause;
     }
 }

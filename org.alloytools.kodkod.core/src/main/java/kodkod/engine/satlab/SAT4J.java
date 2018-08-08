@@ -133,6 +133,11 @@ final class SAT4J implements SATSolver {
         }
     }
 
+    @Override
+    public void sideEffects(Translation translation) throws SATAbortedException {
+
+    }
+
     /**
      * {@inheritDoc}
      *

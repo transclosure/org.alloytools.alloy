@@ -244,6 +244,11 @@ public abstract class HOLTranslationOld extends HOLTranslation {
             }
 
             @Override
+            public void sideEffects(Translation translation) throws SATAbortedException {
+
+            }
+
+            @Override
             public boolean solve(Translation translation) throws SATAbortedException {
                 return solve();
             }

@@ -276,6 +276,11 @@ final class ExternalSolver implements SATSolver {
         return sat;
     }
 
+    @Override
+    public void sideEffects(Translation translation) throws SATAbortedException {
+
+    }
+
     /**
      * Returns a runnable that drains the specified input stream.
      *

@@ -135,12 +135,12 @@ public final class Solver implements KodkodSolver {
 
         try {
             final Translation.Whole translation = Translator.translate(formula, bounds, options);
+            final SATSolver cnf = translation.cnf();
+            cnf.sideEffects(translation); // AMALGAM
             final long endTransl = System.currentTimeMillis();
 
             if (translation.trivial())
                 return trivial(translation, endTransl - startTransl);
-
-            final SATSolver cnf = translation.cnf();
 
             options.reporter().solvingCNF(translation.numPrimaryVariables(), cnf.numberOfVariables(), cnf.numberOfClauses());
             final long startSolve = System.currentTimeMillis();

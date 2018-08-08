@@ -151,6 +151,11 @@ public class Gurobi implements SATProver {
     }
 
     @Override
+    public void sideEffects(Translation translation) throws SATAbortedException {
+
+    }
+
+    @Override
     public boolean valueOf(int variable) {
         if (!Boolean.TRUE.equals(sat))
             throw new IllegalStateException();

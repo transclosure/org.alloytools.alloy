@@ -9,6 +9,10 @@ import kodkod.engine.Solver;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Bounds;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+
 public class Evaluation {
 
     public static void main(String[] args) {
@@ -17,38 +21,45 @@ public class Evaluation {
         Bounds lowb;
         Bounds highb;
 
-        // FIXME cache warming
-
         spec = new DataRepair();
         solver = SATFactory.Z3;
         lowb = spec.bounds(20);
         highb = spec.bounds(100);
-        System.out.println(time(spec.formula(), lowb, solver, 1));
-        //System.out.println(time(spec.formula(), highb, solver, 1)); timeout!
+        time("datarepair 20 z3", spec.formula(), lowb, solver, 3);
+        //time("datarepair 100 z3", spec.formula(), highb, solver, 1);
         lowb.boundTargets(spec.targets(lowb));
         highb.boundTargets(spec.targets(highb));
-        System.out.println(time(spec.formula(), lowb, solver, 1));
-        //System.out.println(time(spec.formula(), highb, solver, 1)); timeout!
+        time("datarepair 20 z3+target", spec.formula(), lowb, solver, 3);
+        //time("datarepair 100 z3+target", spec.formula(), highb, solver, 1);
 
         spec = new BidirTrans();
         solver = SATFactory.Z3;
         lowb = spec.bounds(8);
         highb = spec.bounds(20);
-        System.out.println(time(spec.formula(), lowb, solver, 1));
-        System.out.println(time(spec.formula(), highb, solver, 1));
+        time("bidirtrans 8 z3", spec.formula(), lowb, solver, 3);
+        time("bidirtrans 20 z3", spec.formula(), highb, solver, 3);
         lowb.boundTargets(spec.targets(lowb));
         highb.boundTargets(spec.targets(highb));
-        System.out.println(time(spec.formula(), lowb, solver, 1));
-        //System.out.println(time(spec.formula(), highb, solver, 1)); timeout!
+        time("bidirtrans 8 z3+target", spec.formula(), lowb, solver, 3);
+        //time("bidirtrans 20 z3+target", spec.formula(), highb, solver, 1);
     }
 
-    private static double time(Formula f, Bounds b, SATFactory s, int outof) {
-        double total = 0;
+    private static void time(String name, Formula f, Bounds b, SATFactory s, int outof) {
+        System.out.println(name);
+        System.out.println("--------------------");
+        double transtotal = 0;
+        double solvetotal = 0;
         for(int i=0; i<outof; i++) {
             Solution sol = exec(f, b, s);
-            total += sol.stats().solvingTime();
+            long trans = sol.stats().translationTime();
+            long solve = sol.stats().solvingTime();
+            System.out.println(trans + "\t"+ solve);
+            transtotal += trans;
+            solvetotal += solve;
         }
-        return total / outof;
+        System.out.println("--------------------");
+        System.out.println(transtotal / outof + "\t"+ solvetotal / outof);
+        System.out.println("");
     }
     private static Solution exec(Formula f, Bounds b, SATFactory s) {
         final Solver solver = new Solver();

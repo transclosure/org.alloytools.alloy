@@ -90,7 +90,8 @@ public interface SATSolver {
      *             terminate normally.
      */
     public abstract boolean solve() throws SATAbortedException;
-    // AMALGAM expose translation to solver
+    // AMALGAM expose translation to solver if needed for sugar, give a chance for extra work
+    void sideEffects(Translation translation) throws SATAbortedException;
     boolean solve(Translation translation) throws SATAbortedException;
 
     /**

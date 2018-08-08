@@ -272,6 +272,10 @@ abstract class NativeSolver implements SATSolver {
     public boolean solve(Translation translation) throws SATAbortedException {
         return solve();
     }
+    @Override
+    public void sideEffects(Translation translation) throws SATAbortedException {
+
+    }
 
     /**
      * Returns the assignment for the given literal by the specified native peer
