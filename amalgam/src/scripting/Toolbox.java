@@ -52,13 +52,13 @@ public class Toolbox {
         String v = "VAR_" + i;
         return "(declare-const " + v + " Bool)";
     }
-    public static String desugar(int[] lits, boolean soft) {
+    public static String desugar(int[] lits, boolean soft, String id) {
         String clause = soft ? "(assert-soft " : "(assert ";
         if(lits.length==1) {
             int lit = lits[0];
             int i = Math.abs(lit);
             String l = lits[0] > 0 ? "VAR_" + i : "(not VAR_" + i + ")";
-            clause += l + ")";
+            clause += soft ? l+" :id "+id+" )" : l+")";
         } else {
             clause += "(or";
             for (int lit : lits) {

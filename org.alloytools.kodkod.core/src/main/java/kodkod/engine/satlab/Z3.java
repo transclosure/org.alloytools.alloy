@@ -32,6 +32,7 @@ public class Z3 implements SATProver {
     private boolean[]               solution;
 
     private void assertTargets(Bounds bounds) {
+        int t = 1;
         for(Relation relation : bounds.relations()) {
             TupleSet target = bounds.targetBound(relation);
             if(target!=null) {
@@ -39,7 +40,8 @@ public class Z3 implements SATProver {
                 for (List<Integer> targetclause : targetclauses) {
                     int[] clause = new int[1];
                     clause[0] = targetclause.get(0);
-                    writeln(desugar(clause, true), smt2);
+                    writeln(desugar(clause, true, "t"+t), smt2);
+                    t++;
                 }
             }
         }
@@ -89,7 +91,7 @@ public class Z3 implements SATProver {
         if (lits.length == 0) {
             writeln("(assert false)", smt2);
         } else {
-            writeln(desugar(lits, soft), smt2);
+            writeln(desugar(lits, soft, ""), smt2);
         }
         return true;
     }
@@ -106,6 +108,7 @@ public class Z3 implements SATProver {
         writeln("(push)", smt2);
         writeln("(check-sat)", smt2);
         writeln("(get-model)", smt2);
+        writeln("(set-option :opt.priority pareto)", smt2);
         try {
             // run z3 on the smt2 file
             Process p = null;

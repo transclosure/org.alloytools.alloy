@@ -1,8 +1,8 @@
 SPEC				SOLVER				BOUND		SOLVING TIME (ms)
 
 data-repair			pmaxsat+target		20              ~50
-data-repair			z3					20              333
-data-repair			z3+target		    20             1056
+data-repair			z3					20              345
+data-repair			z3+target		    20             1785
 data-repair			z3+powerset			20
 data-repair			gurobi				20
 
@@ -13,13 +13,13 @@ data-repair			z3+powerset			100
 data-repair			gurobi				100
 
 bidir-trans			pmaxsat+target		8            ~1,000
-bidir-trans			z3					8               124
-bidir-trans			z3+target			8              2819
+bidir-trans			z3					8               153
+bidir-trans			z3+target			8               364
 bidir-trans			z3+powerset			8
 bidir-trans 		gurobi				8
 
 bidir-trans			pmaxsat+target		20         ~100,000
-bidir-trans			z3					20             3761
+bidir-trans			z3					20             3641
 bidir-trans			z3+target			20          timeout
 bidir-trans			z3+powerset			20
 bidir-trans		    gurobi				20
