@@ -1,17 +1,13 @@
-package scripting;
+package amalgam.scripting;
 
-import examples.BidirTrans;
-import examples.DataRepair;
-import examples.KodkodExample;
+import amalgam.examples.BidirTrans;
+import amalgam.examples.DataRepair;
+import amalgam.examples.KodkodExample;
 import kodkod.ast.Formula;
 import kodkod.engine.Solution;
 import kodkod.engine.Solver;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Bounds;
-
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 
 public class Evaluation {
 

@@ -1,4 +1,4 @@
-package examples;
+package amalgam.examples;
 
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;

@@ -1,4 +1,4 @@
-package scripting;
+package amalgam.scripting;
 
 import kodkod.ast.Relation;
 import kodkod.engine.fol2sat.Translation;

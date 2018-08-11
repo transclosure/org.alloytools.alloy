@@ -1,24 +1,14 @@
 package kodkod.engine.satlab;
 
 import java.io.*;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
-import kodkod.ast.Formula;
-import kodkod.ast.Node;
 import kodkod.ast.Relation;
-import kodkod.ast.Variable;
-import kodkod.engine.bool.Int;
 import kodkod.engine.fol2sat.*;
 import kodkod.instance.Bounds;
-import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
-import kodkod.util.ints.IntIterator;
-import kodkod.util.ints.IntSet;
-import scripting.Toolbox;
 
-import static scripting.Toolbox.*;
+import static amalgam.scripting.Toolbox.*;
 
 /**
  * AMALGAM smt2 external solver z3

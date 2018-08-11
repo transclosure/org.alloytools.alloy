@@ -175,6 +175,11 @@ final class WriteCNF implements SATSolver {
         throw new WriteCNFCompleted();
     }
 
+    @Override
+    public void sideEffects(Translation translation) throws SATAbortedException {
+
+    }
+
     /** {@inheritDoc} */
     @Override
     public boolean valueOf(int variable) {

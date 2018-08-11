@@ -1,4 +1,4 @@
-module examples/toys/genealogy
+module amalgam.examples/toys/genealogy
 
 /*
  * Toy model of genealogical relationships

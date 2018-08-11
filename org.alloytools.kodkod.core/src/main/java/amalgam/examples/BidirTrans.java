@@ -1,4 +1,4 @@
-package examples;/*
+package amalgam.examples;/*
  * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,9 +23,6 @@ package examples;/*
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;
 import kodkod.ast.Variable;
-import kodkod.engine.Solution;
-import kodkod.engine.Solver;
-import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.*;
 
 import java.util.ArrayList;

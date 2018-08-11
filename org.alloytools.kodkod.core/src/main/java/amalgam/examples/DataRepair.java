@@ -1,4 +1,4 @@
-package examples;/*
+package amalgam.examples;/*
  * Kodkod -- Copyright (c) 2005-2008, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
