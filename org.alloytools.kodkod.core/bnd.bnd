@@ -24,6 +24,7 @@ Export-Package: \
 
 -buildpath: \
 	org.sat4j.core,\
+	lib/com.microsoft.z3.jar;version=file,\
 	org.alloytools.kodkod.nativesat.util;version=latest,\
 	org.alloytools.kodkod.nativesat.amd64-linux;version=latest,\
 	org.alloytools.kodkod.nativesat.x86-linux;version=latest,\
