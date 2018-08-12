@@ -1,36 +1,75 @@
 package kodkod.engine.satlab;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 
 import kodkod.ast.Relation;
 import kodkod.engine.fol2sat.*;
 import kodkod.instance.Bounds;
+import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
 
-import static amalgam.scripting.Toolbox.*;
+import com.microsoft.z3.*;
+import kodkod.util.ints.IntIterator;
 
 /**
  * AMALGAM smt2 external solver z3
  */
 public class Z3 implements SATProver {
 
-    private String                  inTemp;
-    private RandomAccessFile        smt2;
-    private int                     vars, clauses;
+    private List<BoolExpr>          vars;
+    private int                     clauses;
+    private Context                 context;
+    private Solver                  solver;
     private boolean                 sat;
     private boolean[]               solution;
 
+    /** CNF -> Z3 **/
+    private BoolExpr encode(int lit) {
+        int i = Math.abs(lit);
+        String var = "VAR_" + i;
+        return context.mkBoolConst(var);
+    }
+    private BoolExpr encode(int[] lits, boolean soft, String id) {
+        if(lits.length==1) {
+            int i = Math.abs(lits[0]);
+            return lits[0]>0 ? vars.get(i) : context.mkNot(vars.get(i));
+        } else {
+            BoolExpr[] clause = new BoolExpr[lits.length];
+            for(int l=0; l<lits.length; l++) {
+                int lit = lits[l];
+                int i = Math.abs(lit);
+                clause[l] = lit>0 ? vars.get(i) : context.mkNot(vars.get(i));
+            }
+            return context.mkOr(clause);
+        }
+    }
+
+    /** In-Bound Target -> CNF **/
+    public static List<List<Integer>> encode(Bounds bounds, Relation relation, TupleSet target) {
+        List<List<Integer>> clauses = new ArrayList<>();
+        IntIterator alltuples = bounds.upperBound(relation).indexView().iterator();
+        while(alltuples.hasNext()) {
+            int lit = alltuples.next();
+            Tuple tuple = bounds.universe().factory().tuple(relation.arity(), lit);
+            lit = target.contains(tuple) ? lit : -1*lit;
+            List<Integer> clause = new ArrayList<>();
+            clause.add(lit);
+            clauses.add(clause);
+        }
+        return clauses;
+    }
     private void assertTargets(Bounds bounds) {
         int t = 1;
         for(Relation relation : bounds.relations()) {
             TupleSet target = bounds.targetBound(relation);
             if(target!=null) {
-                List<List<Integer>> targetclauses = desugar(bounds, relation, target);
+                List<List<Integer>> targetclauses = encode(bounds, relation, target);
                 for (List<Integer> targetclause : targetclauses) {
                     int[] clause = new int[1];
                     clause[0] = targetclause.get(0);
-                    writeln(desugar(clause, true, "t"+t), smt2);
+                    //TODO solver.add(encode(clause, true, "target"+t));
                     t++;
                 }
             }
@@ -38,23 +77,20 @@ public class Z3 implements SATProver {
     }
 
     public Z3() {
-        smt2 = null;
         try {
-            inTemp = File.createTempFile("kodkod", String.valueOf("z3".hashCode())).getAbsolutePath();
-            smt2 = new RandomAccessFile(inTemp, "rw");
-            smt2.setLength(0);
-        } catch (FileNotFoundException e) {
-            throw new SATAbortedException(e);
-        } catch (IOException e) {
-            close(smt2);
-            throw new SATAbortedException(e);
+            vars = new ArrayList<>();
+            clauses = 0;
+            context = new Context();
+            solver = context.mkSolver();
+        } catch (UnsatisfiedLinkError e) {
+            System.err.println("failed to launch z3! build z3 for java and make sure \nlibz3java.so and libz3.so are in your java.library.path");
+            System.err.println("java.library.path:="+System.getProperty("java.library.path"));
+            throw e;
         }
-        vars = 0;
-        clauses = 0;
     }
     @Override
     public int numberOfVariables() {
-        return vars;
+        return vars.size();
     }
     @Override
     public int numberOfClauses() {
@@ -64,10 +100,11 @@ public class Z3 implements SATProver {
     public void addVariables(int numVars) {
         if (numVars < 0)
             throw new IllegalArgumentException("vars < 0: " + numVars);
-        for (int i = vars + 1; i <= vars + numVars; i++) {
-            writeln(desugar(i), smt2);
+        int n = vars.size();
+        for (int i = n + 1; i <= n + numVars; i++) {
+            BoolExpr var = encode(i);
+            vars.add(var);
         }
-        vars += numVars;
     }
     @Override
     public boolean addClause(int[] lits) {
@@ -79,9 +116,9 @@ public class Z3 implements SATProver {
                 (FOL2BoolCache.softcache.contains(Math.abs(lits[0]))
                         || FOL2BoolCache.softcache.contains(Math.abs(lits[1]))));
         if (lits.length == 0) {
-            writeln("(assert false)", smt2);
+            solver.add(context.mkFalse());
         } else {
-            writeln(desugar(lits, soft, ""), smt2);
+            solver.add(encode(lits, soft, ""));
         }
         return true;
     }
@@ -95,60 +132,30 @@ public class Z3 implements SATProver {
     }
     @Override
     public boolean solve() throws SATAbortedException {
-        writeln("(push)", smt2);
-        writeln("(check-sat)", smt2);
-        writeln("(get-model)", smt2);
-        writeln("(set-option :opt.priority pareto)", smt2);
-        try {
-            // run z3 on the smt2 file
-            Process p = null;
-            final String[] command = new String[3];
-            command[0] = "z3";
-            command[1] = "-smt2";
-            command[2] = inTemp;
-            p = Runtime.getRuntime().exec(command);
-            BufferedReader out = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            // parse the output into a sat/solution
-            String line;
-            while (!(line = out.readLine()).contains("sat")) {}
-            sat = line.equals("sat");
-            if (sat) {
-                solution = new boolean[vars];
-                int i = -1;
-                while ((line = out.readLine()) != null) {
-                    if (line.contains("(define-fun VAR_")) {
-                        i = Integer.parseInt(line.split("VAR_")[1].split(" ")[0]);
-                        assert 0 < i && i <= vars;
-                    } else if (line.contains("true")) {
-                        assert 0 < i && i <= vars;
-                        solution[i - 1] = true;
-                        i = -1;
-                    } else if (line.contains("false")) {
-                        assert 0 < i && i <= vars;
-                        solution[i - 1] = false;
-                        i = -1;
-                    }
-                }
-            } else {
-                solution = null;
+        //TODO writeln("(set-option :opt.priority pareto)", smt2);
+        sat = solver.check() == Status.SATISFIABLE ? true : false;
+        if (sat) {
+            Model model = solver.getModel();
+            solution = new boolean[vars.size()];
+            for(int i=0; i<vars.size(); i++) {
+                solution[i] = model.eval(vars.get(i), true).isTrue();
             }
-        } catch (IOException e) {
-            throw new SATAbortedException(e);
+        } else {
+            solution = null;
         }
-        writeln("(pop)", smt2);
         return sat;
     }
     @Override
     public boolean valueOf(int variable) {
         if (!Boolean.TRUE.equals(sat))
             throw new IllegalStateException();
-        if (variable < 1 || variable > vars)
+        if (variable < 1 || variable > vars.size())
             throw new IllegalArgumentException(variable + " !in [1.." + vars + "]");
         return solution[variable - 1];
     }
     @Override
     public void free() {
-        close(smt2);
+        context.close();
     }
     @Override
     public ResolutionTrace proof() {

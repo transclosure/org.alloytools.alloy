@@ -20,24 +20,25 @@ public class Evaluation {
         spec = new DataRepair();
         solver = SATFactory.Z3;
         lowb = spec.bounds(20);
-        highb = spec.bounds(100);
+        highb = spec.bounds(60);
+        time("CACHE WARM", spec.formula(), lowb, solver, 10);
         time("datarepair 20 z3", spec.formula(), lowb, solver, 3);
-        //time("datarepair 100 z3", spec.formula(), highb, solver, 1);
+        time("datarepair 60 z3", spec.formula(), highb, solver, 3);
         lowb.boundTargets(spec.targets(lowb));
         highb.boundTargets(spec.targets(highb));
-        time("datarepair 20 z3+target", spec.formula(), lowb, solver, 3);
-        //time("datarepair 100 z3+target", spec.formula(), highb, solver, 1);
+        //time("datarepair 20 z3+target", spec.formula(), lowb, solver, 3);
+        //time("datarepair 60 z3+target", spec.formula(), highb, solver, 3);
 
         spec = new BidirTrans();
         solver = SATFactory.Z3;
         lowb = spec.bounds(8);
-        highb = spec.bounds(20);
+        highb = spec.bounds(12);
         time("bidirtrans 8 z3", spec.formula(), lowb, solver, 3);
-        time("bidirtrans 20 z3", spec.formula(), highb, solver, 3);
+        time("bidirtrans 12 z3", spec.formula(), highb, solver, 3);
         lowb.boundTargets(spec.targets(lowb));
         highb.boundTargets(spec.targets(highb));
-        time("bidirtrans 8 z3+target", spec.formula(), lowb, solver, 3);
-        //time("bidirtrans 20 z3+target", spec.formula(), highb, solver, 1);
+        //time("bidirtrans 8 z3+target", spec.formula(), lowb, solver, 3);
+        //time("bidirtrans 12 z3+target", spec.formula(), highb, solver, 3);
     }
 
     private static void time(String name, Formula f, Bounds b, SATFactory s, int outof) {
@@ -47,9 +48,10 @@ public class Evaluation {
         double solvetotal = 0;
         for(int i=0; i<outof; i++) {
             Solution sol = exec(f, b, s);
+            String sat = sol.sat() ? "sat" : "unsat";
             long trans = sol.stats().translationTime();
             long solve = sol.stats().solvingTime();
-            System.out.println(trans + "\t"+ solve);
+            System.out.println(trans + "\t"+ solve + "\t" + sat);
             transtotal += trans;
             solvetotal += solve;
         }
