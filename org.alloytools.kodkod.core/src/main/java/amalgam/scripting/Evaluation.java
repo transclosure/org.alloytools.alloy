@@ -34,11 +34,11 @@ public class Evaluation {
         lowb = spec.bounds(8);
         highb = spec.bounds(12);
         time("bidirtrans 8 z3", spec.formula(), lowb, solver, 3);
-        //time("bidirtrans 12 z3", spec.formula(), highb, solver, 3);
+        time("bidirtrans 12 z3", spec.formula(), highb, solver, 3);
         lowb.boundTargets(spec.targets(lowb));
         highb.boundTargets(spec.targets(highb));
         time("bidirtrans 8 z3+target", spec.formula(), lowb, solver, 3);
-        //time("bidirtrans 12 z3+target", spec.formula(), highb, solver, 3);
+        time("bidirtrans 12 z3+target", spec.formula(), highb, solver, 3);
     }
 
     private static void time(String name, Formula f, Bounds b, SATFactory s, int outof) {

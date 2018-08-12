@@ -145,6 +145,9 @@ public class Z3 implements SATProver {
     }
     @Override
     public boolean solve() throws SATAbortedException {
+        Params p = context.mkParams();
+        p.add("opt.priority", "pareto");
+        solver.setParameters(p);
         sat = solver.Check() == Status.SATISFIABLE ? true : false;
         if (sat) {
             Model model = solver.getModel();
