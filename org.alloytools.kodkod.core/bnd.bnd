@@ -21,7 +21,8 @@ Export-Package: \
 	kodkod.util.collections,\
 	kodkod.util.ints,\
 	kodkod.util.nodes,\
-	com.microsoft.z3
+	com.microsoft.z3,\
+	com.microsoft.z3.enumerations
 
 -buildpath: \
 	org.sat4j.core,\

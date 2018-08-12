@@ -455,6 +455,8 @@ public final class SimpleGUI implements ComponentListener, Listener {
         System.setProperty("alloy.home", alloyHome());
         // AMALGAM copy files to temp directory
         Util.copy(false, true, System.getProperty("java.io.tmpdir"), "gurobiAPI.py");
+        Util.copy(false, true, platformBinary, "libz3.so");
+        Util.copy(false, true, platformBinary, "libz3java.so");
     }
 
     /** Called when this window is resized. */

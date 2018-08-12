@@ -96,9 +96,7 @@ public class Z3 implements SATProver {
             context = new Context();
             solver = context.mkOptimize();
         } catch (UnsatisfiedLinkError e) {
-            System.err.println("failed to launch z3! build z3 for java and make sure \nlibz3java.so and libz3.so are in your java.library.path");
-            System.err.println("java.library.path:="+System.getProperty("java.library.path"));
-            throw e;
+            throw new SATAbortedException("z3 libs missing from java.library.path:\n"+System.getProperty("java.library.path"), e);
         }
     }
     @Override
