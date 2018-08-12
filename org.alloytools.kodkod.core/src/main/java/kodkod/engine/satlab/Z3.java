@@ -21,7 +21,7 @@ public class Z3 implements SATProver {
     private List<BoolExpr>          vars;
     private int                     clauses;
     private Context                 context;
-    private Solver                  solver;
+    private Optimize                solver;
     private boolean                 sat;
     private boolean[]               solution;
 
@@ -31,23 +31,37 @@ public class Z3 implements SATProver {
         String var = "VAR_" + i;
         return context.mkBoolConst(var);
     }
-    private BoolExpr encode(int[] lits, boolean soft, String id) {
+    private void encode(int[] lits, boolean soft, String id) {
         if(lits.length==1) {
             int i = Math.abs(lits[0]);
-            return lits[0]>0 ? vars.get(i) : context.mkNot(vars.get(i));
-        } else {
-            BoolExpr[] clause = new BoolExpr[lits.length];
-            for(int l=0; l<lits.length; l++) {
-                int lit = lits[l];
-                int i = Math.abs(lit);
-                clause[l] = lit>0 ? vars.get(i) : context.mkNot(vars.get(i));
+            BoolExpr clause;
+            if(lits[0]>0) {
+                clause = vars.get(i);
+            } else {
+                clause = context.mkNot(vars.get(i));
             }
-            return context.mkOr(clause);
+            if(soft) {
+                solver.AssertSoft(clause, 1, id);
+            } else {
+                solver.Assert(clause);
+            }
+        } else {
+            if(soft) {
+                throw new RuntimeException("unsupported");
+            } else {
+                BoolExpr[] clause = new BoolExpr[lits.length];
+                for (int l = 0; l < lits.length; l++) {
+                    int lit = lits[l];
+                    int i = Math.abs(lit);
+                    clause[l] = lit > 0 ? vars.get(i) : context.mkNot(vars.get(i));
+                }
+                solver.Assert(context.mkOr(clause));
+            }
         }
     }
 
     /** In-Bound Target -> CNF **/
-    public static List<List<Integer>> encode(Bounds bounds, Relation relation, TupleSet target) {
+    private List<List<Integer>> encode(Bounds bounds, Relation relation, TupleSet target) {
         List<List<Integer>> clauses = new ArrayList<>();
         IntIterator alltuples = bounds.upperBound(relation).indexView().iterator();
         while(alltuples.hasNext()) {
@@ -68,8 +82,7 @@ public class Z3 implements SATProver {
                 List<List<Integer>> targetclauses = encode(bounds, relation, target);
                 for (List<Integer> targetclause : targetclauses) {
                     int[] clause = new int[1];
-                    clause[0] = targetclause.get(0);
-                    //TODO solver.add(encode(clause, true, "target"+t));
+                    encode(clause, true, "target"+t);
                     t++;
                 }
             }
@@ -81,7 +94,7 @@ public class Z3 implements SATProver {
             vars = new ArrayList<>();
             clauses = 0;
             context = new Context();
-            solver = context.mkSolver();
+            solver = context.mkOptimize();
         } catch (UnsatisfiedLinkError e) {
             System.err.println("failed to launch z3! build z3 for java and make sure \nlibz3java.so and libz3.so are in your java.library.path");
             System.err.println("java.library.path:="+System.getProperty("java.library.path"));
@@ -116,9 +129,9 @@ public class Z3 implements SATProver {
                 (FOL2BoolCache.softcache.contains(Math.abs(lits[0]))
                         || FOL2BoolCache.softcache.contains(Math.abs(lits[1]))));
         if (lits.length == 0) {
-            solver.add(context.mkFalse());
+            solver.Assert(context.mkFalse());
         } else {
-            solver.add(encode(lits, soft, ""));
+            encode(lits, soft, "");
         }
         return true;
     }
@@ -132,8 +145,7 @@ public class Z3 implements SATProver {
     }
     @Override
     public boolean solve() throws SATAbortedException {
-        //TODO writeln("(set-option :opt.priority pareto)", smt2);
-        sat = solver.check() == Status.SATISFIABLE ? true : false;
+        sat = solver.Check() == Status.SATISFIABLE ? true : false;
         if (sat) {
             Model model = solver.getModel();
             solution = new boolean[vars.size()];

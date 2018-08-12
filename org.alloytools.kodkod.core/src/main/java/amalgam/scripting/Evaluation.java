@@ -23,10 +23,10 @@ public class Evaluation {
         highb = spec.bounds(60);
         time("CACHE WARM", spec.formula(), lowb, solver, 10);
         time("datarepair 20 z3", spec.formula(), lowb, solver, 3);
-        time("datarepair 60 z3", spec.formula(), highb, solver, 3);
+        //time("datarepair 60 z3", spec.formula(), highb, solver, 3);
         lowb.boundTargets(spec.targets(lowb));
         highb.boundTargets(spec.targets(highb));
-        //time("datarepair 20 z3+target", spec.formula(), lowb, solver, 3);
+        time("datarepair 20 z3+target", spec.formula(), lowb, solver, 3);
         //time("datarepair 60 z3+target", spec.formula(), highb, solver, 3);
 
         spec = new BidirTrans();
@@ -34,10 +34,10 @@ public class Evaluation {
         lowb = spec.bounds(8);
         highb = spec.bounds(12);
         time("bidirtrans 8 z3", spec.formula(), lowb, solver, 3);
-        time("bidirtrans 12 z3", spec.formula(), highb, solver, 3);
+        //time("bidirtrans 12 z3", spec.formula(), highb, solver, 3);
         lowb.boundTargets(spec.targets(lowb));
         highb.boundTargets(spec.targets(highb));
-        //time("bidirtrans 8 z3+target", spec.formula(), lowb, solver, 3);
+        time("bidirtrans 8 z3+target", spec.formula(), lowb, solver, 3);
         //time("bidirtrans 12 z3+target", spec.formula(), highb, solver, 3);
     }
 
