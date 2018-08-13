@@ -43,7 +43,8 @@ import kodkod.util.nodes.AnnotatedNode;
 public final class FOL2BoolCache {
 
     private final Map<Node,Record>    cache;
-    // FIXME AMALGAM class should not be public / no singleton, need better FOL2Bool Translation Hook
+    // FIXME AMALGAM class should not be public / no singleton, need better FOL2Bool Translation Hook (Peter K)
+    private static final List<Set<Integer>> ways = new ArrayList<>();
     public static final Map<Set<Integer>, Integer> softcache = new LinkedHashMap<>();
 
     /**
@@ -65,6 +66,7 @@ public final class FOL2BoolCache {
         }
         // AMALGAM
         softcache.clear();
+        ways.clear();
     }
 
     /**
@@ -98,8 +100,14 @@ public final class FOL2BoolCache {
     }
 
     // AMALGAM
-    final void softcache(Set<Integer> softclause, Integer priority) {
-        softcache.put(softclause, priority);
+    final void softkey(Set<Integer> softclause) {
+        ways.add(softclause);
+    }
+    final void softvalue(Integer id) {
+        for(Set<Integer> way : ways) {
+            softcache.put(way, id);
+        }
+        ways.clear();
     }
 
     /**

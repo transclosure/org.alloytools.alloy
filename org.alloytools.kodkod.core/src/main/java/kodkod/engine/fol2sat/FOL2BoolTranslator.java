@@ -696,7 +696,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             wayclause.add(declConstraints.label());
             wayclause.add(formulaCircuit.label());
             wayclause.add(-1*finalCircuit.label());
-            cache.softcache(wayclause, 1);
+            cache.softkey(wayclause);
             return;
         }
 
@@ -777,8 +777,8 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             wayclause1.add(-1*finalCircuit.label());
             wayclause2.add(formulaCircuit.label());
             wayclause2.add(-1*finalCircuit.label());
-            cache.softcache(wayclause1, 1);
-            cache.softcache(wayclause2, 1);
+            cache.softkey(wayclause1);
+            cache.softkey(wayclause2);
             return;
         }
 
@@ -826,12 +826,14 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 final BooleanAccumulator softall = BooleanAccumulator.treeGate(Operator.AND);
                 softall(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, softall);
                 ret = interpreter.factory().accumulate(softall);
+                cache.softvalue(ret.label());
                 break;
             // AMALGAM max_some:= maxSET (soft AND) [decls /\ formula]
             case MAXSOME :
                 final BooleanAccumulator maxsome = BooleanAccumulator.treeGate(Operator.AND);
                 maxsome(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, maxsome);
                 ret = interpreter.factory().accumulate(maxsome);
+                cache.softvalue(ret.label());
                 break;
             default :
                 throw new IllegalArgumentException("Unknown quantifier: " + quantifier);

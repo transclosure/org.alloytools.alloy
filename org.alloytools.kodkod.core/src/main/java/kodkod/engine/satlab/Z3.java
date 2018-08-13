@@ -34,7 +34,7 @@ public class Z3 implements SATProver {
         return context.mkBoolConst(var);
     }
     private void encode(int[] lits, boolean soft, String id) {
-        // unit / target clauses
+        // hard unit / soft unit (target) clauses
         if(lits.length==1) {
             int i = Math.abs(lits[0]);
             BoolExpr clause;
@@ -97,6 +97,11 @@ public class Z3 implements SATProver {
         }
     }
 
+    /** SOFTALL/MAXSOME -> CNF **/
+    private void assertGoals() {
+        // FIXME just write out the whole softcache, remove original clauses from hardcache
+    }
+
     public Z3() {
         try {
             vars = new ArrayList<>();
@@ -132,27 +137,27 @@ public class Z3 implements SATProver {
         if (lits.length == 0) {
             solver.Assert(context.mkFalse());
         }
-        // maxsome
+        // FIXME maxsome
         else if (lits.length==2) {
             Set<Integer> possibleway = new LinkedHashSet<>();
             possibleway.add(lits[0]);
             possibleway.add(lits[1]);
             if(FOL2BoolCache.softcache.containsKey(possibleway)) {
-                int priority = FOL2BoolCache.softcache.get(possibleway);
-                encode(lits, true, "goal"+Math.abs(lits[1]));
+                int id = FOL2BoolCache.softcache.get(possibleway);
+                encode(lits, true, "goal"+id);
             } else {
                 encode(lits, false, "");
             }
         }
-        // softall
+        // FIXME softall
         else if (lits.length==3) {
             Set<Integer> possibleway = new LinkedHashSet<>();
             possibleway.add(lits[0]);
             possibleway.add(lits[1]);
             possibleway.add(lits[2]);
             if(FOL2BoolCache.softcache.containsKey(possibleway)) {
-                int priority = FOL2BoolCache.softcache.get(possibleway);
-                encode(lits, true, "goal"+Math.abs(lits[2]));
+                int id = FOL2BoolCache.softcache.get(possibleway);
+                encode(lits, true, "goal"+id);
             } else {
                 encode(lits, false, "");
             }
