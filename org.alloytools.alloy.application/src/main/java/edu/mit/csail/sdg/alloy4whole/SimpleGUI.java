@@ -457,6 +457,8 @@ public final class SimpleGUI implements ComponentListener, Listener {
         Util.copy(false, true, System.getProperty("java.io.tmpdir"), "gurobiAPI.py");
         Util.copy(false, true, platformBinary, "libz3.so");
         Util.copy(false, true, platformBinary, "libz3java.so");
+        Util.copy(false, true, platformBinary, "libz3.dylib");
+        Util.copy(false, true, platformBinary, "libz3java.dylib");
     }
 
     /** Called when this window is resized. */
