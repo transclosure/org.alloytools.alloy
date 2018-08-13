@@ -827,6 +827,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 softall(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, softall);
                 ret = interpreter.factory().accumulate(softall);
                 cache.softvalue(ret.label());
+                ret = BooleanConstant.TRUE; // dont hardcache
                 break;
             // AMALGAM max_some:= maxSET (soft AND) [decls /\ formula]
             case MAXSOME :
@@ -834,6 +835,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 maxsome(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, maxsome);
                 ret = interpreter.factory().accumulate(maxsome);
                 cache.softvalue(ret.label());
+                ret = BooleanConstant.TRUE; // dont hardcache
                 break;
             default :
                 throw new IllegalArgumentException("Unknown quantifier: " + quantifier);

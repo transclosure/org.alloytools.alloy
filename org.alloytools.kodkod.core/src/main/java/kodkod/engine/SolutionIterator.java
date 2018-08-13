@@ -85,6 +85,7 @@ public final class SolutionIterator implements Iterator<Solution> {
         final Translation.Whole transl = translation;
 
         final SATSolver cnf = transl.cnf();
+        cnf.sideEffects(transl);
         final int primaryVars = transl.numPrimaryVariables();
 
         transl.options().reporter().solvingCNF(primaryVars, cnf.numberOfVariables(), cnf.numberOfClauses());

@@ -62,16 +62,14 @@ import kodkod.instance.Instance;
  */
 public final class Solver implements KodkodSolver {
 
-    private final Options options;
+    private Options options;
 
     /**
      * Constructs a new Solver with the default options.
      *
      * @ensures this.options' = new Options()
      */
-    public Solver() {
-        this.options = new Options();
-    }
+    public Solver() { init(new Options()); }
 
     /**
      * Constructs a new Solver with the given options.
@@ -80,8 +78,16 @@ public final class Solver implements KodkodSolver {
      * @throws NullPointerException options = null
      */
     public Solver(Options options) {
-        if (options == null)
-            throw new NullPointerException();
+        if (options == null) throw new NullPointerException();
+        init(options);
+    }
+
+    private void init(Options options) {
+        // AMALGAM forced default options
+        // tests fail, build fails
+        //options.setLogTranslation(2);
+        //options.setSkolemDepth(-1);
+        //options.setSymmetryBreaking(0);
         this.options = options;
     }
 
@@ -292,6 +298,7 @@ public final class Solver implements KodkodSolver {
             }
         } else {
             final SATSolver cnf = translation.cnf();
+            cnf.sideEffects(translation); // AMALGAM
 
             translation.options().reporter().solvingCNF(translation.numPrimaryVariables(), cnf.numberOfVariables(), cnf.numberOfClauses());
             final long startSolve = System.currentTimeMillis();

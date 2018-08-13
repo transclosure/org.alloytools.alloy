@@ -1,10 +1,7 @@
 package kodkod.engine.satlab;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import kodkod.ast.Relation;
 import kodkod.engine.fol2sat.*;
@@ -20,6 +17,7 @@ import kodkod.util.ints.IntIterator;
  */
 public class Z3 implements SATProver {
 
+    private final static boolean    debug = false;
     private List<BoolExpr>          vars;
     private int                     clauses;
     private Context                 context;
@@ -64,6 +62,35 @@ public class Z3 implements SATProver {
             }
         }
     }
+    private void decode() {
+        if(debug) {
+            //throw new RuntimeException(FOL2BoolCache.softcache.keySet().toString()+"\n\n"+solver.toString());
+            RandomAccessFile spec = null;
+            try {
+                String inTemp = File.createTempFile("kodkod", String.valueOf("kodkod".hashCode())+".smt2").getAbsolutePath();
+                spec = new RandomAccessFile(inTemp, "rw");
+                spec.setLength(0);
+                spec.writeBytes(solver.toString());
+                spec.close();
+            } catch (IOException e) {
+                try { spec.close(); } catch (Exception ee) {}
+                throw new SATAbortedException(e);
+            }
+        }
+        Params p = context.mkParams();
+        p.add("opt.priority", "pareto");
+        solver.setParameters(p);
+        sat = solver.Check() == Status.SATISFIABLE ? true : false;
+        if (sat) {
+            Model model = solver.getModel();
+            solution = new boolean[vars.size()];
+            for (int i = 0; i < vars.size(); i++) {
+                solution[i] = model.eval(vars.get(i), true).isTrue();
+            }
+        } else {
+            solution = null;
+        }
+    }
 
     /** In-Bound Target -> CNF **/
     private List<List<Integer>> encode(Bounds bounds, Relation relation, TupleSet target) {
@@ -99,9 +126,18 @@ public class Z3 implements SATProver {
 
     /** SOFTALL/MAXSOME -> CNF **/
     private void assertGoals() {
-        // FIXME just write out the whole softcache, remove original clauses from hardcache
+        for(Set<Integer> way : FOL2BoolCache.softcache.keySet()) {
+            int id = FOL2BoolCache.softcache.get(way);
+            int[] clause = new int[way.size()];
+            Iterator<Integer> lits = way.iterator();
+            for(int i=0; i<way.size(); i++) {
+                clause[i] = lits.next();
+            }
+            encode(clause, true, "goal"+id);
+        }
     }
 
+    /** Initialize Z3 */
     public Z3() {
         try {
             vars = new ArrayList<>();
@@ -112,6 +148,8 @@ public class Z3 implements SATProver {
             throw new SATAbortedException("z3 libs missing from java.library.path:\n"+System.getProperty("java.library.path"), e);
         }
     }
+
+    /** Solver generic functionality */
     @Override
     public int numberOfVariables() {
         return vars.size();
@@ -137,31 +175,6 @@ public class Z3 implements SATProver {
         if (lits.length == 0) {
             solver.Assert(context.mkFalse());
         }
-        // FIXME maxsome
-        else if (lits.length==2) {
-            Set<Integer> possibleway = new LinkedHashSet<>();
-            possibleway.add(lits[0]);
-            possibleway.add(lits[1]);
-            if(FOL2BoolCache.softcache.containsKey(possibleway)) {
-                int id = FOL2BoolCache.softcache.get(possibleway);
-                encode(lits, true, "goal"+id);
-            } else {
-                encode(lits, false, "");
-            }
-        }
-        // FIXME softall
-        else if (lits.length==3) {
-            Set<Integer> possibleway = new LinkedHashSet<>();
-            possibleway.add(lits[0]);
-            possibleway.add(lits[1]);
-            possibleway.add(lits[2]);
-            if(FOL2BoolCache.softcache.containsKey(possibleway)) {
-                int id = FOL2BoolCache.softcache.get(possibleway);
-                encode(lits, true, "goal"+id);
-            } else {
-                encode(lits, false, "");
-            }
-        }
         // default
         else {
             encode(lits, false, "");
@@ -171,6 +184,7 @@ public class Z3 implements SATProver {
     @Override
     public void sideEffects(Translation translation) throws SATAbortedException {
         assertTargets(translation.bounds());
+        assertGoals();
     }
     @Override
     public boolean solve(Translation translation) throws SATAbortedException {
@@ -178,20 +192,7 @@ public class Z3 implements SATProver {
     }
     @Override
     public boolean solve() throws SATAbortedException {
-        Params p = context.mkParams();
-        p.add("opt.priority", "pareto");
-        solver.setParameters(p);
-        //throw new RuntimeException(FOL2BoolCache.softcache.keySet().toString()+"\n\n"+solver.toString());
-        sat = solver.Check() == Status.SATISFIABLE ? true : false;
-        if (sat) {
-            Model model = solver.getModel();
-            solution = new boolean[vars.size()];
-            for(int i=0; i<vars.size(); i++) {
-                solution[i] = model.eval(vars.get(i), true).isTrue();
-            }
-        } else {
-            solution = null;
-        }
+        decode();
         return sat;
     }
     @Override
@@ -208,12 +209,12 @@ public class Z3 implements SATProver {
     }
     @Override
     public ResolutionTrace proof() {
-        // TODO z3 proofs
+        // TODO decode z3 proofs
         throw new UnsupportedOperationException("not implemented yet");
     }
     @Override
     public void reduce(ReductionStrategy strategy) {
-        // TODO z3 proofs
+        // TODO decode z3 proofs
         throw new UnsupportedOperationException("not implemented yet");
     }
 }

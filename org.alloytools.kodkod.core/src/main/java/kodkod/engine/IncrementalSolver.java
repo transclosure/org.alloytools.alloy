@@ -201,6 +201,7 @@ public final class IncrementalSolver implements KodkodSolver {
                 }
             } else {
                 final SATSolver cnf = translation.cnf();
+                cnf.sideEffects(translation); // AMALGAM
 
                 translation.options().reporter().solvingCNF(translation.numPrimaryVariables(), cnf.numberOfVariables(), cnf.numberOfClauses());
                 final long startSolve = System.currentTimeMillis();
