@@ -21,11 +21,7 @@
  */
 package kodkod.engine.fol2sat;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import kodkod.ast.BinaryExpression;
 import kodkod.ast.BinaryFormula;
@@ -696,7 +692,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             BooleanValue formulaCircuit = formula.accept(this);
             BooleanValue finalCircuit = factory.or(declConstraints, formulaCircuit);
             acc.add(finalCircuit);
-            List<Integer> wayclause = new ArrayList<>();
+            Set<Integer> wayclause = new LinkedHashSet<>();
             wayclause.add(declConstraints.label());
             wayclause.add(formulaCircuit.label());
             wayclause.add(-1*finalCircuit.label());
@@ -775,8 +771,8 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             BooleanValue formulaCircuit = formula.accept(this);
             BooleanValue finalCircuit = factory.and(declConstraints, formulaCircuit);
             acc.add(finalCircuit);
-            List<Integer> wayclause1 = new ArrayList<>();
-            List<Integer> wayclause2 = new ArrayList<>();
+            Set<Integer> wayclause1 = new LinkedHashSet<>();
+            Set<Integer> wayclause2 = new LinkedHashSet<>();
             wayclause1.add(declConstraints.label());
             wayclause1.add(-1*finalCircuit.label());
             wayclause2.add(formulaCircuit.label());

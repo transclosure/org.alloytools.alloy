@@ -44,7 +44,7 @@ public final class FOL2BoolCache {
 
     private final Map<Node,Record>    cache;
     // FIXME AMALGAM class should not be public / no singleton, need better FOL2Bool Translation Hook
-    public static final Map<List<Integer>, Integer> softcache = new LinkedHashMap<>();
+    public static final Map<Set<Integer>, Integer> softcache = new LinkedHashMap<>();
 
     /**
      * Constructs a new translation cache for the given annotated node.
@@ -98,7 +98,7 @@ public final class FOL2BoolCache {
     }
 
     // AMALGAM
-    final void softcache(List<Integer> softclause, Integer priority) {
+    final void softcache(Set<Integer> softclause, Integer priority) {
         softcache.put(softclause, priority);
     }
 

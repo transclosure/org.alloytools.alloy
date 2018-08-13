@@ -2,7 +2,9 @@ package kodkod.engine.satlab;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import kodkod.ast.Relation;
 import kodkod.engine.fol2sat.*;
@@ -132,7 +134,7 @@ public class Z3 implements SATProver {
         }
         // maxsome
         else if (lits.length==2) {
-            List<Integer> possibleway = new ArrayList<>();
+            Set<Integer> possibleway = new LinkedHashSet<>();
             possibleway.add(lits[0]);
             possibleway.add(lits[1]);
             if(FOL2BoolCache.softcache.containsKey(possibleway)) {
@@ -144,7 +146,7 @@ public class Z3 implements SATProver {
         }
         // softall
         else if (lits.length==3) {
-            List<Integer> possibleway = new ArrayList<>();
+            Set<Integer> possibleway = new LinkedHashSet<>();
             possibleway.add(lits[0]);
             possibleway.add(lits[1]);
             possibleway.add(lits[2]);
