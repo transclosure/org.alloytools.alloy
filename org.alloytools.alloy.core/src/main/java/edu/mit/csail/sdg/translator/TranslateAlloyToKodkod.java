@@ -1535,10 +1535,10 @@ public final class TranslateAlloyToKodkod extends VisitReturn<Object> {
             guards.add(ans);
             return Formula.and(guards).forMaxSome(dd);
         }
-        if (op == ExprQt.Op.MAXALL) {
+        if (op == ExprQt.Op.SOFTALL) {
             if (guards.size() == 0)
-                return ans.forMaxAll(dd);
-            return Formula.and(guards).implies(ans).forMaxAll(dd);
+                return ans.forSoftAll(dd);
+            return Formula.and(guards).implies(ans).forSoftAll(dd);
         } else {
             if (guards.size() == 0)
                 return ans.forAll(dd);

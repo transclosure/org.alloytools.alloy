@@ -173,7 +173,7 @@ import java_cup.runtime.*;
 "~"                   { return alloy_sym(yytext(), CompSym.TILDE       );}
 "abstract"            { return alloy_sym(yytext(), CompSym.ABSTRACT    );}
 "all"                 { return alloy_sym(yytext(), CompSym.ALL         );}
-"maxall"                 { return alloy_sym(yytext(), CompSym.MAXALL         );} // AMALGAM
+"softall"                 { return alloy_sym(yytext(), CompSym.SOFTALL         );} // AMALGAM
 "and"                 { return alloy_sym(yytext(), CompSym.AND         );}
 "assert"              { return alloy_sym(yytext(), CompSym.ASSERT      );}
 "as"                  { return alloy_sym(yytext(), CompSym.AS          );}

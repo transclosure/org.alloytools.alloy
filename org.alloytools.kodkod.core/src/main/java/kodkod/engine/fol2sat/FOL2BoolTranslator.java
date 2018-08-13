@@ -691,8 +691,8 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         env = env.parent();
     }
 
-    // AMALGAM max_all(decls, formula) := {decl in decls | formula(decl) \/ declConstraints(FALSE) \/ {entry in decl | not entry} }
-    private void maxall(Decls decls, Formula formula, int currentDecl, BooleanValue declConstraints, BooleanAccumulator acc) {
+    // FIXME AMALGAM soft_all(decls, formula) := {decl in decls | formula(decl) \/ declConstraints(FALSE) \/ {entry in decl | not entry} }
+    private void softall(Decls decls, Formula formula, int currentDecl, BooleanValue declConstraints, BooleanAccumulator acc) {
         if (acc.isShortCircuited())
             return;
         final BooleanFactory factory = interpreter.factory();
@@ -707,10 +707,10 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         final Decl decl = decls.get(currentDecl);
         final BooleanMatrix declTransl = visit(decl);
         final BooleanMatrix groundValue = factory.matrix(declTransl.dimensions());
-        env = env.extend(decl.variable(), decl.expression(), groundValue, Quantifier.MAXALL);
+        env = env.extend(decl.variable(), decl.expression(), groundValue, Quantifier.SOFTALL);
         for (IndexedEntry<BooleanValue> entry : declTransl) {
             groundValue.set(entry.index(), BooleanConstant.TRUE);
-            all(decls, formula, currentDecl + 1, factory.or(factory.not(entry.value()), declConstraints), acc);
+            softall(decls, formula, currentDecl + 1, factory.or(factory.not(entry.value()), declConstraints), acc);
             groundValue.set(entry.index(), BooleanConstant.FALSE);
         }
         env = env.parent();
@@ -784,7 +784,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         env = env.extend(decl.variable(), decl.expression(), groundValue, Quantifier.MAXSOME);
         for (IndexedEntry<BooleanValue> entry : declTransl) {
             groundValue.set(entry.index(), BooleanConstant.TRUE);
-            some(decls, formula, currentDecl + 1, factory.and(entry.value(), declConstraints), acc);
+            maxsome(decls, formula, currentDecl + 1, factory.and(entry.value(), declConstraints), acc);
             groundValue.set(entry.index(), BooleanConstant.FALSE);
         }
         env = env.parent();
@@ -818,10 +818,10 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 ret = interpreter.factory().accumulate(or);
                 break;
             // AMALGAM max_all := maxSET (soft AND) max_all(decls, formula)
-            case MAXALL :
-                final BooleanAccumulator maxall = BooleanAccumulator.treeGate(Operator.AND);
-                maxall(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, maxall);
-                ret = interpreter.factory().accumulate(maxall);
+            case SOFTALL:
+                final BooleanAccumulator softall = BooleanAccumulator.treeGate(Operator.AND);
+                softall(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, softall);
+                ret = interpreter.factory().accumulate(softall);
                 softlabel = Math.abs(ret.label());
                 break;
             // AMALGAM max_some:= maxSET (soft AND) max_some(decls, formula)

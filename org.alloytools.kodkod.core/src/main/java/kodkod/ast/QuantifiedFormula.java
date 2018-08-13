@@ -80,7 +80,7 @@ public final class QuantifiedFormula extends Formula {
     public Formula formula() {
         if (domain == Formula.TRUE)
             return body;
-        if (quantifier == Quantifier.ALL || quantifier == Quantifier.MAXALL) // AMALGAM
+        if (quantifier == Quantifier.ALL || quantifier == Quantifier.SOFTALL) // AMALGAM
             return domain.implies(body);
         if (quantifier == Quantifier.SOME || quantifier == Quantifier.MAXSOME) // AMALGAM
             return domain.and(body);

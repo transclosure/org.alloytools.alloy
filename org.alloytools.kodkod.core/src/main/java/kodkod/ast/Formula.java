@@ -26,7 +26,7 @@ import static kodkod.ast.operator.FormulaOperator.IFF;
 import static kodkod.ast.operator.FormulaOperator.IMPLIES;
 import static kodkod.ast.operator.FormulaOperator.OR;
 import static kodkod.ast.operator.Quantifier.ALL;
-import static kodkod.ast.operator.Quantifier.MAXALL;
+import static kodkod.ast.operator.Quantifier.SOFTALL;
 import static kodkod.ast.operator.Quantifier.MAXSOME;
 import static kodkod.ast.operator.Quantifier.SOME;
 
@@ -234,15 +234,6 @@ public abstract class Formula extends Node {
         return quantify(ALL, decls, domain);
     }
 
-    // AMALGAM
-    public final Formula forMaxAll(Decls decls) {
-        return quantify(MAXALL, decls);
-    }
-
-    public final Formula forMaxAll(Decls decls, Formula domain) {
-        return quantify(MAXALL, decls, domain);
-    }
-
     /**
      * Returns a formula that represents an existential quantification of this
      * formula over the given declarations. The effect of this method is the same as
@@ -262,9 +253,14 @@ public abstract class Formula extends Node {
     public final Formula forMaxSome(Decls decls) {
         return quantify(MAXSOME, decls);
     }
-
     public final Formula forMaxSome(Decls decls, Formula domain) {
         return quantify(MAXSOME, decls, domain);
+    }
+    public final Formula forSoftAll(Decls decls) {
+        return quantify(SOFTALL, decls);
+    }
+    public final Formula forSoftAll(Decls decls, Formula domain) {
+        return quantify(SOFTALL, decls, domain);
     }
 
     /**

@@ -137,8 +137,8 @@ parser code {:
     ch.put(CompSym.ABSTRACT, "abstract");
     ch.put(CompSym.ALL, "all");
     ch.put(CompSym.ALL2, "all");
-    ch.put(CompSym.MAXALL, "maxall"); // AMALGAM
-    ch.put(CompSym.MAXALL2, "maxall"); // AMALGAM
+    ch.put(CompSym.SOFTALL, "SOFTALL"); // AMALGAM
+    ch.put(CompSym.SOFTALL2, "SOFTALL"); // AMALGAM
     ch.put(CompSym.AMPERSAND, "&");
     ch.put(CompSym.AND, "&&");
     ch.put(CompSym.AS, "as");
@@ -396,8 +396,8 @@ terminal Pos TOTALORDER;
 terminal Pos ABSTRACT;         //  abstract
 terminal Pos ALL;              //  all      // The filter enables us to disambiguate
 terminal Pos ALL2;             //  all      // The filter enables us to disambiguate
-terminal Pos MAXALL;			   //  maxall     // AMALGAM
-terminal Pos MAXALL2;			   //  maxall     // AMALGAM
+terminal Pos SOFTALL;			   //  SOFTALL     // AMALGAM
+terminal Pos SOFTALL2;			   //  SOFTALL     // AMALGAM
 terminal Pos AMPERSAND;        //  &
 terminal Pos AND;              //  && and
 terminal Pos AS;               //  as
@@ -828,7 +828,7 @@ Expr ::= OrExprB:x                    {: RESULT = x;                            
 Expr ::= Bind:x                       {: RESULT = x;                                  :};
 Bind ::= LET     Let:x                {: RESULT = x;                                  :};
 Bind ::= ALL2:o  Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.ALL .make(o, null, a, b); :};
-Bind ::= MAXALL2:o  Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.MAXALL .make(o, null, a, b); :}; // AMALGAM
+Bind ::= SOFTALL2:o  Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.SOFTALL .make(o, null, a, b); :}; // AMALGAM
 Bind ::= NO2:o   Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.NO  .make(o, null, a, b); :};
 Bind ::= SOME2:o Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.SOME.make(o, null, a, b); :};
 Bind ::= MAXSOME2:o Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.MAXSOME.make(o, null, a, b); :}; // AMALGAM
@@ -887,7 +887,7 @@ CompareExprA ::= CompareExprB:a NOTGT:o     ShiftExprA:b    {: RESULT=ExprBinary
 CompareExprA ::= CompareExprB:a NOTLTE:o    ShiftExprA:b    {: RESULT=ExprBinary.Op.NOT_LTE   .make(o, null, a, b);       :};
 CompareExprA ::= CompareExprB:a NOTGTE:o    ShiftExprA:b    {: RESULT=ExprBinary.Op.NOT_GTE   .make(o, null, a, b);       :};
 CompareExprA ::= ALL:o  ShiftExprA                          {: if (1==1) throw new ErrorSyntax(o,"The \"all x\" construct is no longer supported. If you know the range of possible values of x, consider rewriting it as \"x == set_of_all_possible_values\"."); :};
-CompareExprA ::= MAXALL:o  ShiftExprA                          {: if (1==1) throw new ErrorSyntax(o,"The \"maxall x\" construct is no longer supported. If you know the range of possible values of x, consider rewriting it as \"x == set_of_all_possible_values\"."); :}; // AMALGAM
+CompareExprA ::= SOFTALL:o  ShiftExprA                          {: if (1==1) throw new ErrorSyntax(o,"The \"SOFTALL x\" construct is no longer supported. If you know the range of possible values of x, consider rewriting it as \"x == set_of_all_possible_values\"."); :}; // AMALGAM
 CompareExprA ::= NO:o   ShiftExprA:b                        {: RESULT=ExprUnary.Op.NO   .make(o, b);   :};
 CompareExprA ::= SOME:o ShiftExprA:b                        {: RESULT=ExprUnary.Op.SOME .make(o, b);   :};
 CompareExprA ::= MAXSOME:o ShiftExprA:b                        {: RESULT=ExprUnary.Op.MAXSOME .make(o, b);   :}; // AMALGAM
@@ -910,7 +910,7 @@ CompareExprB ::= CompareExprB:a NOTGT:o     ShiftExprB:b    {: RESULT=ExprBinary
 CompareExprB ::= CompareExprB:a NOTLTE:o    ShiftExprB:b    {: RESULT=ExprBinary.Op.NOT_LTE   .make(o, null, a, b);       :};
 CompareExprB ::= CompareExprB:a NOTGTE:o    ShiftExprB:b    {: RESULT=ExprBinary.Op.NOT_GTE   .make(o, null, a, b);       :};
 CompareExprB ::= ALL:o  ShiftExprB                          {: if (1==1) throw new ErrorSyntax(o,"The \"all x\" construct is no longer supported. If you know the range of possible values of x, consider rewriting it as \"x == set_of_all_possible_values\"."); :};
-CompareExprB ::= MAXALL:o  ShiftExprB                          {: if (1==1) throw new ErrorSyntax(o,"The \"maxall x\" construct is no longer supported. If you know the range of possible values of x, consider rewriting it as \"x == set_of_all_possible_values\"."); :};
+CompareExprB ::= SOFTALL:o  ShiftExprB                          {: if (1==1) throw new ErrorSyntax(o,"The \"SOFTALL x\" construct is no longer supported. If you know the range of possible values of x, consider rewriting it as \"x == set_of_all_possible_values\"."); :};
 CompareExprB ::= NO:o   ShiftExprB:b                        {: RESULT=ExprUnary.Op.NO   .make(o, b);   :};
 CompareExprB ::= SOME:o ShiftExprB:b                        {: RESULT=ExprUnary.Op.SOME .make(o, b);   :};
 CompareExprB ::= MAXSOME:o ShiftExprB:b                        {: RESULT=ExprUnary.Op.MAXSOME .make(o, b);   :};

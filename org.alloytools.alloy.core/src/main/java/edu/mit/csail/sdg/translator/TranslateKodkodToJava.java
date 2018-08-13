@@ -809,8 +809,8 @@ public final class TranslateKodkodToJava implements VoidVisitor {
         String f = make(x.formula());
         switch (x.quantifier()) {
             // AMALGAM
-            case MAXALL :
-                file.printf("Formula %s=%s.forMaxAll(%s);%n", newname, f, d);
+            case SOFTALL:
+                file.printf("Formula %s=%s.forSoftAll(%s);%n", newname, f, d);
                 break;
             case ALL :
                 file.printf("Formula %s=%s.forAll(%s);%n", newname, f, d);
