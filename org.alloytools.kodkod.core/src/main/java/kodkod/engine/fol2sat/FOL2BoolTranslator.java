@@ -312,11 +312,6 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         return cache.cache(formula, translation, env);
     }
 
-    // AMALGAM
-    BooleanValue softcache(Integer label, Formula formula, BooleanValue translation) {
-        return cache.softcache(label, formula, translation, env);
-    }
-
     /**
      * Calls lookup(decls) and returns the cached value, if any. If a translation
      * has not been cached, translates decls into a list of translations of its
@@ -691,7 +686,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         env = env.parent();
     }
 
-    // FIXME AMALGAM soft_all(decls, formula) := {decl in decls | formula(decl) \/ declConstraints(FALSE) \/ {entry in decl | not entry} }
+    // AMALGAM soft_all(decls, formula) := {decl in decls | formula(decl) \/ declConstraints(FALSE) \/ {entry in decl | not entry} }
     private void softall(Decls decls, Formula formula, int currentDecl, BooleanValue declConstraints, BooleanAccumulator acc) {
         if (acc.isShortCircuited())
             return;
@@ -701,6 +696,11 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             BooleanValue formulaCircuit = formula.accept(this);
             BooleanValue finalCircuit = factory.or(declConstraints, formulaCircuit);
             acc.add(finalCircuit);
+            List<Integer> wayclause = new ArrayList<>();
+            wayclause.add(declConstraints.label());
+            wayclause.add(formulaCircuit.label());
+            wayclause.add(-1*finalCircuit.label());
+            cache.softcache(wayclause, 1);
             return;
         }
 
@@ -775,6 +775,14 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             BooleanValue formulaCircuit = formula.accept(this);
             BooleanValue finalCircuit = factory.and(declConstraints, formulaCircuit);
             acc.add(finalCircuit);
+            List<Integer> wayclause1 = new ArrayList<>();
+            List<Integer> wayclause2 = new ArrayList<>();
+            wayclause1.add(declConstraints.label());
+            wayclause1.add(-1*finalCircuit.label());
+            wayclause2.add(formulaCircuit.label());
+            wayclause2.add(-1*finalCircuit.label());
+            cache.softcache(wayclause1, 1);
+            cache.softcache(wayclause2, 1);
             return;
         }
 
@@ -817,24 +825,22 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 some(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, or);
                 ret = interpreter.factory().accumulate(or);
                 break;
-            // AMALGAM max_all := maxSET (soft AND) max_all(decls, formula)
+            // AMALGAM soft_all := maxSET (soft AND) [(NOT decls) \/ formula]
             case SOFTALL:
                 final BooleanAccumulator softall = BooleanAccumulator.treeGate(Operator.AND);
                 softall(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, softall);
                 ret = interpreter.factory().accumulate(softall);
-                softlabel = Math.abs(ret.label());
                 break;
-            // AMALGAM max_some:= maxSET (soft AND) max_some(decls, formula)
+            // AMALGAM max_some:= maxSET (soft AND) [decls /\ formula]
             case MAXSOME :
                 final BooleanAccumulator maxsome = BooleanAccumulator.treeGate(Operator.AND);
                 maxsome(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, maxsome);
                 ret = interpreter.factory().accumulate(maxsome);
-                softlabel = Math.abs(ret.label());
                 break;
             default :
                 throw new IllegalArgumentException("Unknown quantifier: " + quantifier);
         }
-        return softlabel > 0 ? softcache(softlabel, quantFormula, ret) : cache(quantFormula, ret);
+        return cache(quantFormula, ret);
     }
 
     @Override

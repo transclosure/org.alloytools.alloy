@@ -21,11 +21,7 @@
  */
 package kodkod.engine.fol2sat;
 
-import java.util.ArrayList;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import kodkod.ast.Expression;
 import kodkod.ast.Node;
@@ -48,7 +44,7 @@ public final class FOL2BoolCache {
 
     private final Map<Node,Record>    cache;
     // FIXME AMALGAM class should not be public / no singleton, need better FOL2Bool Translation Hook
-    public static final List<Integer> softcache = new ArrayList<>();
+    public static final Map<List<Integer>, Integer> softcache = new LinkedHashMap<>();
 
     /**
      * Constructs a new translation cache for the given annotated node.
@@ -102,9 +98,8 @@ public final class FOL2BoolCache {
     }
 
     // AMALGAM
-    final <T> T softcache(Integer label, Node node, T translation, Environment<BooleanMatrix,Expression> env) {
-        softcache.add(label);
-        return cache(node, translation, env);
+    final void softcache(List<Integer> softclause, Integer priority) {
+        softcache.put(softclause, priority);
     }
 
     /**

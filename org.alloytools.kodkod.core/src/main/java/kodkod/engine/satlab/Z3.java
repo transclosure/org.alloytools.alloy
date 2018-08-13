@@ -32,29 +32,32 @@ public class Z3 implements SATProver {
         return context.mkBoolConst(var);
     }
     private void encode(int[] lits, boolean soft, String id) {
+        // unit / target clauses
         if(lits.length==1) {
             int i = Math.abs(lits[0]);
             BoolExpr clause;
             if(lits[0]>0) {
-                clause = vars.get(i);
+                clause = vars.get(i-1);
             } else {
-                clause = context.mkNot(vars.get(i));
+                clause = context.mkNot(vars.get(i-1));
             }
             if(soft) {
                 solver.AssertSoft(clause, 1, id);
             } else {
                 solver.Assert(clause);
             }
-        } else {
+        }
+        // hard / soft clauses
+        else {
+            BoolExpr[] clause = new BoolExpr[lits.length];
+            for (int l = 0; l < lits.length; l++) {
+                int lit = lits[l];
+                int i = Math.abs(lit);
+                clause[l] = lit > 0 ? vars.get(i-1) : context.mkNot(vars.get(i-1));
+            }
             if(soft) {
-                throw new RuntimeException("unsupported");
+                solver.AssertSoft(context.mkOr(clause), 1, id);
             } else {
-                BoolExpr[] clause = new BoolExpr[lits.length];
-                for (int l = 0; l < lits.length; l++) {
-                    int lit = lits[l];
-                    int i = Math.abs(lit);
-                    clause[l] = lit > 0 ? vars.get(i) : context.mkNot(vars.get(i));
-                }
                 solver.Assert(context.mkOr(clause));
             }
         }
@@ -66,11 +69,13 @@ public class Z3 implements SATProver {
         IntIterator alltuples = bounds.upperBound(relation).indexView().iterator();
         while(alltuples.hasNext()) {
             int lit = alltuples.next();
-            Tuple tuple = bounds.universe().factory().tuple(relation.arity(), lit);
-            lit = target.contains(tuple) ? lit : -1*lit;
-            List<Integer> clause = new ArrayList<>();
-            clause.add(lit);
-            clauses.add(clause);
+            if(lit!=0) {
+                Tuple tuple = bounds.universe().factory().tuple(relation.arity(), lit);
+                lit = target.contains(tuple) ? lit : -1 * lit;
+                List<Integer> clause = new ArrayList<>();
+                clause.add(lit);
+                clauses.add(clause);
+            }
         }
         return clauses;
     }
@@ -82,6 +87,7 @@ public class Z3 implements SATProver {
                 List<List<Integer>> targetclauses = encode(bounds, relation, target);
                 for (List<Integer> targetclause : targetclauses) {
                     int[] clause = new int[1];
+                    clause[0] = targetclause.get(0);
                     encode(clause, true, "target"+t);
                     t++;
                 }
@@ -120,16 +126,38 @@ public class Z3 implements SATProver {
     @Override
     public boolean addClause(int[] lits) {
         clauses++;
-        // naive maxSET: softens top level soft clause
-        //boolean naiveMax = lits.length == 1 && FOL2BoolCache.softcache.contains(Math.abs(lits[0]));
-        // proper maxSET: softens each subformula of the top-level conjunction
-        boolean soft = (lits.length == 2 &&
-                (FOL2BoolCache.softcache.contains(Math.abs(lits[0]))
-                        || FOL2BoolCache.softcache.contains(Math.abs(lits[1]))));
+        // empty
         if (lits.length == 0) {
             solver.Assert(context.mkFalse());
-        } else {
-            encode(lits, soft, "");
+        }
+        // maxsome
+        else if (lits.length==2) {
+            List<Integer> possibleway = new ArrayList<>();
+            possibleway.add(lits[0]);
+            possibleway.add(lits[1]);
+            if(FOL2BoolCache.softcache.containsKey(possibleway)) {
+                int priority = FOL2BoolCache.softcache.get(possibleway);
+                encode(lits, true, "goal"+Math.abs(lits[1]));
+            } else {
+                encode(lits, false, "");
+            }
+        }
+        // softall
+        else if (lits.length==3) {
+            List<Integer> possibleway = new ArrayList<>();
+            possibleway.add(lits[0]);
+            possibleway.add(lits[1]);
+            possibleway.add(lits[2]);
+            if(FOL2BoolCache.softcache.containsKey(possibleway)) {
+                int priority = FOL2BoolCache.softcache.get(possibleway);
+                encode(lits, true, "goal"+Math.abs(lits[2]));
+            } else {
+                encode(lits, false, "");
+            }
+        }
+        // default
+        else {
+            encode(lits, false, "");
         }
         return true;
     }
@@ -146,6 +174,7 @@ public class Z3 implements SATProver {
         Params p = context.mkParams();
         p.add("opt.priority", "pareto");
         solver.setParameters(p);
+        //throw new RuntimeException(FOL2BoolCache.softcache.keySet().toString()+"\n\n"+solver.toString());
         sat = solver.Check() == Status.SATISFIABLE ? true : false;
         if (sat) {
             Model model = solver.getModel();
