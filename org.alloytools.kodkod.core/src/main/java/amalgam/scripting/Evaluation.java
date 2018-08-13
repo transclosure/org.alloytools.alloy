@@ -20,14 +20,14 @@ public class Evaluation {
         spec = new DataRepair();
         solver = SATFactory.Z3;
         lowb = spec.bounds(20);
-        highb = spec.bounds(60);
+        highb = spec.bounds(40);
         time("CACHE WARM", spec.formula(), lowb, solver, 10);
         time("datarepair 20 z3", spec.formula(), lowb, solver, 3);
-        //time("datarepair 60 z3", spec.formula(), highb, solver, 3);
+        time("datarepair 40 z3", spec.formula(), highb, solver, 3);
         lowb.boundTargets(spec.targets(lowb));
         highb.boundTargets(spec.targets(highb));
         time("datarepair 20 z3+target", spec.formula(), lowb, solver, 3);
-        //time("datarepair 60 z3+target", spec.formula(), highb, solver, 3);
+        time("datarepair 40 z3+target", spec.formula(), highb, solver, 3);
 
         spec = new BidirTrans();
         solver = SATFactory.Z3;
