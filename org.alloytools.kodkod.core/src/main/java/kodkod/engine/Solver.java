@@ -84,7 +84,7 @@ public final class Solver implements KodkodSolver {
 
     private void init(Options options) {
         // AMALGAM forced default options
-        // tests fail, build fails
+        // FIXME tests fail, build fails
         //options.setLogTranslation(2);
         //options.setSkolemDepth(-1);
         //options.setSymmetryBreaking(0);

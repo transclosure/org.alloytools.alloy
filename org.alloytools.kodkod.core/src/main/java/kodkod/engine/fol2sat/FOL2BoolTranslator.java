@@ -695,7 +695,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             Set<Integer> wayclause = new LinkedHashSet<>();
             wayclause.add(declConstraints.label());
             wayclause.add(formulaCircuit.label());
-            wayclause.add(-1*finalCircuit.label());
+            //FIXME needed? wayclause.add(-1*finalCircuit.label());
             cache.softkey(wayclause);
             return;
         }
@@ -774,9 +774,9 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             Set<Integer> wayclause1 = new LinkedHashSet<>();
             Set<Integer> wayclause2 = new LinkedHashSet<>();
             wayclause1.add(declConstraints.label());
-            wayclause1.add(-1*finalCircuit.label());
+            //FIXME needed? wayclause1.add(-1*finalCircuit.label());
             wayclause2.add(formulaCircuit.label());
-            wayclause2.add(-1*finalCircuit.label());
+            //FIXME needed? wayclause2.add(-1*finalCircuit.label());
             cache.softkey(wayclause1);
             cache.softkey(wayclause2);
             return;

@@ -1167,12 +1167,15 @@ public final class SimpleGUI implements ComponentListener, Listener {
         opt.recordKodkod = RecordKodkod.get();
         opt.noOverflow = NoOverflow.get();
         opt.unrolls = Version.experimental ? Unrolls.get() : (-1);
-        opt.skolemDepth = SkolemDepth.get();
         opt.coreMinimization = CoreMinimization.get();
         opt.inferPartialInstance = InferPartialInstance.get();
         opt.coreGranularity = CoreGranularity.get();
         opt.originalFilename = Util.canon(text.get().getFilename());
         opt.solver = Solver.get();
+        // FIXME AMALGAM solver hardcoded options
+        opt.skolemDepth = -1;
+        opt.symmetry = 0;
+
         task.bundleIndex = i;
         task.bundleWarningNonFatal = WarningNonfatal.get();
         task.map = text.takeSnapshot();
