@@ -695,7 +695,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             Set<Integer> wayclause = new LinkedHashSet<>();
             wayclause.add(declConstraints.label());
             wayclause.add(formulaCircuit.label());
-            wayclause.add(finalCircuit.label());
+            wayclause.add(-1*finalCircuit.label());
             cache.softkey(wayclause);
             return;
         }
@@ -771,11 +771,14 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             BooleanValue formulaCircuit = formula.accept(this);
             BooleanValue finalCircuit = factory.and(declConstraints, formulaCircuit);
             acc.add(finalCircuit);
-            Set<Integer> wayclause = new LinkedHashSet<>();
-            wayclause.add(declConstraints.label());
-            wayclause.add(formulaCircuit.label());
-            wayclause.add(finalCircuit.label());
-            cache.softkey(wayclause);
+            Set<Integer> wayclause1 = new LinkedHashSet<>();
+            Set<Integer> wayclause2 = new LinkedHashSet<>();
+            wayclause1.add(declConstraints.label());
+            wayclause1.add(-1*finalCircuit.label());
+            wayclause2.add(formulaCircuit.label());
+            wayclause2.add(-1*finalCircuit.label());
+            cache.softkey(wayclause1);
+            cache.softkey(wayclause2);
             return;
         }
 
@@ -825,7 +828,6 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 softall(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, softall);
                 ret = interpreter.factory().accumulate(softall);
                 cache.softvalue("softall"+ret.label());
-                ret = BooleanConstant.TRUE; // dont hardcache
                 break;
             // AMALGAM max_some:= maxSET (soft AND) [decls /\ formula]
             // FIXME bound exactly from alloy (not kodkod) throws exception after leaving visitor
@@ -834,7 +836,6 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 maxsome(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, maxsome);
                 ret = interpreter.factory().accumulate(maxsome);
                 cache.softvalue("maxsome"+ret.label());
-                ret = BooleanConstant.TRUE; // dont hardcache
                 break;
             default :
                 throw new IllegalArgumentException("Unknown quantifier: " + quantifier);

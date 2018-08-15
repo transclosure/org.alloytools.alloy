@@ -58,13 +58,7 @@ public class Z3 implements SATProver {
                 clause[l] = lit > 0 ? vars.get(i-1) : context.mkNot(vars.get(i-1));
             }
             if(soft) {
-                if(id.startsWith("softall")) {
-                    solver.AssertSoft(context.mkOr(clause), 1, id);
-                } else if (id.startsWith("maxsome")) {
-                    solver.AssertSoft(context.mkAnd(clause), 1, id);
-                } else {
-                    throw new SATAbortedException("unknown soft clause type");
-                }
+                solver.AssertSoft(context.mkOr(clause), 1, id);
             } else {
                 solver.Assert(context.mkOr(clause));
             }
@@ -135,19 +129,6 @@ public class Z3 implements SATProver {
         }
     }
 
-    /** SOFTALL/MAXSOME -> CNF **/
-    private void assertGoals() {
-        for(Set<Integer> way : FOL2BoolCache.softcache.keySet()) {
-            String id = FOL2BoolCache.softcache.get(way);
-            int[] clause = new int[way.size()];
-            Iterator<Integer> lits = way.iterator();
-            for(int i=0; i<way.size(); i++) {
-                clause[i] = lits.next();
-            }
-            encode(clause, true, id);
-        }
-    }
-
     /** Initialize Z3 */
     public Z3() {
         try {
@@ -161,6 +142,10 @@ public class Z3 implements SATProver {
     }
 
     /** Solver generic functionality */
+    @Override
+    public void sideEffects(Translation translation) throws SATAbortedException {
+        assertTargets(translation.bounds());
+    }
     @Override
     public int numberOfVariables() {
         return vars.size();
@@ -186,16 +171,19 @@ public class Z3 implements SATProver {
         if (lits.length == 0) {
             solver.Assert(context.mkFalse());
         }
-        // default
         else {
-            encode(lits, false, "");
+            Set<Integer> clause = new LinkedHashSet<>();
+            for(int lit : lits) clause.add(lit);
+            // soft clause
+            if(FOL2BoolCache.softcache.containsKey(clause)) {
+                encode(lits, true, FOL2BoolCache.softcache.get(clause));
+            }
+            // hard clause
+            else {
+                encode(lits, false, null);
+            }
         }
         return true;
-    }
-    @Override
-    public void sideEffects(Translation translation) throws SATAbortedException {
-        assertTargets(translation.bounds());
-        assertGoals();
     }
     @Override
     public boolean solve(Translation translation) throws SATAbortedException {
