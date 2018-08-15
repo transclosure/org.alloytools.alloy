@@ -695,7 +695,7 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             Set<Integer> wayclause = new LinkedHashSet<>();
             wayclause.add(declConstraints.label());
             wayclause.add(formulaCircuit.label());
-            //FIXME needed? wayclause.add(-1*finalCircuit.label());
+            wayclause.add(finalCircuit.label());
             cache.softkey(wayclause);
             return;
         }
@@ -771,14 +771,11 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
             BooleanValue formulaCircuit = formula.accept(this);
             BooleanValue finalCircuit = factory.and(declConstraints, formulaCircuit);
             acc.add(finalCircuit);
-            Set<Integer> wayclause1 = new LinkedHashSet<>();
-            Set<Integer> wayclause2 = new LinkedHashSet<>();
-            wayclause1.add(declConstraints.label());
-            //FIXME needed? wayclause1.add(-1*finalCircuit.label());
-            wayclause2.add(formulaCircuit.label());
-            //FIXME needed? wayclause2.add(-1*finalCircuit.label());
-            cache.softkey(wayclause1);
-            cache.softkey(wayclause2);
+            Set<Integer> wayclause = new LinkedHashSet<>();
+            wayclause.add(declConstraints.label());
+            wayclause.add(formulaCircuit.label());
+            wayclause.add(finalCircuit.label());
+            cache.softkey(wayclause);
             return;
         }
 
@@ -822,19 +819,21 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
                 ret = interpreter.factory().accumulate(or);
                 break;
             // AMALGAM soft_all := maxSET (soft AND) [(NOT decls) \/ formula]
+            // FIXME bound exactly from alloy (not kodkod) throws exception after leaving visitor
             case SOFTALL:
                 final BooleanAccumulator softall = BooleanAccumulator.treeGate(Operator.AND);
                 softall(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.FALSE, softall);
                 ret = interpreter.factory().accumulate(softall);
-                cache.softvalue(ret.label());
+                cache.softvalue("softall"+ret.label());
                 ret = BooleanConstant.TRUE; // dont hardcache
                 break;
             // AMALGAM max_some:= maxSET (soft AND) [decls /\ formula]
+            // FIXME bound exactly from alloy (not kodkod) throws exception after leaving visitor
             case MAXSOME :
                 final BooleanAccumulator maxsome = BooleanAccumulator.treeGate(Operator.AND);
                 maxsome(quantFormula.decls(), quantFormula.formula(), 0, BooleanConstant.TRUE, maxsome);
                 ret = interpreter.factory().accumulate(maxsome);
-                cache.softvalue(ret.label());
+                cache.softvalue("maxsome"+ret.label());
                 ret = BooleanConstant.TRUE; // dont hardcache
                 break;
             default :

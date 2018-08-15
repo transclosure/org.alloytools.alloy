@@ -45,7 +45,7 @@ public final class FOL2BoolCache {
     private final Map<Node,Record>    cache;
     // AMALGAM
     private static final List<Set<Integer>> ways = new ArrayList<>();
-    public static final Map<Set<Integer>, Integer> softcache = new LinkedHashMap<>();
+    public static final Map<Set<Integer>, String> softcache = new LinkedHashMap<>();
 
     /**
      * Constructs a new translation cache for the given annotated node.
@@ -103,7 +103,7 @@ public final class FOL2BoolCache {
     final void softkey(Set<Integer> softclause) {
         ways.add(softclause);
     }
-    final void softvalue(Integer id) {
+    final void softvalue(String id) {
         for(Set<Integer> way : ways) {
             softcache.put(way, id);
         }

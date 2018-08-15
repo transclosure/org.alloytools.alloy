@@ -1,6 +1,8 @@
 package kodkod.engine.satlab;
 
 import java.io.*;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.*;
 
 import kodkod.ast.Relation;
@@ -17,7 +19,7 @@ import kodkod.util.ints.IntIterator;
  */
 public class Z3 implements SATProver {
 
-    private final static boolean    debug = false;
+    private final static boolean    debug = true;
     private List<BoolExpr>          vars;
     private int                     clauses;
     private Context                 context;
@@ -56,18 +58,29 @@ public class Z3 implements SATProver {
                 clause[l] = lit > 0 ? vars.get(i-1) : context.mkNot(vars.get(i-1));
             }
             if(soft) {
-                solver.AssertSoft(context.mkOr(clause), 1, id);
+                if(id.startsWith("softall")) {
+                    solver.AssertSoft(context.mkOr(clause), 1, id);
+                } else if (id.startsWith("maxsome")) {
+                    solver.AssertSoft(context.mkAnd(clause), 1, id);
+                } else {
+                    throw new SATAbortedException("unknown soft clause type");
+                }
             } else {
                 solver.Assert(context.mkOr(clause));
             }
         }
     }
     private void decode() {
+        // Params
+        Params p = context.mkParams();
+        p.add("opt.priority", "pareto");
+        solver.setParameters(p);
+        // Debug
         if(debug) {
             //throw new RuntimeException(FOL2BoolCache.softcache.keySet().toString()+"\n\n"+solver.toString());
             RandomAccessFile spec = null;
             try {
-                String inTemp = File.createTempFile("kodkod", String.valueOf("kodkod".hashCode())+".smt2").getAbsolutePath();
+                String inTemp = File.createTempFile("debug-z3-", Instant.now()+".smt2").getAbsolutePath();
                 spec = new RandomAccessFile(inTemp, "rw");
                 spec.setLength(0);
                 spec.writeBytes(solver.toString());
@@ -77,9 +90,7 @@ public class Z3 implements SATProver {
                 throw new SATAbortedException(e);
             }
         }
-        Params p = context.mkParams();
-        p.add("opt.priority", "pareto");
-        solver.setParameters(p);
+        // Solve
         sat = solver.Check() == Status.SATISFIABLE ? true : false;
         if (sat) {
             Model model = solver.getModel();
@@ -127,13 +138,13 @@ public class Z3 implements SATProver {
     /** SOFTALL/MAXSOME -> CNF **/
     private void assertGoals() {
         for(Set<Integer> way : FOL2BoolCache.softcache.keySet()) {
-            int id = FOL2BoolCache.softcache.get(way);
+            String id = FOL2BoolCache.softcache.get(way);
             int[] clause = new int[way.size()];
             Iterator<Integer> lits = way.iterator();
             for(int i=0; i<way.size(); i++) {
                 clause[i] = lits.next();
             }
-            encode(clause, true, "goal"+id);
+            encode(clause, true, id);
         }
     }
 
