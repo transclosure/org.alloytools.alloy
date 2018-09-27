@@ -9,7 +9,7 @@ import kodkod.engine.Solver;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Bounds;
 
-public class Evaluation {
+public class EvalObjectives {
 
     public static void main(String[] args) {
         KodkodExample spec;
@@ -24,8 +24,8 @@ public class Evaluation {
         time("CACHE WARM", spec.formula(), lowb, solver, 10);
         time("datarepair 20 z3", spec.formula(), lowb, solver, 3);
         time("datarepair 40 z3", spec.formula(), highb, solver, 3);
-        lowb.boundTargets(spec.targets(lowb));
-        highb.boundTargets(spec.targets(highb));
+        lowb.boundTargets(spec.target(lowb));
+        highb.boundTargets(spec.target(highb));
         time("datarepair 20 z3+target", spec.formula(), lowb, solver, 3);
         time("datarepair 40 z3+target", spec.formula(), highb, solver, 3);
 
@@ -35,8 +35,8 @@ public class Evaluation {
         highb = spec.bounds(12);
         time("bidirtrans 8 z3", spec.formula(), lowb, solver, 3);
         time("bidirtrans 12 z3", spec.formula(), highb, solver, 3);
-        lowb.boundTargets(spec.targets(lowb));
-        highb.boundTargets(spec.targets(highb));
+        lowb.boundTargets(spec.target(lowb));
+        highb.boundTargets(spec.target(highb));
         time("bidirtrans 8 z3+target", spec.formula(), lowb, solver, 3);
         time("bidirtrans 12 z3+target", spec.formula(), highb, solver, 3);
     }
