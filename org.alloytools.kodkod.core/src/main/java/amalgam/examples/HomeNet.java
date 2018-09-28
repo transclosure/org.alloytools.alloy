@@ -1,21 +1,21 @@
 package amalgam.examples;
 
-import kodkod.ast.Formula;
-import kodkod.ast.Relation;
-import kodkod.ast.Variable;
+import kodkod.ast.*;
 import kodkod.ast.operator.ExprCompOperator;
+import kodkod.ast.operator.ExprOperator;
 import kodkod.instance.*;
 
 import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 public class HomeNet implements KodkodExample {
 
     private final Relation device, interfac;
     private final Relation connected;
+    private Bounds bounds;
 
     public HomeNet() {
         device = Relation.unary("Device");
@@ -45,7 +45,7 @@ public class HomeNet implements KodkodExample {
             }
         }
         // Bounds
-        final Bounds bounds = new Bounds(universe);
+        bounds = new Bounds(universe);
         bounds.bound(device, factory.setOf(devices));
         bounds.bound(interfac, factory.setOf(interfacs));
         bounds.bound(connected, factory.setOf(connecteds));
@@ -53,10 +53,7 @@ public class HomeNet implements KodkodExample {
     }
 
     @Override
-    public Formula refine(Formula current, Instance refinement)  {
-        // TODO and with negate diagram of refinement instance
-        return current;
-    }
+    public Formula refine(Formula current, Instance refinement)  { return current; }
 
     @Override
     public Bounds restrict(Bounds current, Instance restriction) {
@@ -69,18 +66,18 @@ public class HomeNet implements KodkodExample {
     public Formula formula() {
         final List<Formula> formulas = new ArrayList<>();
         // total
-        final Variable i = Variable.unary("i");
-        final Variable d = Variable.unary("d");
-        Formula total = d.join(connected).compare(ExprCompOperator.EQUALS, i);
-        formulas.add(total.forSome(i.oneOf(interfac)).forAll(d.oneOf(device)));
+        final Variable i1 = Variable.unary("i");
+        final Variable d1 = Variable.unary("d");
+        final Formula total = d1.join(connected).compare(ExprCompOperator.EQUALS, i1);
+        formulas.add(total.forSome(i1.oneOf(interfac)).forAll(d1.oneOf(device)));
         // one-to-one
         final Variable dA = Variable.unary("dA");
         final Variable dB = Variable.unary("dB");
-        Formula lhs = dA.compare(ExprCompOperator.EQUALS, dB).not();
-        Formula rhs = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
-        formulas.add(lhs.implies(rhs).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
+        final Formula lhs1 = dA.compare(ExprCompOperator.EQUALS, dB).not();
+        final Formula rhs1 = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
+        formulas.add(lhs1.implies(rhs1).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
         // non-trivial
-        formulas.add(connected.some());
+        formulas.add(connected.count().gt(IntConstant.constant(3)));
         //
         return Formula.and(formulas);
     }

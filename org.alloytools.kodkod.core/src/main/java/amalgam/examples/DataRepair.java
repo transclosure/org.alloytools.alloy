@@ -1,5 +1,6 @@
 package amalgam.examples;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,7 +57,7 @@ public final class DataRepair implements KodkodExample {
 
     @Override
     public Formula refine(Formula current, Instance refinement)  {
-        return Formula.TRUE;
+        return current;
     }
 
     @Override

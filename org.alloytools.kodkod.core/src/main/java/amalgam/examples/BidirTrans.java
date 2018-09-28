@@ -85,7 +85,7 @@ public class BidirTrans implements KodkodExample {
 
     @Override
     public Formula refine(Formula current, Instance refinement)  {
-        return Formula.TRUE;
+        return current;
     }
 
     @Override
