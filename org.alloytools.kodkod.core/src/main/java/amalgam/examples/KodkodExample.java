@@ -12,8 +12,9 @@ public interface KodkodExample {
     Bounds bounds(int n);
     Formula formula();
     // CEGIS
-    Formula refine(Formula current, Instance refinement);
-    Bounds restrict(Bounds current, Instance restriction);
+    Formula synthformula();
+    Bounds refine(Bounds synthbounds, Instance avoid);
+    Bounds restrict(Bounds verifybounds, Instance apply);
     // Target Oriented
-    Map<Relation,TupleSet> target(Bounds bounds);
+    Bounds target(Bounds bounds);
 }

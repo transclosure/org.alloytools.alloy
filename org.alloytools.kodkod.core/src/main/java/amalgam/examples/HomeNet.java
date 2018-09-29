@@ -1,21 +1,20 @@
 package amalgam.examples;
 
+import com.sun.xml.internal.ws.api.message.Packet;
 import kodkod.ast.*;
 import kodkod.ast.operator.ExprCompOperator;
-import kodkod.ast.operator.ExprOperator;
 import kodkod.instance.*;
 
-import java.text.Normalizer;
-import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class HomeNet implements KodkodExample {
 
     private final Relation device, interfac;
     private final Relation connected;
-    private Bounds bounds;
+
 
     public HomeNet() {
         device = Relation.unary("Device");
@@ -45,7 +44,7 @@ public class HomeNet implements KodkodExample {
             }
         }
         // Bounds
-        bounds = new Bounds(universe);
+        Bounds bounds = new Bounds(universe);
         bounds.bound(device, factory.setOf(devices));
         bounds.bound(interfac, factory.setOf(interfacs));
         bounds.bound(connected, factory.setOf(connecteds));
@@ -53,13 +52,38 @@ public class HomeNet implements KodkodExample {
     }
 
     @Override
-    public Formula refine(Formula current, Instance refinement)  { return current; }
+    public Bounds refine(Bounds synthbounds, Instance avoid)  {
+        Bounds refined = synthbounds.clone();
+        // not-model as a target oriented bound (get a maxsat point for each tuple avoided)
+        // z3 solver side effect handles how targets become clauses
+        // things like priority, composition of targets, etc, are dealt with there
+        Map<Relation,List<Tuple>> targets = new LinkedHashMap<>();
+        TupleSet connectedM = avoid.tuples("connected");
+        List<Tuple> connectedN = new ArrayList<>();
+        int n = synthbounds.upperBound(device).size();
+        for(int i=1; i<=n; i++) {
+            for (int j = 1; j<=n; j++) {
+                Tuple tuple = synthbounds.universe().factory().tuple("Device" + i, "Interface" + j);
+                if(!connectedM.contains(tuple)) {
+                    connectedN.add(tuple);
+                }
+            }
+        }
+        targets.put(synthbounds.findRelByName("connected"), connectedN);
+        refined.addTarget(targets);
+        return refined;
+    }
 
     @Override
-    public Bounds restrict(Bounds current, Instance restriction) {
-        Bounds restricted = current.clone();
-        restricted.boundExactly(connected, restriction.tuples("connected"));
+    public Bounds restrict(Bounds verifybounds, Instance apply) {
+        Bounds restricted = verifybounds.clone();
+        restricted.boundExactly(connected, apply.tuples("connected"));
         return restricted;
+    }
+
+    @Override
+    public Formula synthformula() {
+        return connected.some();
     }
 
     @Override
@@ -77,11 +101,11 @@ public class HomeNet implements KodkodExample {
         final Formula rhs1 = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
         formulas.add(lhs1.implies(rhs1).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
         // non-trivial
-        formulas.add(connected.count().gt(IntConstant.constant(3)));
+        formulas.add(connected.count().eq(IntConstant.constant(7)));
         //
         return Formula.and(formulas);
     }
 
     @Override
-    public Map<Relation,TupleSet> target(Bounds bounds) { return null; }
+    public Bounds target(Bounds bounds) { return bounds; }
 }

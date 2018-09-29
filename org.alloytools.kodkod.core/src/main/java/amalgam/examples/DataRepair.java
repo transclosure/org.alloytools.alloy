@@ -1,6 +1,5 @@
 package amalgam.examples;
 
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,12 +55,13 @@ public final class DataRepair implements KodkodExample {
     }
 
     @Override
-    public Formula refine(Formula current, Instance refinement)  {
-        return current;
-    }
+    public Formula synthformula() { return Formula.TRUE; }
 
     @Override
-    public Bounds restrict(Bounds current, Instance restriction) { return current; }
+    public Bounds refine(Bounds synthbounds, Instance avoid)  { return synthbounds; }
+
+    @Override
+    public Bounds restrict(Bounds verifybounds, Instance apply) { return verifybounds; }
 
     @Override
     public Formula formula() {
@@ -78,14 +78,16 @@ public final class DataRepair implements KodkodExample {
     }
 
     @Override
-    public Map<Relation,TupleSet> target(Bounds bounds) {
-        Map<Relation,TupleSet> targets = new LinkedHashMap<>();
+    public Bounds target(Bounds current) {
+        Bounds bounds = current.clone();
+        Map<Relation,List<Tuple>> targets = new LinkedHashMap<>();
         List<Tuple> colors = new ArrayList<>();
         int n = bounds.upperBound(node).size();
         for(int i=1; i<=n; i++) {
             colors.add(bounds.universe().factory().tuple("Node"+i, "Hue"+i));
         }
-        targets.put(bounds.findRelByName("color"), bounds.universe().factory().setOf(colors));
-        return targets;
+        targets.put(bounds.findRelByName("color"), colors);
+        bounds.addTarget(targets);
+        return bounds;
     }
 }

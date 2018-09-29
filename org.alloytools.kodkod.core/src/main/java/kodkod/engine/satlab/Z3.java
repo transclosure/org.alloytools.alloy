@@ -6,6 +6,7 @@ import java.time.ZoneId;
 import java.util.*;
 
 import kodkod.ast.Relation;
+import kodkod.engine.bool.Int;
 import kodkod.engine.fol2sat.*;
 import kodkod.instance.Bounds;
 import kodkod.instance.Tuple;
@@ -13,19 +14,23 @@ import kodkod.instance.TupleSet;
 
 import com.microsoft.z3.*;
 import kodkod.util.ints.IntIterator;
+import kodkod.util.ints.IntSet;
 
 /**
  * AMALGAM smt2 external solver z3
  */
 public class Z3 implements SATProver {
 
-    private final static boolean    debug = true;
+    private final static boolean    debug = false;
+    // kodkod
     private List<BoolExpr>          vars;
-    private int                     clauses;
-    private Context                 context;
-    private Optimize                solver;
     private boolean                 sat;
     private boolean[]               solution;
+    private int                     clauses;
+    // z3
+    private Context                 context;
+    private Optimize                solver;
+
 
     /** CNF -> Z3 **/
     private BoolExpr encode(int lit) {
@@ -37,7 +42,7 @@ public class Z3 implements SATProver {
         // hard unit / soft unit (target) clauses
         if(lits.length==1) {
             int i = Math.abs(lits[0]);
-            BoolExpr clause;
+            BoolExpr clause = null;
             if(lits[0]>0) {
                 clause = vars.get(i-1);
             } else {
@@ -71,7 +76,6 @@ public class Z3 implements SATProver {
         solver.setParameters(p);
         // Debug
         if(debug) {
-            //throw new RuntimeException(FOL2BoolCache.softcache.keySet().toString()+"\n\n"+solver.toString());
             RandomAccessFile spec = null;
             try {
                 String inTemp = File.createTempFile("debug-z3-", Instant.now()+".smt2").getAbsolutePath();
@@ -88,6 +92,7 @@ public class Z3 implements SATProver {
         sat = solver.Check() == Status.SATISFIABLE ? true : false;
         if (sat) {
             Model model = solver.getModel();
+            //if(debug) System.out.println(model.toString());
             solution = new boolean[vars.size()];
             for (int i = 0; i < vars.size(); i++) {
                 solution[i] = model.eval(vars.get(i), true).isTrue();
@@ -98,34 +103,41 @@ public class Z3 implements SATProver {
     }
 
     /** In-Bound Target -> CNF **/
-    private List<List<Integer>> encode(Bounds bounds, Relation relation, TupleSet target) {
+    private List<List<Integer>> encode(Translation translation, Relation relation, List<Tuple> target) {
         List<List<Integer>> clauses = new ArrayList<>();
-        IntIterator alltuples = bounds.upperBound(relation).indexView().iterator();
-        while(alltuples.hasNext()) {
-            int lit = alltuples.next();
-            if(lit!=0) {
-                Tuple tuple = bounds.universe().factory().tuple(relation.arity(), lit);
-                lit = target.contains(tuple) ? lit : -1 * lit;
-                List<Integer> clause = new ArrayList<>();
-                clause.add(lit);
-                clauses.add(clause);
-            }
+        IntIterator indicies = translation.bounds().upperBound(relation).indexView().iterator();
+        IntIterator lits = translation.primaryVariables(relation).iterator();
+        while(lits.hasNext()) {
+            int lit = lits.next();
+            int index = indicies.next();
+            Tuple tuple = translation.bounds().universe().factory().tuple(relation.arity(), index);
+            lit = target.contains(tuple) ? lit : -1 * lit;
+            List<Integer> clause = new ArrayList<>();
+            clause.add(lit);
+            clauses.add(clause);
         }
         return clauses;
     }
-    private void assertTargets(Bounds bounds) {
-        int t = 1;
-        for(Relation relation : bounds.relations()) {
-            TupleSet target = bounds.targetBound(relation);
-            if(target!=null) {
-                List<List<Integer>> targetclauses = encode(bounds, relation, target);
-                for (List<Integer> targetclause : targetclauses) {
+    private void assertTargets(Translation translation) {
+        Bounds bounds = translation.bounds();
+        int targetnum = 1;
+        for(Map<Relation,List<Tuple>> target : bounds.getTargets()) {
+            if(debug) System.out.println("Target"+targetnum+": "+target);
+            for (Relation relation : target.keySet()) {
+                List<Tuple> tuples = target.get(relation);
+                List<List<Integer>> targetclauses = encode(translation, relation, tuples);
+                int[] notmodel = new int[targetclauses.size()];
+                for (int i=0; i<targetclauses.size(); i++) {
+                    List<Integer> targetclause = targetclauses.get(i);
                     int[] clause = new int[1];
                     clause[0] = targetclause.get(0);
-                    encode(clause, true, "target"+t);
-                    t++;
+                    notmodel[i] = targetclause.get(0);
+                    String id = "target"+targetnum; // FIXME how to group soft clauses?
+                    encode(clause, true, id);
                 }
+                encode(notmodel, false, null);
             }
+            targetnum++;
         }
     }
 
@@ -144,7 +156,7 @@ public class Z3 implements SATProver {
     /** Solver generic functionality */
     @Override
     public void sideEffects(Translation translation) throws SATAbortedException {
-        assertTargets(translation.bounds());
+        assertTargets(translation);
     }
     @Override
     public int numberOfVariables() {

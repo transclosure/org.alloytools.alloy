@@ -84,12 +84,13 @@ public class BidirTrans implements KodkodExample {
     }
 
     @Override
-    public Formula refine(Formula current, Instance refinement)  {
-        return current;
-    }
+    public Formula synthformula() { return Formula.TRUE; }
 
     @Override
-    public Bounds restrict(Bounds current, Instance restriction) { return current; }
+    public Bounds refine(Bounds synthbounds, Instance avoid)  { return synthbounds; }
+
+    @Override
+    public Bounds restrict(Bounds verifybounds, Instance apply) { return verifybounds; }
 
     @Override
     public Formula formula() {
@@ -122,8 +123,9 @@ public class BidirTrans implements KodkodExample {
     }
 
     @Override
-    public Map<Relation,TupleSet> target(Bounds bounds) {
-        Map<Relation,TupleSet> targets = new LinkedHashMap<>();
+    public Bounds target(Bounds current) {
+        Bounds bounds = current.clone();
+        Map<Relation,List<Tuple>> target = new LinkedHashMap<>();
         List<Tuple> things = new ArrayList<>();
         List<Tuple> names = new ArrayList<>();
         List<Tuple> namecs = new ArrayList<>();
@@ -147,12 +149,13 @@ public class BidirTrans implements KodkodExample {
                 }
             }
         }
-        targets.put(bounds.findRelByName("Class"), bounds.universe().factory().setOf(things));
-        targets.put(bounds.findRelByName("Name"), bounds.universe().factory().setOf(names));
-        targets.put(bounds.findRelByName("namec"), bounds.universe().factory().setOf(namecs));
-        targets.put(bounds.findRelByName("attributes"), bounds.universe().factory().setOf(attrs));
-        targets.put(bounds.findRelByName("persistent"), bounds.universe().factory().setOf(pers));
-        targets.put(bounds.findRelByName("parent"), bounds.universe().factory().setOf(parents));
-        return targets;
+        target.put(bounds.findRelByName("Class"), things);
+        target.put(bounds.findRelByName("Name"), names);
+        target.put(bounds.findRelByName("namec"), namecs);
+        target.put(bounds.findRelByName("attributes"), attrs);
+        target.put(bounds.findRelByName("persistent"), pers);
+        target.put(bounds.findRelByName("parent"), parents);
+        bounds.addTarget(target);
+        return bounds;
     }
 }
