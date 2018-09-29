@@ -1,6 +1,5 @@
 package amalgam.examples;
 
-import com.sun.xml.internal.ws.api.message.Packet;
 import kodkod.ast.*;
 import kodkod.ast.operator.ExprCompOperator;
 import kodkod.instance.*;
