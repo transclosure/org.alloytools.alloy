@@ -102,6 +102,14 @@ public class HomeNet implements KodkodExample {
         // non-trivial
         formulas.add(connected.count().eq(IntConstant.constant(7)));
         //
+
+        // force connected to be on (Device X Interface)
+        final Formula leftComponentInDevice = connected.join(Expression.UNIV).in(device);
+        final Formula rightComponentInInterface = Expression.UNIV.join(connected).in(interfac);
+        formulas.add(leftComponentInDevice);
+        formulas.add(rightComponentInInterface);
+
+        System.out.println(formulas);
         return Formula.and(formulas);
     }
 

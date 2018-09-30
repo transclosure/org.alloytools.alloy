@@ -22,37 +22,39 @@ public class EvalCEGIS {
         System.out.println("Time: "+transtotal+" "+solvetotal);
     }
 
+    final static int loopLimit = 1000;
+
     private static String cegis(KodkodExample spec, SATFactory solver, int n) {
         int i = 0;
         Bounds synthbounds = spec.bounds(n);
         Solution synth;
         Bounds verifybounds = synthbounds.clone();
         Solution verify;
-        while(i++<1000) {
+        while(i++<loopLimit) {
             // synthesize
             synth = exec(spec.synthformula(), synthbounds, solver);
-            stats(synth);
+            stats(synth, "synth: ");
             if(synth.sat()) System.out.println(synth.instance().toPrettyString());
-            else return "UNSAT";
+            else return "Synthesis step failed with UNSAT";
             // restrict (synth output as kodkod partial instance)
             verifybounds = spec.restrict(verifybounds, synth.instance());
             // verify
             verify = exec(spec.formula(), verifybounds, solver);
-            stats(verify);
+            stats(verify, "verify: ");
             if(verify.sat()) return "SAT";
             // refine (synth input as solver side effect)
             synthbounds = spec.refine(synthbounds, synth.instance());
         }
-        return "TIMEOUT";
+        return "TIMEOUT: loop limit of "+loopLimit+" exceeded.";
     }
 
     private static int transtotal = 0;
     private static int solvetotal = 0;
-    private static void stats(Solution sol) {
+    private static void stats(Solution sol, String prefix) {
         String sat = sol.sat() ? "sat" : "unsat";
         long trans = sol.stats().translationTime();
         long solve = sol.stats().solvingTime();
-        System.out.println(trans + "\t"+ solve + "\t" + sat);
+        System.out.println(prefix+"trans ms: " + trans + "\tsolve ms:"+ solve + "\t" + sat);
         transtotal += trans;
         solvetotal += solve;
     }
