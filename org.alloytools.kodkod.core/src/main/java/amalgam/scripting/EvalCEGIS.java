@@ -5,8 +5,10 @@ import amalgam.examples.KodkodExample;
 import kodkod.ast.Formula;
 import kodkod.engine.Solution;
 import kodkod.engine.Solver;
+import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Bounds;
+import kodkod.instance.TupleSet;
 
 import java.util.Collection;
 import java.util.List;
@@ -51,11 +53,16 @@ public class EvalCEGIS {
 
         while(i++<loopLimit) {
             // synthesize
+            System.out.println("--------------------------");
             synth = exec(synthformula, synthbounds, solver);
             stats(synth, "synth: ");
-            if(synth.unsat()) return "FAILURE, synth unsat; f was: "+synthformula;
+            if(synth.unsat()) return "FAILURE, synth unsat in "+i+" iterations.";
             // TODO: hardcoding name of synth func to aid debugging
-            else System.out.println(synth.instance().relationTuples().get(synthbounds.findRelByName("connected")));
+            else {
+                TupleSet conn = synth.instance().relationTuples().get(synthbounds.findRelByName("connected"));
+                System.out.println(conn.size()+":"+conn);
+            }
+
 
             // full restrict and verify (for each phi)
             boolean allpassed = true;
@@ -76,7 +83,7 @@ public class EvalCEGIS {
                 }
                 // otherwise, phi passes, move on to next one
             }
-            if(allpassed) return "SUCCESS, all phis passed";
+            if(allpassed) return "SUCCESS, all phis passed in "+i+" iterations.";
         }
         return "TIMEOUT: loop limit of "+loopLimit+" exceeded.";
     }
@@ -118,6 +125,7 @@ public class EvalCEGIS {
     private static Solution exec(Formula f, Bounds b, SATFactory s) {
         final Solver solver = new Solver();
         solver.options().setSolver(s);
+        solver.options().setNoOverflow(true); // disallow integer overflow (or #R = 7 can overflow)
         solver.options().setSymmetryBreaking(0);
         //solver.options().setSkolemDepth(-1);
         solver.options().setSkolemDepth(0); // TODO: Tim turned this back on for CE extraction; any issues?
