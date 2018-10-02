@@ -5,10 +5,7 @@ import kodkod.ast.Relation;
 import kodkod.ast.Variable;
 import kodkod.instance.*;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class BidirTrans implements KodkodExample {
 
@@ -85,6 +82,9 @@ public class BidirTrans implements KodkodExample {
 
     @Override
     public Formula synthformula() { return Formula.TRUE; }
+
+    @Override
+    public Collection<SynthGoal> goals() { throw new UnsupportedOperationException(); }
 
     @Override
     public Bounds refine(Bounds synthbounds, Instance synth, Instance verify)  { return synthbounds; }

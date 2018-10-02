@@ -1,9 +1,6 @@
 package amalgam.examples;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;
@@ -56,6 +53,9 @@ public final class DataRepair implements KodkodExample {
 
     @Override
     public Formula synthformula() { return Formula.TRUE; }
+
+    @Override
+    public Collection<SynthGoal> goals() { throw new UnsupportedOperationException(); }
 
     @Override
     public Bounds refine(Bounds synthbounds, Instance synth, Instance verify)  { return synthbounds; }

@@ -1,13 +1,11 @@
 package amalgam.examples;
 
 import kodkod.ast.*;
+import kodkod.ast.SubstituteVisitor;
 import kodkod.ast.operator.ExprCompOperator;
 import kodkod.instance.*;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class HomeNet implements KodkodExample {
 
@@ -45,6 +43,13 @@ public class HomeNet implements KodkodExample {
         bounds.bound(device, factory.setOf(devices));
         bounds.bound(interfac, factory.setOf(interfacs));
         bounds.bound(connected, factory.setOf(connecteds));
+
+        // Add constant symbols
+        for(String a: atoms) {
+            Relation ra = Relation.unary(a);
+            bounds.boundExactly(ra, factory.setOf(factory.tuple(a)));
+        }
+
         return bounds;
     }
     @Override
@@ -86,6 +91,43 @@ public class HomeNet implements KodkodExample {
         //
         return Formula.and(formulas);
     }
+
+    // TN note: there is some code duplication here; I didn't want to clobber existing code in a quick test hack
+    @Override
+    public Collection<KodkodExample.SynthGoal> goals() {
+        final List<KodkodExample.SynthGoal> results = new ArrayList<>();
+        final List<Formula> formulas = new ArrayList<>();
+        final Map<Variable, Expression> univars = new HashMap<>();
+
+        // total
+        final Variable i1 = Variable.unary("i");
+        final Variable d1 = Variable.unary("d");
+        univars.put(d1, device); // i1 is existential
+        final Formula total = d1.join(connected).compare(ExprCompOperator.EQUALS, i1);
+        //formulas.add(total.forSome(i1.oneOf(interfac)).forAll(d1.oneOf(device)));
+        formulas.add(total.forSome(i1.oneOf(interfac)));
+        results.add(new HomeNetGoal(univars, Formula.and(formulas)));
+        formulas.clear(); univars.clear();
+
+        // one-to-one
+        final Variable dA = Variable.unary("dA");
+        final Variable dB = Variable.unary("dB");
+        univars.put(dA, device); univars.put(dB, device);
+        final Formula lhs1 = dA.compare(ExprCompOperator.EQUALS, dB).not();
+        final Formula rhs1 = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
+        //formulas.add(lhs1.implies(rhs1).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
+        formulas.add(lhs1.implies(rhs1));
+        results.add(new HomeNetGoal(univars, Formula.and(formulas)));
+        formulas.clear(); univars.clear();
+
+        // needle in haystack
+        formulas.add(connected.count().eq(IntConstant.constant(7)));
+        results.add(new HomeNetGoal(univars, Formula.and(formulas)));
+        formulas.clear(); univars.clear();
+
+        return results;
+    }
+
     @Override
     public Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton) {
         Bounds restricted = verifybounds.clone();
@@ -136,4 +178,41 @@ public class HomeNet implements KodkodExample {
     // Target-oriented
     @Override
     public Bounds target(Bounds bounds) { return bounds; }
+}
+
+class HomeNetGoal implements KodkodExample.SynthGoal {
+    Map<Variable, Expression> freevars;
+    Formula unboundformula;
+    Formula boundformula;
+
+    HomeNetGoal(Map<Variable, Expression> freevars, Formula unboundformula) {
+        this.freevars = new HashMap(freevars);
+        this.unboundformula = unboundformula;
+        this.boundformula = unboundformula;
+        for(Variable v : freevars.keySet()) {
+            this.boundformula = this.boundformula().forAll(v.oneOf(freevars.get(v)));
+        }
+    }
+    public Map<Variable, Expression> freevars() { return freevars; }
+    public Formula unboundformula() { return unboundformula; }
+    public Formula boundformula() { return boundformula; }
+
+    public Formula instantiateWithCE(Instance ce, Bounds b) {
+        // Need to produce phi(ce).
+        Formula f = unboundformula;
+        System.out.println("instantiateWithCE: "+freevars);
+        for(Variable v : freevars.keySet()) {
+            Relation skolemRel = ce.findRelationByName("$"+v);
+            TupleSet relTuples = ce.relationTuples().get(skolemRel);
+            String constStr = "";
+            // TODO: hack! assume that the name of the relation and the name of the atom are the same Java string
+            for(Tuple t : relTuples) {
+                constStr = t.atom(0).toString();
+                break;
+            }
+            f = f.accept(new SubstituteVisitor(v, b.findRelByName(constStr)));
+        }
+        return f;
+    }
+
 }
