@@ -133,7 +133,7 @@ public class Z3 implements SATProver {
                     clause[0] = targetclause.get(0);
                     notmodel[i] = targetclause.get(0);
                     String id = "target"+targetnum; // FIXME how to group soft clauses?
-                    encode(clause, true, id);
+                    //encode(clause, true, id); // FIXME target-oriented cegis
                 }
                 encode(notmodel, false, null);
             }

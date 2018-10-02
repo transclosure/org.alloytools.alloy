@@ -4,13 +4,9 @@ import amalgam.examples.HomeNet;
 import amalgam.examples.KodkodExample;
 import kodkod.ast.Formula;
 import kodkod.engine.Solution;
-import kodkod.engine.SolutionIterator;
 import kodkod.engine.Solver;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Bounds;
-import kodkod.instance.Instance;
-
-import java.util.Iterator;
 
 public class EvalCEGIS {
 
@@ -18,13 +14,12 @@ public class EvalCEGIS {
         KodkodExample spec = new HomeNet();
         SATFactory solver = SATFactory.Z3;
         final int n = 5;
-        System.out.println(cegis(spec, solver, n));
-        System.out.println("Time: "+transtotal+" "+solvetotal);
+        final int limit = 1000;
+        System.out.println(cegis(spec, solver, n, limit));
+        System.out.println("Time trans+solve=total (ms): "+transtotal+"+"+solvetotal+"="+(transtotal+solvetotal));
     }
 
-    final static int loopLimit = 1000;
-
-    private static String cegis(KodkodExample spec, SATFactory solver, int n) {
+    private static String cegis(KodkodExample spec, SATFactory solver, int n, int loopLimit) {
         int i = 0;
         Bounds synthbounds = spec.bounds(n);
         Solution synth;
@@ -39,11 +34,11 @@ public class EvalCEGIS {
             // restrict (synth output as kodkod partial instance)
             verifybounds = spec.restrict(verifybounds, synth.instance());
             // verify
-            verify = exec(spec.formula(), verifybounds, solver);
+            verify = exec(spec.formula().not(), verifybounds, solver);
             stats(verify, "verify: ");
-            if(verify.sat()) return "SAT";
+            if(verify.unsat()) return "Verification step succeeded with UNSAT";
             // refine (synth input as solver side effect)
-            synthbounds = spec.refine(synthbounds, synth.instance());
+            synthbounds = spec.refine(synthbounds, synth.instance(), verify.instance());
         }
         return "TIMEOUT: loop limit of "+loopLimit+" exceeded.";
     }
@@ -54,7 +49,7 @@ public class EvalCEGIS {
         String sat = sol.sat() ? "sat" : "unsat";
         long trans = sol.stats().translationTime();
         long solve = sol.stats().solvingTime();
-        System.out.println(prefix+"trans ms: " + trans + "\tsolve ms:"+ solve + "\t" + sat);
+        System.out.println(prefix+"trans (ms): " + trans + "\tsolve (ms):"+ solve + "\t" + sat);
         transtotal += trans;
         solvetotal += solve;
     }

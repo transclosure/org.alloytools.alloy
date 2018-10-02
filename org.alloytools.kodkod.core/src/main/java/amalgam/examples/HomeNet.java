@@ -51,13 +51,13 @@ public class HomeNet implements KodkodExample {
     }
 
     @Override
-    public Bounds refine(Bounds synthbounds, Instance avoid)  {
+    public Bounds refine(Bounds synthbounds, Instance lastsynth, Instance counterexample)  {
         Bounds refined = synthbounds.clone();
         // not-model as a target oriented bound (get a maxsat point for each tuple avoided)
         // z3 solver side effect handles how targets become clauses
         // things like priority, composition of targets, etc, are dealt with there
         Map<Relation,List<Tuple>> targets = new LinkedHashMap<>();
-        TupleSet connectedM = avoid.tuples("connected");
+        TupleSet connectedM = lastsynth.tuples("connected");
         List<Tuple> connectedN = new ArrayList<>();
         int n = synthbounds.upperBound(device).size();
         for(int i=1; i<=n; i++) {
@@ -76,18 +76,34 @@ public class HomeNet implements KodkodExample {
     @Override
     public Bounds restrict(Bounds verifybounds, Instance apply) {
         Bounds restricted = verifybounds.clone();
+        restricted.boundExactly(device, apply.tuples("Device"));
+        restricted.boundExactly(interfac, apply.tuples("Interface"));
         restricted.boundExactly(connected, apply.tuples("connected"));
         return restricted;
     }
 
     @Override
     public Formula synthformula() {
-        return connected.some();
+        final List<Formula> formulas = new ArrayList<>();
+        // force connected to be on (Device X Interface)
+        final Formula leftComponentInDevice = connected.join(Expression.UNIV).in(device);
+        final Formula rightComponentInInterface = Expression.UNIV.join(connected).in(interfac);
+        formulas.add(leftComponentInDevice);
+        formulas.add(rightComponentInInterface);
+        // non-trivial
+        formulas.add(connected.some());
+        //
+        return Formula.and(formulas);
     }
 
     @Override
     public Formula formula() {
         final List<Formula> formulas = new ArrayList<>();
+        // force connected to be on (Device X Interface)
+        final Formula leftComponentInDevice = connected.join(Expression.UNIV).in(device);
+        final Formula rightComponentInInterface = Expression.UNIV.join(connected).in(interfac);
+        formulas.add(leftComponentInDevice);
+        formulas.add(rightComponentInInterface);
         // total
         final Variable i1 = Variable.unary("i");
         final Variable d1 = Variable.unary("d");
@@ -99,17 +115,9 @@ public class HomeNet implements KodkodExample {
         final Formula lhs1 = dA.compare(ExprCompOperator.EQUALS, dB).not();
         final Formula rhs1 = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
         formulas.add(lhs1.implies(rhs1).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
-        // non-trivial
-        formulas.add(connected.count().eq(IntConstant.constant(7)));
+        // needle in haystack
+        formulas.add(connected.count().eq(IntConstant.constant(3)));
         //
-
-        // force connected to be on (Device X Interface)
-        final Formula leftComponentInDevice = connected.join(Expression.UNIV).in(device);
-        final Formula rightComponentInInterface = Expression.UNIV.join(connected).in(interfac);
-        formulas.add(leftComponentInDevice);
-        formulas.add(rightComponentInInterface);
-
-        System.out.println(formulas);
         return Formula.and(formulas);
     }
 
