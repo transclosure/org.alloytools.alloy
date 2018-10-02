@@ -21,7 +21,7 @@ import kodkod.util.ints.IntSet;
  */
 public class Z3 implements SATProver {
 
-    private final static boolean    debug = false;
+    private final static boolean    debug = true;
     // kodkod
     private List<BoolExpr>          vars;
     private boolean                 sat;
@@ -103,7 +103,7 @@ public class Z3 implements SATProver {
     }
 
     /** In-Bound Target -> CNF **/
-    private List<List<Integer>> encode(Translation translation, Relation relation, List<Tuple> target) {
+    private List<List<Integer>> encode(Translation translation, Relation relation, TupleSet tuples, boolean partial) {
         List<List<Integer>> clauses = new ArrayList<>();
         IntIterator indicies = translation.bounds().upperBound(relation).indexView().iterator();
         IntIterator lits = translation.primaryVariables(relation).iterator();
@@ -111,33 +111,72 @@ public class Z3 implements SATProver {
             int lit = lits.next();
             int index = indicies.next();
             Tuple tuple = translation.bounds().universe().factory().tuple(relation.arity(), index);
-            lit = target.contains(tuple) ? lit : -1 * lit;
-            List<Integer> clause = new ArrayList<>();
-            clause.add(lit);
-            clauses.add(clause);
+            lit = tuples.contains(tuple) ? lit : -1 * lit;
+            if((partial && lit>0) || !partial) {
+                List<Integer> clause = new ArrayList<>();
+                clause.add(lit);
+                clauses.add(clause);
+            }
         }
         return clauses;
+    }
+    private void assertIncludes(Translation translation) {
+        Bounds bounds = translation.bounds();
+        int includenum = 1;
+        for(Map<Relation,TupleSet> include : bounds.includes) {
+            if(debug) System.out.println("Include"+includenum+": "+include);
+            for (Relation relation : include.keySet()) {
+                TupleSet tuples = include.get(relation);
+                List<List<Integer>> includeclauses = encode(translation, relation, tuples, true);
+                for (int i=0; i<includeclauses.size(); i++) {
+                    List<Integer> includeclause = includeclauses.get(i);
+                    int[] clause = new int[1];
+                    clause[0] = includeclause.get(0);
+                    encode(clause, false, null);
+                }
+            }
+            includenum++;
+        }
     }
     private void assertTargets(Translation translation) {
         Bounds bounds = translation.bounds();
         int targetnum = 1;
-        for(Map<Relation,List<Tuple>> target : bounds.getTargets()) {
+        for(Map<Relation,TupleSet> target : bounds.targets) {
             if(debug) System.out.println("Target"+targetnum+": "+target);
             for (Relation relation : target.keySet()) {
-                List<Tuple> tuples = target.get(relation);
-                List<List<Integer>> targetclauses = encode(translation, relation, tuples);
-                int[] notmodel = new int[targetclauses.size()];
+                TupleSet tuples = target.get(relation);
+                List<List<Integer>> targetclauses = encode(translation, relation, tuples, false);
                 for (int i=0; i<targetclauses.size(); i++) {
                     List<Integer> targetclause = targetclauses.get(i);
                     int[] clause = new int[1];
                     clause[0] = targetclause.get(0);
-                    notmodel[i] = targetclause.get(0);
-                    String id = "target"+targetnum; // FIXME how to group soft clauses?
-                    //encode(clause, true, id); // FIXME target-oriented cegis
+                    String id = "target"+targetnum;
+                    encode(clause, true, id);
                 }
-                encode(notmodel, false, null);
             }
             targetnum++;
+        }
+    }
+    private void assertExcludes(Translation translation) {
+        Bounds bounds = translation.bounds();
+        int excludenum = 1;
+        for(Map<Relation,TupleSet> exclude : bounds.excludes) {
+            if(debug) System.out.println("Exclude"+excludenum+": "+exclude);
+            List<Integer> notmodel = new ArrayList<>();
+            for (Relation relation : exclude.keySet()) {
+                TupleSet tuples = exclude.get(relation);
+                List<List<Integer>> excludeclauses = encode(translation, relation, tuples, false);
+                for (int i=0; i<excludeclauses.size(); i++) {
+                    List<Integer> excludeclause = excludeclauses.get(i);
+                    notmodel.add(-1*excludeclause.get(0));
+                }
+            }
+            int[] nm = new int[notmodel.size()];
+            for(int i=0; i<notmodel.size(); i++) {
+                nm[i] = notmodel.get(i);
+            }
+            encode(nm, false, null);
+            excludenum++;
         }
     }
 
@@ -156,7 +195,9 @@ public class Z3 implements SATProver {
     /** Solver generic functionality */
     @Override
     public void sideEffects(Translation translation) throws SATAbortedException {
+        assertIncludes(translation);
         assertTargets(translation);
+        assertExcludes(translation);
     }
     @Override
     public int numberOfVariables() {

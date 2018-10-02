@@ -70,25 +70,32 @@ public final class Bounds implements Cloneable {
 
     private final TupleFactory             factory;
     private final Map<Relation,TupleSet>   lowers, uppers;
-    private final List<Map<Relation,List<Tuple>>> targets;
     private final SparseSequence<TupleSet> intbounds;
     private final Set<Relation>            relations;
     private final Map<Object,Relation>     atom2rel;
+    // TODO AMALGAM
+    public final List<Map<Relation,TupleSet>> includes;
+    public final List<Map<Relation,TupleSet>> targets;
+    public final List<Map<Relation,TupleSet>> excludes;
 
     /**
      * Constructs a Bounds object with the given factory and mappings.
      */
-    private Bounds(TupleFactory factory, Map<Relation,TupleSet> lower, Map<Relation,TupleSet> upper,  List<Map<Relation,List<Tuple>>> targets, SparseSequence<TupleSet> intbounds) {
+    private Bounds(TupleFactory factory, Map<Relation,TupleSet> lower, Map<Relation,TupleSet> upper,
+                   List<Map<Relation,TupleSet>> targets, List<Map<Relation,TupleSet>> includes, List<Map<Relation,TupleSet>> excludes, SparseSequence<TupleSet> intbounds) {
         this.factory = factory;
         this.lowers = lower;
         this.uppers = upper;
-        this.targets = targets;
         this.intbounds = intbounds;
         this.relations = relations(lowers, uppers);
         this.atom2rel = new HashMap<Object,Relation>();
         for (Entry<Relation,TupleSet> e : uppers.entrySet()) {
             addAtomRel(e.getKey(), e.getValue());
         }
+        // AMALGAM
+        this.includes = includes;
+        this.targets = targets;
+        this.excludes = excludes;
     }
 
     /**
@@ -101,10 +108,13 @@ public final class Bounds implements Cloneable {
         this.factory = universe.factory();
         this.lowers = new LinkedHashMap<Relation,TupleSet>();
         this.uppers = new LinkedHashMap<Relation,TupleSet>();
-        this.targets = new ArrayList<>();
         this.intbounds = new TreeSequence<TupleSet>();
         this.relations = relations(lowers, uppers);
         this.atom2rel = new HashMap<Object,Relation>();
+        // AMALGAM
+        this.includes = new ArrayList<>();
+        this.targets = new ArrayList<>();
+        this.excludes = new ArrayList<>();
     }
 
     /**
@@ -377,19 +387,19 @@ public final class Bounds implements Cloneable {
     /**
      * TODO AMALGAM
      */
-    public void addTarget(Map<Relation,List<Tuple>> targets) {
-        Map<Relation,List<Tuple>> target = new LinkedHashMap<>();
-        for(Relation r : targets.keySet()) {
-            List<Tuple> tuples = targets.get(r);
-            target.put(r, tuples);
-        }
-        this.targets.add(target);
-    }
-    public void clearTargets() {
+    public void clearAmalgamation() {
+        this.includes.clear();
         this.targets.clear();
+        this.excludes.clear();
     }
-    public List<Map<Relation,List<Tuple>>> getTargets() {
-        return targets;
+    public void include(Map<Relation,TupleSet> i) {
+        this.includes.add(i);
+    }
+    public void target(Map<Relation,TupleSet> t) {
+        this.targets.add(t);
+    }
+    public void exclude(Map<Relation,TupleSet> e) {
+        this.excludes.add(e);
     }
 
     /**
@@ -439,7 +449,7 @@ public final class Bounds implements Cloneable {
      * @return an unmodifiable view of his Bounds object.
      */
     public Bounds unmodifiableView() {
-        return new Bounds(factory, unmodifiableMap(lowers), unmodifiableMap(uppers), getTargets(), unmodifiableSequence(intbounds));
+        return new Bounds(factory, unmodifiableMap(lowers), unmodifiableMap(uppers), this.targets, this.includes, this.excludes, unmodifiableSequence(intbounds));
     }
 
     /**
@@ -450,11 +460,19 @@ public final class Bounds implements Cloneable {
     @Override
     public Bounds clone() {
         try {
-            List<Map<Relation,List<Tuple>>> clonedTargets = new ArrayList<>();
-            for(Map<Relation,List<Tuple>> target : targets) {
-                clonedTargets.add(new LinkedHashMap<Relation,List<Tuple>>(target));
+            List<Map<Relation,TupleSet>> clonedIncludes = new ArrayList<>();
+            for(Map<Relation,TupleSet> include : includes) {
+                clonedIncludes.add(new LinkedHashMap<Relation,TupleSet>(include));
             }
-            return new Bounds(factory, new LinkedHashMap<Relation,TupleSet>(lowers), new LinkedHashMap<Relation,TupleSet>(uppers), clonedTargets, intbounds.clone());
+            List<Map<Relation,TupleSet>> clonedTargets = new ArrayList<>();
+            for(Map<Relation,TupleSet> target : targets) {
+                clonedTargets.add(new LinkedHashMap<Relation,TupleSet>(target));
+            }
+            List<Map<Relation,TupleSet>> cloneExcludes = new ArrayList<>();
+            for(Map<Relation,TupleSet> exclude : excludes) {
+                cloneExcludes.add(new LinkedHashMap<Relation,TupleSet>(exclude));
+            }
+            return new Bounds(factory, new LinkedHashMap<Relation,TupleSet>(lowers), new LinkedHashMap<Relation,TupleSet>(uppers), clonedTargets, clonedIncludes, cloneExcludes, intbounds.clone());
         } catch (CloneNotSupportedException cnse) {
             throw new InternalError(); // should not be reached
         }

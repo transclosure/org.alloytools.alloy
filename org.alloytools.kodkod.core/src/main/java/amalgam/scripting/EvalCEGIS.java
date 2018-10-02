@@ -22,23 +22,22 @@ public class EvalCEGIS {
     private static String cegis(KodkodExample spec, SATFactory solver, int n, int loopLimit) {
         int i = 0;
         Bounds synthbounds = spec.bounds(n);
-        Solution synth;
-        Bounds verifybounds = synthbounds.clone();
-        Solution verify;
+        final Bounds verifybounds = synthbounds.clone().unmodifiableView();
+        Solution synth, verify;
         while(i++<loopLimit) {
             // synthesize
             synth = exec(spec.synthformula(), synthbounds, solver);
             stats(synth, "synth: ");
             if(synth.sat()) System.out.println(synth.instance().toPrettyString());
             else return "Synthesis step failed with UNSAT";
-            // restrict (synth output as kodkod partial instance)
-            verifybounds = spec.restrict(verifybounds, synth.instance());
-            // verify
-            verify = exec(spec.formula().not(), verifybounds, solver);
+            // full restrict and verify
+            verify = exec(spec.verifyformula().not(), spec.restrict(verifybounds, synth.instance(), false), solver);
             stats(verify, "verify: ");
             if(verify.unsat()) return "Verification step succeeded with UNSAT";
-            // refine (synth input as solver side effect)
-            synthbounds = spec.refine(synthbounds, synth.instance(), verify.instance());
+            // skeleton restrict and refine (sat=reliable synth witness, unsat=unreliable synth skeleton)
+            verify = exec(spec.verifyformula(), spec.restrict(verifybounds, synth.instance(), true), solver);
+            if(verify.sat()) synthbounds = spec.refine(synthbounds, synth.instance(), verify.instance());
+            else synthbounds = spec.refine(synthbounds, synth.instance(), null);
         }
         return "TIMEOUT: loop limit of "+loopLimit+" exceeded.";
     }

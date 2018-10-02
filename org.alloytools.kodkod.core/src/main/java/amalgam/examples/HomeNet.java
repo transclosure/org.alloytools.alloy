@@ -11,16 +11,14 @@ import java.util.Map;
 
 public class HomeNet implements KodkodExample {
 
+    // Kodkod
     private final Relation device, interfac;
     private final Relation connected;
-
-
     public HomeNet() {
         device = Relation.unary("Device");
         interfac = Relation.unary("Interface");
         connected = Relation.binary("connected");
     }
-
     @Override
     public Bounds bounds(int n) {
         // Universe
@@ -49,55 +47,8 @@ public class HomeNet implements KodkodExample {
         bounds.bound(connected, factory.setOf(connecteds));
         return bounds;
     }
-
     @Override
-    public Bounds refine(Bounds synthbounds, Instance lastsynth, Instance counterexample)  {
-        Bounds refined = synthbounds.clone();
-        // not-model as a target oriented bound (get a maxsat point for each tuple avoided)
-        // z3 solver side effect handles how targets become clauses
-        // things like priority, composition of targets, etc, are dealt with there
-        Map<Relation,List<Tuple>> targets = new LinkedHashMap<>();
-        TupleSet connectedM = lastsynth.tuples("connected");
-        List<Tuple> connectedN = new ArrayList<>();
-        int n = synthbounds.upperBound(device).size();
-        for(int i=1; i<=n; i++) {
-            for (int j = 1; j<=n; j++) {
-                Tuple tuple = synthbounds.universe().factory().tuple("Device" + i, "Interface" + j);
-                if(!connectedM.contains(tuple)) {
-                    connectedN.add(tuple);
-                }
-            }
-        }
-        targets.put(synthbounds.findRelByName("connected"), connectedN);
-        refined.addTarget(targets);
-        return refined;
-    }
-
-    @Override
-    public Bounds restrict(Bounds verifybounds, Instance apply) {
-        Bounds restricted = verifybounds.clone();
-        restricted.boundExactly(device, apply.tuples("Device"));
-        restricted.boundExactly(interfac, apply.tuples("Interface"));
-        restricted.boundExactly(connected, apply.tuples("connected"));
-        return restricted;
-    }
-
-    @Override
-    public Formula synthformula() {
-        final List<Formula> formulas = new ArrayList<>();
-        // force connected to be on (Device X Interface)
-        final Formula leftComponentInDevice = connected.join(Expression.UNIV).in(device);
-        final Formula rightComponentInInterface = Expression.UNIV.join(connected).in(interfac);
-        formulas.add(leftComponentInDevice);
-        formulas.add(rightComponentInInterface);
-        // non-trivial
-        formulas.add(connected.some());
-        //
-        return Formula.and(formulas);
-    }
-
-    @Override
-    public Formula formula() {
+    public Formula verifyformula() {
         final List<Formula> formulas = new ArrayList<>();
         // force connected to be on (Device X Interface)
         final Formula leftComponentInDevice = connected.join(Expression.UNIV).in(device);
@@ -116,11 +67,50 @@ public class HomeNet implements KodkodExample {
         final Formula rhs1 = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
         formulas.add(lhs1.implies(rhs1).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
         // needle in haystack
-        formulas.add(connected.count().eq(IntConstant.constant(3)));
+        formulas.add(connected.count().eq(IntConstant.constant(2)));
         //
         return Formula.and(formulas);
     }
 
+    // CEGIS
+    @Override
+    public Formula synthformula() {
+        final List<Formula> formulas = new ArrayList<>();
+        // force connected to be on (Device X Interface)
+        final Formula leftComponentInDevice = connected.join(Expression.UNIV).in(device);
+        final Formula rightComponentInInterface = Expression.UNIV.join(connected).in(interfac);
+        formulas.add(leftComponentInDevice);
+        formulas.add(rightComponentInInterface);
+        // non-trivial
+        formulas.add(connected.some());
+        //
+        return Formula.and(formulas);
+    }
+    @Override
+    public Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton) {
+        Bounds restricted = verifybounds.clone();
+        restricted.boundExactly(device, synth.tuples("Device"));
+        restricted.boundExactly(interfac, synth.tuples("Interface"));
+        if(!onlySkeleton) {
+            restricted.boundExactly(connected, synth.tuples("connected"));
+        }
+        return restricted;
+    }
+    @Override
+    public Bounds refine(Bounds synthbounds, Instance synth, Instance witness)  {
+        Bounds refined = synthbounds.clone();
+        // Exclude previous synth attempt
+        Map<Relation,TupleSet> exclude = new LinkedHashMap<>();
+        exclude.put(synthbounds.findRelByName("Device"), synth.tuples("Device"));
+        exclude.put(synthbounds.findRelByName("Interface"), synth.tuples("Interface"));
+        exclude.put(synthbounds.findRelByName("connected"), synth.tuples("connected"));
+        refined.exclude(exclude);
+        // Exclude skeleton TODO
+        // Include witness TODO
+        return refined;
+    }
+
+    // Target-oriented
     @Override
     public Bounds target(Bounds bounds) { return bounds; }
 }

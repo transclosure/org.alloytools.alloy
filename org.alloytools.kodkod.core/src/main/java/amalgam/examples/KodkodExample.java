@@ -7,11 +7,11 @@ import kodkod.instance.Instance;
 public interface KodkodExample {
     // Kodkod
     Bounds bounds(int n);
-    Formula formula();
+    Formula verifyformula();
     // CEGIS
     Formula synthformula();
-    Bounds refine(Bounds synthbounds, Instance lastsynth, Instance counterexample);
-    Bounds restrict(Bounds verifybounds, Instance apply);
+    Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton);
+    Bounds refine(Bounds synthbounds, Instance synth, Instance witness);
     // Target Oriented
     Bounds target(Bounds bounds);
 }

@@ -58,13 +58,13 @@ public final class DataRepair implements KodkodExample {
     public Formula synthformula() { return Formula.TRUE; }
 
     @Override
-    public Bounds refine(Bounds synthbounds, Instance lastsynth, Instance counterexample)  { return synthbounds; }
+    public Bounds refine(Bounds synthbounds, Instance synth, Instance witness)  { return synthbounds; }
 
     @Override
-    public Bounds restrict(Bounds verifybounds, Instance apply) { return verifybounds; }
+    public Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton) { return verifybounds; }
 
     @Override
-    public Formula formula() {
+    public Formula verifyformula() {
         final List<Formula> formulas = new ArrayList<>();
         final Variable n = Variable.unary("n");
         final Variable m = Variable.unary("m");
@@ -80,14 +80,14 @@ public final class DataRepair implements KodkodExample {
     @Override
     public Bounds target(Bounds current) {
         Bounds bounds = current.clone();
-        Map<Relation,List<Tuple>> targets = new LinkedHashMap<>();
+        Map<Relation,TupleSet> target = new LinkedHashMap<>();
         List<Tuple> colors = new ArrayList<>();
         int n = bounds.upperBound(node).size();
         for(int i=1; i<=n; i++) {
             colors.add(bounds.universe().factory().tuple("Node"+i, "Hue"+i));
         }
-        targets.put(bounds.findRelByName("color"), colors);
-        bounds.addTarget(targets);
+        target.put(bounds.findRelByName("color"), bounds.universe().factory().setOf(colors));
+        bounds.target(target);
         return bounds;
     }
 }

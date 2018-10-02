@@ -21,24 +21,24 @@ public class EvalObjectives {
         solver = SATFactory.Z3;
         lowb = spec.bounds(20);
         highb = spec.bounds(40);
-        time("CACHE WARM", spec.formula(), lowb, solver, 10);
-        time("datarepair 20 z3", spec.formula(), lowb, solver, 3);
-        time("datarepair 40 z3", spec.formula(), highb, solver, 3);
+        time("CACHE WARM", spec.verifyformula(), lowb, solver, 10);
+        time("datarepair 20 z3", spec.verifyformula(), lowb, solver, 3);
+        time("datarepair 40 z3", spec.verifyformula(), highb, solver, 3);
         lowb = spec.target(lowb);
         highb = spec.target(highb);
-        time("datarepair 20 z3+target", spec.formula(), lowb, solver, 3);
-        time("datarepair 40 z3+target", spec.formula(), highb, solver, 3);
+        time("datarepair 20 z3+target", spec.verifyformula(), lowb, solver, 3);
+        time("datarepair 40 z3+target", spec.verifyformula(), highb, solver, 3);
 
         spec = new BidirTrans();
         solver = SATFactory.Z3;
         lowb = spec.bounds(8);
         highb = spec.bounds(12);
-        time("bidirtrans 8 z3", spec.formula(), lowb, solver, 3);
-        time("bidirtrans 12 z3", spec.formula(), highb, solver, 3);
+        time("bidirtrans 8 z3", spec.verifyformula(), lowb, solver, 3);
+        time("bidirtrans 12 z3", spec.verifyformula(), highb, solver, 3);
         lowb = spec.target(lowb);
         highb = spec.target(highb);
-        time("bidirtrans 8 z3+target", spec.formula(), lowb, solver, 3);
-        time("bidirtrans 12 z3+target", spec.formula(), highb, solver, 3);
+        time("bidirtrans 8 z3+target", spec.verifyformula(), lowb, solver, 3);
+        time("bidirtrans 12 z3+target", spec.verifyformula(), highb, solver, 3);
     }
 
     private static void time(String name, Formula f, Bounds b, SATFactory s, int outof) {
