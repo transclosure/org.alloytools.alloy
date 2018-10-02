@@ -62,8 +62,6 @@ public class EvalCEGIS {
                 TupleSet conn = synth.instance().relationTuples().get(synthbounds.findRelByName("connected"));
                 System.out.println(conn.size()+":"+conn);
             }
-
-
             // full restrict and verify (for each phi)
             boolean allpassed = true;
             for(KodkodExample.SynthGoal g : goals) {

@@ -81,16 +81,16 @@ public class BidirTrans implements KodkodExample {
     }
 
     @Override
-    public Formula synthformula() { return Formula.TRUE; }
+    public Formula synthformula() { throw new UnsupportedOperationException(); }
 
     @Override
     public Collection<SynthGoal> goals() { throw new UnsupportedOperationException(); }
 
     @Override
-    public Bounds refine(Bounds synthbounds, Instance synth, Instance verify)  { return synthbounds; }
+    public Bounds refine(Bounds synthbounds, Instance synth, Instance verify)  { throw new UnsupportedOperationException(); }
 
     @Override
-    public Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton) { return verifybounds; }
+    public Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton) { throw new UnsupportedOperationException(); }
 
     @Override
     public Formula verifyformula() {

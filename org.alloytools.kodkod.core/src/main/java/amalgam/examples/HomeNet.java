@@ -103,9 +103,9 @@ public class HomeNet implements KodkodExample {
         final Variable i1 = Variable.unary("i");
         final Variable d1 = Variable.unary("d");
         univars.put(d1, device); // i1 is existential
-        final Formula total = d1.join(connected).compare(ExprCompOperator.EQUALS, i1);
+        final Formula total = d1.join(connected).one();
         //formulas.add(total.forSome(i1.oneOf(interfac)).forAll(d1.oneOf(device)));
-        formulas.add(total.forSome(i1.oneOf(interfac)));
+        formulas.add(total);
         results.add(new HomeNetGoal(univars, Formula.and(formulas)));
         formulas.clear(); univars.clear();
 
