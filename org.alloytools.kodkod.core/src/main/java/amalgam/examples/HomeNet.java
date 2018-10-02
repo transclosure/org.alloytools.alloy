@@ -67,7 +67,7 @@ public class HomeNet implements KodkodExample {
         final Formula rhs1 = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
         formulas.add(lhs1.implies(rhs1).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
         // needle in haystack
-        formulas.add(connected.count().eq(IntConstant.constant(3)));
+        formulas.add(connected.count().eq(IntConstant.constant(7)));
         //
         return Formula.and(formulas);
     }
@@ -111,6 +111,19 @@ public class HomeNet implements KodkodExample {
             Map<Relation,TupleSet> exclude = new LinkedHashMap<>();
             exclude.put(device, synth.tuples(device));
             refined.exclude(exclude);
+            // gravitate away from skeleton
+            Map<Relation,TupleSet> target = new LinkedHashMap<>();
+            TupleSet deviceM = synth.tuples(device);
+            List<Tuple> deviceN = new ArrayList<>();
+            int n = synthbounds.upperBound(device).size();
+            for(int i=1; i<=n; i++) {
+                Tuple tuple = synthbounds.universe().factory().tuple("Device" + i);
+                if(!deviceM.contains(tuple)) deviceN.add(tuple);
+            }
+            if(!deviceN.isEmpty()) {
+                target.put(device, synthbounds.universe().factory().setOf(deviceN));
+                refined.target(target);
+            }
         } else {
             // Include verify witness
             Map<Relation,TupleSet> include = new LinkedHashMap<>();

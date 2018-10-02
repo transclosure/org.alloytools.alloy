@@ -145,7 +145,7 @@ public class Z3 implements SATProver {
             if(debug) System.out.println("Target"+targetnum+": "+target);
             for (Relation relation : target.keySet()) {
                 TupleSet tuples = target.get(relation);
-                List<List<Integer>> targetclauses = encode(translation, relation, tuples, false);
+                List<List<Integer>> targetclauses = encode(translation, relation, tuples, true);
                 for (int i=0; i<targetclauses.size(); i++) {
                     List<Integer> targetclause = targetclauses.get(i);
                     int[] clause = new int[1];

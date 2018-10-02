@@ -13,7 +13,7 @@ public class EvalCEGIS {
     public static void main(String[] args) {
         KodkodExample spec = new HomeNet();
         SATFactory solver = SATFactory.Z3;
-        final int n = 5;
+        final int n = 10;
         final int limit = 1000;
         System.out.println(cegis(spec, solver, n, limit));
         System.out.println("Time trans+solve=total (ms): "+transtotal+"+"+solvetotal+"="+(transtotal+solvetotal));
