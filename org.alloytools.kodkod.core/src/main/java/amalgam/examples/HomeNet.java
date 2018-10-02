@@ -67,7 +67,7 @@ public class HomeNet implements KodkodExample {
         final Formula rhs1 = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
         formulas.add(lhs1.implies(rhs1).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
         // needle in haystack
-        formulas.add(connected.count().eq(IntConstant.constant(2)));
+        formulas.add(connected.count().eq(IntConstant.constant(3)));
         //
         return Formula.and(formulas);
     }
@@ -89,24 +89,34 @@ public class HomeNet implements KodkodExample {
     @Override
     public Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton) {
         Bounds restricted = verifybounds.clone();
-        restricted.boundExactly(device, synth.tuples("Device"));
-        restricted.boundExactly(interfac, synth.tuples("Interface"));
+        restricted.boundExactly(device, synth.tuples(device));
         if(!onlySkeleton) {
-            restricted.boundExactly(connected, synth.tuples("connected"));
+            restricted.boundExactly(interfac, synth.tuples(interfac));
+            restricted.boundExactly(connected, synth.tuples(connected));
         }
         return restricted;
     }
     @Override
-    public Bounds refine(Bounds synthbounds, Instance synth, Instance witness)  {
+    public Bounds refine(Bounds synthbounds, Instance synth, Instance verify)  {
         Bounds refined = synthbounds.clone();
-        // Exclude previous synth attempt
+        /* Exclude previous synth attempt, naive
         Map<Relation,TupleSet> exclude = new LinkedHashMap<>();
         exclude.put(synthbounds.findRelByName("Device"), synth.tuples("Device"));
         exclude.put(synthbounds.findRelByName("Interface"), synth.tuples("Interface"));
         exclude.put(synthbounds.findRelByName("connected"), synth.tuples("connected"));
         refined.exclude(exclude);
-        // Exclude skeleton TODO
-        // Include witness TODO
+        */
+        if(verify ==null) {
+            // Exclude synth skeleton
+            Map<Relation,TupleSet> exclude = new LinkedHashMap<>();
+            exclude.put(device, synth.tuples(device));
+            refined.exclude(exclude);
+        } else {
+            // Include verify witness
+            Map<Relation,TupleSet> include = new LinkedHashMap<>();
+            include.put(connected, verify.tuples(connected));
+            refined.include(include);
+        }
         return refined;
     }
 

@@ -58,7 +58,7 @@ public final class DataRepair implements KodkodExample {
     public Formula synthformula() { return Formula.TRUE; }
 
     @Override
-    public Bounds refine(Bounds synthbounds, Instance synth, Instance witness)  { return synthbounds; }
+    public Bounds refine(Bounds synthbounds, Instance synth, Instance verify)  { return synthbounds; }
 
     @Override
     public Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton) { return verifybounds; }

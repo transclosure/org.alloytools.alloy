@@ -11,7 +11,7 @@ public interface KodkodExample {
     // CEGIS
     Formula synthformula();
     Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton);
-    Bounds refine(Bounds synthbounds, Instance synth, Instance witness);
+    Bounds refine(Bounds synthbounds, Instance synth, Instance verify);
     // Target Oriented
     Bounds target(Bounds bounds);
 }

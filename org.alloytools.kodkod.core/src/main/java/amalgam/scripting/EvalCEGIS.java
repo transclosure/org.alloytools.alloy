@@ -28,14 +28,15 @@ public class EvalCEGIS {
             // synthesize
             synth = exec(spec.synthformula(), synthbounds, solver);
             stats(synth, "synth: ");
-            if(synth.sat()) System.out.println(synth.instance().toPrettyString());
-            else return "Synthesis step failed with UNSAT";
+            if(synth.unsat()) return "FAILURE, synth unsat";
+            else System.out.println(synth.instance().toPrettyString());
             // full restrict and verify
             verify = exec(spec.verifyformula().not(), spec.restrict(verifybounds, synth.instance(), false), solver);
             stats(verify, "verify: ");
-            if(verify.unsat()) return "Verification step succeeded with UNSAT";
+            if(verify.unsat()) return "SUCCESS, verify unsat";
             // skeleton restrict and refine (sat=reliable synth witness, unsat=unreliable synth skeleton)
             verify = exec(spec.verifyformula(), spec.restrict(verifybounds, synth.instance(), true), solver);
+            stats(verify, "witness: ");
             if(verify.sat()) synthbounds = spec.refine(synthbounds, synth.instance(), verify.instance());
             else synthbounds = spec.refine(synthbounds, synth.instance(), null);
         }
