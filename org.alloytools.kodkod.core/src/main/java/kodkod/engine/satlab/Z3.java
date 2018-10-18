@@ -21,7 +21,7 @@ import kodkod.util.ints.IntSet;
  */
 public class Z3 implements SATProver {
 
-    private final static boolean    debug = true;
+    private final static boolean    debug = false; // FIXME huge performance hit if true
     // kodkod
     private List<BoolExpr>          vars;
     private boolean                 sat;

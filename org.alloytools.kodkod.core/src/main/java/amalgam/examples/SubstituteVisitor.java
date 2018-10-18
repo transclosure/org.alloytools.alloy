@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 import kodkod.ast.visitor.ReturnVisitor;
 
 
-public class SubstituteVisitor implements ReturnVisitor<Expression, Formula, Decls, Object> {
+public class SubstituteVisitor implements ReturnVisitor<Expression, Formula, Decls, IntExpression> {
     Variable v;
     Expression with;
     
@@ -63,7 +63,7 @@ public class SubstituteVisitor implements ReturnVisitor<Expression, Formula, Dec
 
 	@Override
 	public Expression visit(BinaryExpression binExpr) {
-		return new BinaryExpression(binExpr.left().accept(this), binExpr.op(), binExpr.right().accept(this));
+		return new BinaryExpression(binExpr.left().accept(this), binExpr.op(),  binExpr.right().accept(this));
 	}
 
 	@Override
@@ -93,47 +93,62 @@ public class SubstituteVisitor implements ReturnVisitor<Expression, Formula, Dec
 
 	@Override
 	public Expression visit(IntToExprCast castExpr) {
-		throw new UnsupportedOperationException("substitution");
+		return new IntToExprCast(castExpr.intExpr().accept(this), castExpr.op());
 	}
 
 	@Override
-	public Expression visit(IntConstant intConst) {
-		throw new UnsupportedOperationException("substitution");
+	public IntExpression visit(IntConstant intConst) {
+		return intConst;
 	}
 
 	@Override
-	public Expression visit(IfIntExpression intExpr) {
-		throw new UnsupportedOperationException("substitution");
+	public IntExpression visit(IfIntExpression intExpr) {
+    	return new IfIntExpression(
+    			intExpr.condition().accept(this),
+				intExpr.thenExpr().accept(this),
+				intExpr.elseExpr().accept(this));
 	}
 
 	@Override
-	public Expression visit(ExprToIntCast intExpr) {
-		throw new UnsupportedOperationException("substitution");
+	public ExprToIntCast visit(ExprToIntCast intExpr) {
+    	return new ExprToIntCast(intExpr.expression().accept(this),intExpr.op());
 	}
 
 	@Override
-	public Expression visit(NaryIntExpression intExpr) {
-		throw new UnsupportedOperationException("substitution");
+	public IntExpression visit(NaryIntExpression intExpr) {
+    	IntExpression[] children = new IntExpression[intExpr.size()];
+    	Iterator<IntExpression> citr = intExpr.iterator();
+    	int i = 0;
+    	while(citr.hasNext()) {
+    		children[i] = citr.next().accept(this);
+		}
+		return new NaryIntExpression(intExpr.op(), children);
 	}
 
 	@Override
-	public Expression visit(BinaryIntExpression intExpr) {
-		throw new UnsupportedOperationException("substitution");
+	public IntExpression visit(BinaryIntExpression intExpr) {
+		return new BinaryIntExpression(
+				intExpr.left().accept(this),
+				intExpr.op(),
+				intExpr.right().accept(this));
 	}
 
 	@Override
-	public Expression visit(UnaryIntExpression intExpr) {
-		throw new UnsupportedOperationException("substitution");
+	public IntExpression visit(UnaryIntExpression intExpr) {
+		return new UnaryIntExpression(intExpr.op(), intExpr.intExpr().accept(this));
 	}
 
 	@Override
-	public Expression visit(SumExpression intExpr) {
-		throw new UnsupportedOperationException("substitution");
+	public IntExpression visit(SumExpression intExpr) {
+		return new SumExpression(intExpr.decls().accept(this), intExpr.intExpr().accept(this));
 	}
 
 	@Override
 	public Formula visit(IntComparisonFormula intComp) {
-		throw new UnsupportedOperationException("substitution");
+		return new IntComparisonFormula(
+				(IntExpression)intComp.left().accept(this),
+				intComp.op(),
+				intComp.right().accept(this));
 	}
 
 	@Override

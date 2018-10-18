@@ -1,6 +1,6 @@
 package amalgam.scripting;
 
-import amalgam.examples.HomeNet;
+import amalgam.examples.RoomHeat;
 import amalgam.examples.KodkodExample;
 import kodkod.ast.Formula;
 import kodkod.engine.Solution;
@@ -11,12 +11,11 @@ import kodkod.instance.Bounds;
 import kodkod.instance.TupleSet;
 
 import java.util.Collection;
-import java.util.List;
 
 public class EvalCEGIS {
 
     public static void main(String[] args) {
-        KodkodExample spec = new HomeNet();
+        KodkodExample spec = new RoomHeat();
         SATFactory solver = SATFactory.Z3;
         final int n = 10;
         final int limit = 1000;
@@ -47,6 +46,7 @@ public class EvalCEGIS {
         Solution synth, verify;
 
         Formula synthformula = spec.synthformula();   // the "system model", free of goals
+        spec.verifyformula(); // dummy call to make sure goal variables are initialized
         Collection<KodkodExample.SynthGoal> goals = spec.goals(); // collection of properties phi
 
         System.out.println("Starting with bounds: "+synthbounds);
@@ -57,10 +57,14 @@ public class EvalCEGIS {
             synth = exec(synthformula, synthbounds, solver);
             stats(synth, "synth: ");
             if(synth.unsat()) return "FAILURE, synth unsat in "+i+" iterations.";
-            // TODO: hardcoding name of synth func to aid debugging
             else {
-                TupleSet conn = synth.instance().relationTuples().get(synthbounds.findRelByName("connected"));
-                System.out.println(conn.size()+":"+conn);
+                // TODO: hardcoding name of synth func to aid debugging
+                TupleSet T = synth.instance().relationTuples().get(synthbounds.findRelByName("this/Config.T"));
+                TupleSet heats = synth.instance().relationTuples().get(synthbounds.findRelByName("this/Time.heat"));
+                TupleSet temps = synth.instance().relationTuples().get(synthbounds.findRelByName("this/Time.temp"));
+                System.out.println("this/Config.T = "+T);
+                System.out.println("this/Time.heat = "+heats);
+                System.out.println("this/Time.temp = "+temps);
             }
             // full restrict and verify (for each phi)
             boolean allpassed = true;
@@ -123,10 +127,11 @@ public class EvalCEGIS {
     private static Solution exec(Formula f, Bounds b, SATFactory s) {
         final Solver solver = new Solver();
         solver.options().setSolver(s);
+        solver.options().setBitwidth(8); // FIXME ASSUME 8
         solver.options().setNoOverflow(true); // disallow integer overflow (or #R = 7 can overflow)
         solver.options().setSymmetryBreaking(0);
-        //solver.options().setSkolemDepth(-1);
-        solver.options().setSkolemDepth(0); // TODO: Tim turned this back on for CE extraction; any issues?
+        solver.options().setIntEncoding(Options.IntEncoding.TWOSCOMPLEMENT);
+        solver.options().setSkolemDepth(0);
         solver.options().setLogTranslation(2);
         return solver.solve(f, b);
     }
