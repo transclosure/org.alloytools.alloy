@@ -45,8 +45,8 @@ public class EvalCEGIS {
         final Bounds verifybounds = synthbounds.clone().unmodifiableView();
         Solution synth, verify;
 
-        Formula synthformula = spec.synthformula();   // the "system model", free of goals
         spec.verifyformula(); // dummy call to make sure goal variables are initialized
+        Formula synthformula = spec.synthformula();   // the "system model", free of goals
         Collection<KodkodExample.SynthGoal> goals = spec.goals(); // collection of properties phi
 
         System.out.println("Starting with bounds: "+synthbounds);
@@ -60,9 +60,13 @@ public class EvalCEGIS {
             else {
                 // TODO: hardcoding name of synth func to aid debugging
                 TupleSet T = synth.instance().relationTuples().get(synthbounds.findRelByName("this/Config.T"));
+                TupleSet F = synth.instance().relationTuples().get(synthbounds.findRelByName("this/Config.F"));
+                TupleSet G = synth.instance().relationTuples().get(synthbounds.findRelByName("this/Config.G"));
                 TupleSet heats = synth.instance().relationTuples().get(synthbounds.findRelByName("this/Time.heat"));
                 TupleSet temps = synth.instance().relationTuples().get(synthbounds.findRelByName("this/Time.temp"));
                 System.out.println("this/Config.T = "+T);
+                System.out.println("this/Config.F = "+F);
+                System.out.println("this/Config.G = "+G);
                 System.out.println("this/Time.heat = "+heats);
                 System.out.println("this/Time.temp = "+temps);
             }

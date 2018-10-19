@@ -2,7 +2,6 @@ package amalgam.examples;
 
 import kodkod.ast.*;
 import kodkod.ast.SubstituteVisitor;
-import kodkod.ast.operator.ExprCompOperator;
 import kodkod.ast.operator.FormulaOperator;
 import kodkod.instance.*;
 
@@ -22,11 +21,17 @@ public class RoomHeat implements KodkodExample {
     Relation x9 = Relation.unary("boolean/True");
     Relation x10 = Relation.unary("boolean/False");
     Relation x11 = Relation.unary("this/Config.T");
-    Relation x12 = Relation.nary("this/Time.temp", 2);
-    Relation x13 = Relation.nary("this/Time.heat", 2);
-    Relation x14 = Relation.unary("ordering/Ord.First");
-    Relation x15 = Relation.nary("ordering/Ord.Next", 2);
-    Relation x16 = Relation.unary("");
+    Relation x12 = Relation.unary("this/Config.F");
+    Relation x13 = Relation.unary("this/Config.G");
+    Relation x14 = Relation.nary("this/Time.temp", 2);
+    Relation x15 = Relation.nary("this/Time.heat", 2);
+    Relation x16 = Relation.unary("ordering/Ord.First");
+    Relation x17 = Relation.nary("ordering/Ord.Next", 2);
+    Relation x18 = Relation.unary("");
+    Formula x66;
+    Formula x121; Variable x120;
+    Formula x196; Variable x195;
+
     List<String> atomlist = Arrays.asList(
             "-1", "-10", "-100", "-101", "-102",
             "-103", "-104", "-105", "-106", "-107", "-108",
@@ -78,103 +83,7 @@ public class RoomHeat implements KodkodExample {
     Universe universe = new Universe(atomlist);
     TupleFactory factory = universe.factory();
     Bounds bounds = new Bounds(universe);
-
-    // phis
-    Formula x155, x73, x49, x39, x29;
-    // univars, expressions
-    Variable x152, x137, x69, x48, x38, x28;
-    Expression x153, x138, x70;
-
-    /*
-      ==================================================
-        kodkod formula:
-      ==================================================
-        no (boolean/True & boolean/False) &&
-        one (this/Config . (this/Config -> this/Config.T)) &&
-        (this/Config . (this/Config -> this/Config.T)) in ints &&
-        (all synth_revised_restricted_this: this/Time |
-          one (synth_revised_restricted_this . this/Time.temp) &&
-          (synth_revised_restricted_this . this/Time.temp) in ints) &&
-        (this/Time.temp . univ) in this/Time &&
-        (all synth_revised_restricted_this: this/Time |
-          one (synth_revised_restricted_this . this/Time.heat) &&
-          (synth_revised_restricted_this . this/Time.heat) in (boolean/True +
-          boolean/False)) &&
-        (this/Time.heat . univ) in this/Time &&
-        (all synth_revised_restricted_this: this/Time |
-          int[synth_revised_restricted_this . this/Time.temp] > 0) &&
-        (ordering/Ord . (ordering/Ord -> ordering/Ord.First)) in this/Time &&
-        (ordering/Ord . (ordering/Ord -> ordering/Ord.Next)) in (this/Time ->
-        this/Time) &&
-        ord[ordering/Ord.Next, this/Time, ordering/Ord.First, ] &&
-        int[ordering/Ord.First . this/Time.temp] = 66 &&
-        (ordering/Ord.First . this/Time.heat) = boolean/False &&
-        (all synth_revised_restricted_t: this/Time - this/Time - (ordering/Ord.Next .
-         this/Time) |
-          ((synth_revised_restricted_t . this/Time.heat) = boolean/True =>
-           ((int[synth_revised_restricted_t . this/Time.temp] < int[this/Config.T] =>
-             (((synth_revised_restricted_t . ordering/Ord.Next) . this/Time.heat) =
-              boolean/True &&
-              ((synth_revised_restricted_t . ordering/Ord.Next) . this/Time.temp) =
-              Int[int[synth_revised_restricted_t . this/Time.temp] + 1])) &&
-            (!(int[synth_revised_restricted_t . this/Time.temp] < int[this/Config.T]
-               ) =>
-             (((synth_revised_restricted_t . ordering/Ord.Next) . this/Time.heat) =
-              boolean/False &&
-              ((synth_revised_restricted_t . ordering/Ord.Next) . this/Time.temp) =
-              (synth_revised_restricted_t . this/Time.temp))))) &&
-          (!((synth_revised_restricted_t . this/Time.heat) = boolean/True) =>
-           ((int[synth_revised_restricted_t . this/Time.temp] >= int[this/Config.T] =>
-             (((synth_revised_restricted_t . ordering/Ord.Next) . this/Time.heat) =
-              boolean/False &&
-              ((synth_revised_restricted_t . ordering/Ord.Next) . this/Time.temp) =
-              Int[int[synth_revised_restricted_t . this/Time.temp] - 1])) &&
-            (!(int[synth_revised_restricted_t . this/Time.temp] >= int[this/Config.T
-               ]) =>
-             (((synth_revised_restricted_t . ordering/Ord.Next) . this/Time.heat) =
-              boolean/True &&
-              ((synth_revised_restricted_t . ordering/Ord.Next) . this/Time.temp) =
-              (synth_revised_restricted_t . this/Time.temp)))))) &&
-        (some eventuallyalwayscomfy2_t: this/Time - this/Time - (ordering/Ord.Next .
-         this/Time) |
-          int[eventuallyalwayscomfy2_t . this/Time.temp] <= 75 &&
-          int[eventuallyalwayscomfy2_t . this/Time.temp] >= 70 &&
-          (all eventuallyalwayscomfy2_st: eventuallyalwayscomfy2_t . ^
-           ordering/Ord.Next |
-            int[eventuallyalwayscomfy2_st . this/Time.temp] <= 75 &&
-            int[eventuallyalwayscomfy2_st . this/Time.temp] >= 70) &&
-          (some eventuallyalwayscomfy2_c: eventuallyalwayscomfy2_t . ^
-           ordering/Ord.Next |
-            !(eventuallyalwayscomfy2_c = (this/Time - (ordering/Ord.Next . this/Time
-              ))) &&
-            int[eventuallyalwayscomfy2_c . this/Time.temp] = int[(this/Time - (
-            ordering/Ord.Next . this/Time)) . this/Time.temp] &&
-            (eventuallyalwayscomfy2_c . this/Time.heat) = ((this/Time - (
-            ordering/Ord.Next . this/Time)) . this/Time.heat))) &&
-        no ({restrictedTemp_i: ints | int[restrictedTemp_i] <= 0} & (this/Time .
-        this/Time.temp)) &&
-        Int/min = Int/min &&
-        Int/zero = Int/zero &&
-        Int/max = Int/max &&
-        Int/next = Int/next &&
-        seq/Int = seq/Int &&
-        String = String &&
-        this/Config = this/Config &&
-        this/Time = this/Time &&
-        ordering/Ord = ordering/Ord &&
-        boolean/True = boolean/True &&
-        boolean/False = boolean/False &&
-        this/Config.T = this/Config.T &&
-        this/Time.temp = this/Time.temp &&
-        this/Time.heat = this/Time.heat &&
-        ordering/Ord.First = ordering/Ord.First &&
-        ordering/Ord.Next = ordering/Ord.Next &&
-         =
-      ==================================================
-    */
-    public RoomHeat() {
-
-    }
+    public RoomHeat() {}
     private TupleSet x3u() {
         TupleSet x3_upper = factory.noneOf(2);
         x3_upper.add(factory.tuple("-128").product(factory.tuple("-127")));
@@ -694,267 +603,267 @@ public class RoomHeat implements KodkodExample {
         x11_upper.add(factory.tuple("127"));
         return x11_upper;
     }
-    private TupleSet x12u() {
-        TupleSet x12_upper = factory.noneOf(2);
+    private TupleSet x14u() {
+        TupleSet x14_upper = factory.noneOf(2);
         for(int i=0; i<=10; i++) {
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-128")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-127")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-126")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-125")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-124")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-123")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-122")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-121")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-120")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-119")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-118")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-117")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-116")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-115")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-114")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-113")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-112")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-111")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-110")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-109")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-108")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-107")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-106")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-105")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-104")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-103")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-102")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-101")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-100")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-99")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-98")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-97")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-96")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-95")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-94")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-93")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-92")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-91")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-90")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-89")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-88")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-87")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-86")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-85")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-84")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-83")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-82")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-81")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-80")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-79")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-78")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-77")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-76")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-75")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-74")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-73")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-72")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-71")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-70")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-69")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-68")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-67")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-66")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-65")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-64")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-63")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-62")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-61")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-60")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-59")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-58")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-57")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-56")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-55")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-54")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-53")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-52")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-51")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-50")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-49")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-48")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-47")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-46")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-45")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-44")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-43")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-42")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-41")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-40")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-39")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-38")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-37")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-36")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-35")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-34")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-33")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-32")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-31")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-30")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-29")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-28")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-27")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-26")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-25")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-24")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-23")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-22")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-21")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-20")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-19")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-18")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-17")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-16")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-15")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-14")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-13")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-12")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-11")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-10")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-9")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-8")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-7")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-6")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-5")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-4")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-3")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-2")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-1")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("0")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("1")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("2")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("3")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("4")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("5")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("6")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("7")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("8")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("9")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("10")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("11")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("12")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("13")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("14")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("15")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("16")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("17")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("18")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("19")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("20")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("21")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("22")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("23")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("24")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("25")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("26")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("27")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("28")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("29")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("30")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("31")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("32")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("33")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("34")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("35")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("36")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("37")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("38")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("39")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("40")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("41")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("42")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("43")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("44")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("45")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("46")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("47")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("48")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("49")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("50")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("51")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("52")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("53")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("54")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("55")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("56")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("57")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("58")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("59")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("60")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("61")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("62")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("63")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("64")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("65")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("66")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("67")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("68")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("69")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("70")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("71")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("72")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("73")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("74")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("75")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("76")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("77")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("78")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("79")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("80")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("81")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("82")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("83")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("84")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("85")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("86")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("87")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("88")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("89")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("90")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("91")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("92")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("93")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("94")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("95")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("96")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("97")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("98")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("99")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("100")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("101")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("102")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("103")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("104")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("105")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("106")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("107")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("108")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("109")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("110")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("111")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("112")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("113")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("114")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("115")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("116")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("117")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("118")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("119")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("120")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("121")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("122")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("123")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("124")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("125")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("126")));
-            x12_upper.add(factory.tuple("Time$"+i).product(factory.tuple("127")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-128")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-127")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-126")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-125")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-124")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-123")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-122")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-121")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-120")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-119")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-118")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-117")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-116")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-115")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-114")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-113")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-112")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-111")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-110")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-109")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-108")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-107")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-106")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-105")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-104")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-103")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-102")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-101")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-100")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-99")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-98")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-97")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-96")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-95")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-94")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-93")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-92")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-91")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-90")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-89")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-88")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-87")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-86")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-85")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-84")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-83")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-82")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-81")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-80")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-79")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-78")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-77")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-76")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-75")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-74")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-73")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-72")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-71")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-70")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-69")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-68")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-67")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-66")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-65")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-64")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-63")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-62")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-61")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-60")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-59")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-58")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-57")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-56")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-55")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-54")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-53")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-52")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-51")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-50")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-49")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-48")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-47")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-46")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-45")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-44")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-43")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-42")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-41")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-40")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-39")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-38")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-37")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-36")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-35")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-34")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-33")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-32")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-31")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-30")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-29")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-28")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-27")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-26")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-25")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-24")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-23")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-22")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-21")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-20")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-19")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-18")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-17")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-16")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-15")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-14")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-13")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-12")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-11")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-10")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-9")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-8")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-7")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-6")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-5")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-4")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-3")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-2")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("-1")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("0")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("1")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("2")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("3")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("4")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("5")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("6")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("7")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("8")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("9")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("10")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("11")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("12")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("13")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("14")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("15")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("16")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("17")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("18")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("19")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("20")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("21")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("22")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("23")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("24")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("25")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("26")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("27")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("28")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("29")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("30")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("31")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("32")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("33")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("34")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("35")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("36")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("37")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("38")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("39")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("40")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("41")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("42")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("43")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("44")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("45")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("46")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("47")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("48")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("49")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("50")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("51")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("52")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("53")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("54")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("55")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("56")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("57")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("58")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("59")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("60")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("61")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("62")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("63")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("64")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("65")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("66")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("67")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("68")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("69")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("70")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("71")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("72")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("73")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("74")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("75")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("76")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("77")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("78")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("79")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("80")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("81")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("82")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("83")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("84")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("85")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("86")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("87")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("88")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("89")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("90")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("91")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("92")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("93")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("94")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("95")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("96")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("97")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("98")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("99")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("100")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("101")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("102")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("103")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("104")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("105")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("106")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("107")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("108")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("109")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("110")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("111")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("112")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("113")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("114")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("115")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("116")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("117")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("118")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("119")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("120")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("121")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("122")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("123")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("124")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("125")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("126")));
+            x14_upper.add(factory.tuple("Time$"+i).product(factory.tuple("127")));
         }
-        return x12_upper;
+        return x14_upper;
     }
     @Override
     public Bounds bounds(int n) {
@@ -1015,185 +924,91 @@ public class RoomHeat implements KodkodExample {
 
         bounds.bound(x11, x11u());
 
-        bounds.bound(x12, x12u());
+        TupleSet x12_upper = factory.noneOf(1);
+        x12_upper.add(factory.tuple("Time$0"));
+        x12_upper.add(factory.tuple("Time$1"));
+        x12_upper.add(factory.tuple("Time$2"));
+        x12_upper.add(factory.tuple("Time$3"));
+        x12_upper.add(factory.tuple("Time$4"));
+        x12_upper.add(factory.tuple("Time$5"));
+        x12_upper.add(factory.tuple("Time$6"));
+        x12_upper.add(factory.tuple("Time$7"));
+        x12_upper.add(factory.tuple("Time$8"));
+        x12_upper.add(factory.tuple("Time$9"));
+        x12_upper.add(factory.tuple("Time$10"));
+        bounds.bound(x12, x12_upper);
 
-        TupleSet x13_upper = factory.noneOf(2);
-        x13_upper.add(factory.tuple("Time$0").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$0").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$1").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$1").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$2").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$2").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$3").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$3").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$4").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$4").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$5").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$5").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$6").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$6").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$7").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$7").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$8").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$8").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$9").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$9").product(factory.tuple("boolean/False$0")));
-        x13_upper.add(factory.tuple("Time$10").product(factory.tuple("boolean/True$0")));
-        x13_upper.add(factory.tuple("Time$10").product(factory.tuple("boolean/False$0")));
+        TupleSet x13_upper = factory.noneOf(1);
+        x13_upper.add(factory.tuple("Time$0"));
+        x13_upper.add(factory.tuple("Time$1"));
+        x13_upper.add(factory.tuple("Time$2"));
+        x13_upper.add(factory.tuple("Time$3"));
+        x13_upper.add(factory.tuple("Time$4"));
+        x13_upper.add(factory.tuple("Time$5"));
+        x13_upper.add(factory.tuple("Time$6"));
+        x13_upper.add(factory.tuple("Time$7"));
+        x13_upper.add(factory.tuple("Time$8"));
+        x13_upper.add(factory.tuple("Time$9"));
+        x13_upper.add(factory.tuple("Time$10"));
         bounds.bound(x13, x13_upper);
 
-        // FIXME naive cegis has trouble with first/ordering in this space, giving some help
-        TupleSet x14_upper = factory.noneOf(1);
-        x14_upper.add(factory.tuple("Time$0"));
-        //x14_upper.add(factory.tuple("Time$1"));
-        //x14_upper.add(factory.tuple("Time$2"));
-        //x14_upper.add(factory.tuple("Time$3"));
-        //x14_upper.add(factory.tuple("Time$4"));
-        //x14_upper.add(factory.tuple("Time$5"));
-        //x14_upper.add(factory.tuple("Time$6"));
-        //x14_upper.add(factory.tuple("Time$7"));
-        //x14_upper.add(factory.tuple("Time$8"));
-        //x14_upper.add(factory.tuple("Time$9"));
-        //x14_upper.add(factory.tuple("Time$10"));
-        bounds.boundExactly(x14, x14_upper);
+        bounds.bound(x14, x14u());
 
         TupleSet x15_upper = factory.noneOf(2);
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$0")));
-        x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$1")));
-        x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$2")));
-        x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$3")));
-        x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$4")));
-        x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$5")));
-        x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$6")));
-        x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$7")));
-        x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$8")));
-        x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$9")));
-        x15_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$10")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$0")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$1")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$2")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$3")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$4")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$5")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$6")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$7")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$8")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$9")));
-        //x15_upper.add(factory.tuple("Time$10").product(factory.tuple("Time$10")));
-        bounds.boundExactly(x15, x15_upper);
+        x15_upper.add(factory.tuple("Time$0").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$0").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$1").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$1").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$2").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$2").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$3").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$3").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$4").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$4").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$5").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$5").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$6").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$6").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$7").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$7").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$8").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$8").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$9").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$9").product(factory.tuple("boolean/False$0")));
+        x15_upper.add(factory.tuple("Time$10").product(factory.tuple("boolean/True$0")));
+        x15_upper.add(factory.tuple("Time$10").product(factory.tuple("boolean/False$0")));
+        bounds.bound(x15, x15_upper);
 
         TupleSet x16_upper = factory.noneOf(1);
         x16_upper.add(factory.tuple("Time$0"));
-        x16_upper.add(factory.tuple("Time$1"));
-        x16_upper.add(factory.tuple("Time$2"));
-        x16_upper.add(factory.tuple("Time$3"));
-        x16_upper.add(factory.tuple("Time$4"));
-        x16_upper.add(factory.tuple("Time$5"));
-        x16_upper.add(factory.tuple("Time$6"));
-        x16_upper.add(factory.tuple("Time$7"));
-        x16_upper.add(factory.tuple("Time$8"));
-        x16_upper.add(factory.tuple("Time$9"));
-        x16_upper.add(factory.tuple("Time$10"));
-        bounds.bound(x16, x16_upper);
+        bounds.boundExactly(x16, x16_upper);
+
+        TupleSet x17_upper = factory.noneOf(2);
+        x17_upper.add(factory.tuple("Time$0").product(factory.tuple("Time$1")));
+        x17_upper.add(factory.tuple("Time$1").product(factory.tuple("Time$2")));
+        x17_upper.add(factory.tuple("Time$2").product(factory.tuple("Time$3")));
+        x17_upper.add(factory.tuple("Time$3").product(factory.tuple("Time$4")));
+        x17_upper.add(factory.tuple("Time$4").product(factory.tuple("Time$5")));
+        x17_upper.add(factory.tuple("Time$5").product(factory.tuple("Time$6")));
+        x17_upper.add(factory.tuple("Time$6").product(factory.tuple("Time$7")));
+        x17_upper.add(factory.tuple("Time$7").product(factory.tuple("Time$8")));
+        x17_upper.add(factory.tuple("Time$8").product(factory.tuple("Time$9")));
+        x17_upper.add(factory.tuple("Time$9").product(factory.tuple("Time$10")));
+        bounds.boundExactly(x17, x17_upper);
+
+        TupleSet x18_upper = factory.noneOf(1);
+        x18_upper.add(factory.tuple("Time$0"));
+        x18_upper.add(factory.tuple("Time$1"));
+        x18_upper.add(factory.tuple("Time$2"));
+        x18_upper.add(factory.tuple("Time$3"));
+        x18_upper.add(factory.tuple("Time$4"));
+        x18_upper.add(factory.tuple("Time$5"));
+        x18_upper.add(factory.tuple("Time$6"));
+        x18_upper.add(factory.tuple("Time$7"));
+        x18_upper.add(factory.tuple("Time$8"));
+        x18_upper.add(factory.tuple("Time$9"));
+        x18_upper.add(factory.tuple("Time$10"));
+        bounds.bound(x18, x18_upper);
 
         bounds.boundExactly(-128,factory.range(factory.tuple("-128"),factory.tuple("-128")));
         bounds.boundExactly(-127,factory.range(factory.tuple("-127"),factory.tuple("-127")));
@@ -1462,236 +1277,227 @@ public class RoomHeat implements KodkodExample {
     }
     @Override
     public Formula verifyformula() {
-        Expression x19=x9.intersection(x10);
-        Formula x18=x19.no();
-        Expression x23=x6.product(x11);
-        Expression x22=x6.join(x23);
-        Formula x21=x22.one();
-        Formula x24=x22.in(Expression.INTS);
-        Formula x20=x21.and(x24);
-        x28=Variable.unary("synth_revised_restricted_this");
-        Decls x27=x28.oneOf(x7);
-        Expression x31=x28.join(x12);
-        Formula x30=x31.one();
-        Formula x32=x31.in(Expression.INTS);
-        x29=x30.and(x32);
-        Formula x26=x29.forAll(x27);
-        Expression x34=x12.join(Expression.UNIV);
-        Formula x33=x34.in(x7);
-        x38=Variable.unary("synth_revised_restricted_this");
-        Decls x37=x38.oneOf(x7);
-        Expression x41=x38.join(x13);
-        Formula x40=x41.one();
-        Expression x43=x9.union(x10);
-        Formula x42=x41.in(x43);
-        x39=x40.and(x42);
-        Formula x36=x39.forAll(x37);
-        Expression x45=x13.join(Expression.UNIV);
-        Formula x44=x45.in(x7);
-        x48=Variable.unary("synth_revised_restricted_this");
-        Decls x47=x48.oneOf(x7);
-        Expression x51=x48.join(x12);
-        IntExpression x50=x51.sum();
-        IntExpression x52=IntConstant.constant(0);
-        x49=x50.gt(x52);
-        Formula x46=x49.forAll(x47);
-        Expression x55=x8.product(x14);
-        Expression x54=x8.join(x55);
-        Formula x53=x54.in(x7);
-        Expression x58=x8.product(x15);
-        Expression x57=x8.join(x58);
-        Expression x59=x7.product(x7);
-        Formula x56=x57.in(x59);
-        Formula x60=x15.totalOrder(x7,x14,x16);
-        Expression x63=x14.join(x12);
-        IntExpression x62=x63.sum();
-        IntExpression x64=IntConstant.constant(66);
-        Formula x61=x62.eq(x64);
-        Expression x66=x14.join(x13);
-        Formula x65=x66.eq(x10);
-        x69=Variable.unary("synth_revised_restricted_t");
-        Expression x72=x15.join(x7);
-        Expression x71=x7.difference(x72);
-        x70=x7.difference(x71);
-        Decls x68=x69.oneOf(x70);
-        Expression x76=x69.join(x13);
-        Formula x75=x76.eq(x9);
-        Expression x81=x69.join(x12);
-        IntExpression x80=x81.sum();
-        IntExpression x82=x11.sum();
-        Formula x79=x80.lt(x82);
-        Expression x86=x69.join(x15);
-        Expression x85=x86.join(x13);
-        Formula x84=x85.eq(x9);
-        Expression x89=x69.join(x15);
-        Expression x88=x89.join(x12);
-        Expression x93=x69.join(x12);
+        Expression x21=x9.intersection(x10);
+        Formula x20=x21.no();
+        Expression x25=x6.product(x11);
+        Expression x24=x6.join(x25);
+        Formula x23=x24.one();
+        Formula x26=x24.in(Expression.INTS);
+        Formula x22=x23.and(x26);
+        Expression x31=x6.product(x12);
+        Expression x30=x6.join(x31);
+        Formula x29=x30.one();
+        Formula x32=x30.in(x7);
+        Formula x28=x29.and(x32);
+        Expression x36=x6.product(x13);
+        Expression x35=x6.join(x36);
+        Formula x34=x35.one();
+        Formula x37=x35.in(x7);
+        Formula x33=x34.and(x37);
+        Variable x40=Variable.unary("synth_this");
+        Decls x39=x40.oneOf(x7);
+        Expression x43=x40.join(x14);
+        Formula x42=x43.one();
+        Formula x44=x43.in(Expression.INTS);
+        Formula x41=x42.and(x44);
+        Formula x38=x41.forAll(x39);
+        Expression x46=x14.join(Expression.UNIV);
+        Formula x45=x46.in(x7);
+        Variable x50=Variable.unary("synth_this");
+        Decls x49=x50.oneOf(x7);
+        Expression x53=x50.join(x15);
+        Formula x52=x53.one();
+        Expression x55=x9.union(x10);
+        Formula x54=x53.in(x55);
+        Formula x51=x52.and(x54);
+        Formula x48=x51.forAll(x49);
+        Expression x57=x15.join(Expression.UNIV);
+        Formula x56=x57.in(x7);
+        Expression x60=x8.product(x16);
+        Expression x59=x8.join(x60);
+        Formula x58=x59.in(x7);
+        Expression x63=x8.product(x17);
+        Expression x62=x8.join(x63);
+        Expression x64=x7.product(x7);
+        Formula x61=x62.in(x64);
+        Formula x65=x17.totalOrder(x7,x16,x18);
+        Variable x68=Variable.unary("synthformula_c");
+        Decls x67=x68.oneOf(x6);
+        Expression x72=x68.join(x25);
+        Formula x71=x72.one();
+        Expression x76=x68.join(x31);
+        Formula x75=x76.one();
+        Expression x81=x68.join(x31);
+        Formula x80=x81.eq(x16);
+        Formula x79=x80.not();
+        Expression x84=x17.closure();
+        Expression x83=x12.join(x84);
+        Formula x82=x13.in(x83);
+        Formula x78=x79.and(x82);
+        Expression x88=x17.join(x7);
+        Expression x87=x7.difference(x88);
+        Formula x86=x13.eq(x87);
+        Formula x85=x86.not();
+        Formula x77=x78.and(x85);
+        Formula x74=x75.and(x77);
+        Expression x93=x16.join(x14);
         IntExpression x92=x93.sum();
-        IntExpression x94=IntConstant.constant(1);
-        IntExpression x91=x92.plus(x94);
-        Expression x90=x91.toExpression();
-        Formula x87=x88.eq(x90);
-        Formula x83=x84.and(x87);
-        Formula x78=x79.implies(x83);
-        Formula x96=x79.not();
-        Expression x100=x69.join(x15);
-        Expression x99=x100.join(x13);
-        Formula x98=x99.eq(x10);
-        Expression x103=x69.join(x15);
-        Expression x102=x103.join(x12);
-        Expression x104=x69.join(x12);
-        Formula x101=x102.eq(x104);
-        Formula x97=x98.and(x101);
-        Formula x95=x96.implies(x97);
-        Formula x77=x78.and(x95);
-        Formula x74=x75.implies(x77);
-        Formula x106=x75.not();
-        Expression x111=x69.join(x12);
-        IntExpression x110=x111.sum();
-        IntExpression x112=x11.sum();
-        Formula x109=x110.gte(x112);
-        Expression x116=x69.join(x15);
-        Expression x115=x116.join(x13);
-        Formula x114=x115.eq(x10);
-        Expression x119=x69.join(x15);
-        Expression x118=x119.join(x12);
-        Expression x123=x69.join(x12);
-        IntExpression x122=x123.sum();
-        IntExpression x124=IntConstant.constant(1);
-        IntExpression x121=x122.minus(x124);
-        Expression x120=x121.toExpression();
-        Formula x117=x118.eq(x120);
-        Formula x113=x114.and(x117);
-        Formula x108=x109.implies(x113);
-        Formula x126=x109.not();
-        Expression x130=x69.join(x15);
-        Expression x129=x130.join(x13);
-        Formula x128=x129.eq(x9);
-        Expression x133=x69.join(x15);
-        Expression x132=x133.join(x12);
-        Expression x134=x69.join(x12);
-        Formula x131=x132.eq(x134);
-        Formula x127=x128.and(x131);
-        Formula x125=x126.implies(x127);
-        Formula x107=x108.and(x125);
-        Formula x105=x106.implies(x107);
-        x73=x74.and(x105);
-        Formula x67=x73.forAll(x68);
-        x137=Variable.unary("eventuallyalwayscomfy2_t");
-        x138=x7.difference(x71);
-        Decls x136=x137.oneOf(x138);
-        Expression x144=x137.join(x12);
-        IntExpression x143=x144.sum();
-        IntExpression x145=IntConstant.constant(75);
-        Formula x142=x143.lte(x145);
-        Expression x148=x137.join(x12);
-        IntExpression x147=x148.sum();
-        IntExpression x149=IntConstant.constant(70);
-        Formula x146=x147.gte(x149);
-        Formula x141=x142.and(x146);
-        x152=Variable.unary("eventuallyalwayscomfy2_st");
-        Expression x154=x15.closure();
-        x153=x137.join(x154);
-        Decls x151=x152.oneOf(x153);
-        Expression x158=x152.join(x12);
-        IntExpression x157=x158.sum();
-        IntExpression x159=IntConstant.constant(75);
-        Formula x156=x157.lte(x159);
-        Expression x162=x152.join(x12);
-        IntExpression x161=x162.sum();
-        IntExpression x163=IntConstant.constant(70);
-        Formula x160=x161.gte(x163);
-        x155=x156.and(x160);
-        Formula x150=x155.forAll(x151);
-        Formula x140=x141.and(x150);
-        Variable x166=Variable.unary("eventuallyalwayscomfy2_c");
-        Expression x168=x15.closure();
-        Expression x167=x137.join(x168);
-        Decls x165=x166.oneOf(x167);
-        Formula x172=x166.eq(x71);
-        Formula x171=x172.not();
-        Expression x175=x166.join(x12);
-        IntExpression x174=x175.sum();
-        Expression x177=x71.join(x12);
-        IntExpression x176=x177.sum();
-        Formula x173=x174.eq(x176);
-        Formula x170=x171.and(x173);
-        Expression x179=x166.join(x13);
-        Expression x180=x71.join(x13);
-        Formula x178=x179.eq(x180);
-        Formula x169=x170.and(x178);
-        Formula x164=x169.forSome(x165);
-        Formula x139=x140.and(x164);
-        Formula x135=x139.forSome(x136);
-        Variable x185=Variable.unary("restrictedTemp_i");
-        Decls x184=x185.oneOf(Expression.INTS);
-        IntExpression x187=x185.sum();
-        IntExpression x188=IntConstant.constant(0);
-        Formula x186=x187.lte(x188);
-        Expression x183=x186.comprehension(x184);
-        Expression x189=x7.join(x12);
-        Expression x182=x183.intersection(x189);
-        Formula x181=x182.no();
-        Formula x190=x0.eq(x0);
-        Formula x191=x1.eq(x1);
-        Formula x192=x2.eq(x2);
-        Formula x193=x3.eq(x3);
-        Formula x194=x4.eq(x4);
-        Formula x195=x5.eq(x5);
-        Formula x196=x6.eq(x6);
-        Formula x197=x7.eq(x7);
-        Formula x198=x8.eq(x8);
-        Formula x199=x9.eq(x9);
-        Formula x200=x10.eq(x10);
-        Formula x201=x11.eq(x11);
-        Formula x202=x12.eq(x12);
-        Formula x203=x13.eq(x13);
-        Formula x204=x14.eq(x14);
-        Formula x205=x15.eq(x15);
-        Formula x206=x16.eq(x16);
-        return Formula.compose(FormulaOperator.AND,
-                x18,
-                x20,
-                x26,
-                x33,
-                x36,
-                x44,
-                x46,
-                x53,
-                x56,
-                x60,
-                x61,
-                x65,
-                x67,
-                x135,
-                x181,
-                x190,
-                x191,
-                x192,
-                x193,
-                x194,
-                x195,
-                x196,
-                x197,
-                x198,
-                x199,
-                x200,
-                x201,
-                x202,
-                x203,
-                x204,
-                x205,
-                x206);
+        IntExpression x94=IntConstant.constant(66);
+        Formula x91=x92.eq(x94);
+        Expression x97=x13.join(x14);
+        IntExpression x96=x97.sum();
+        Expression x99=x87.join(x14);
+        IntExpression x98=x99.sum();
+        Formula x95=x96.eq(x98);
+        Formula x90=x91.and(x95);
+        Expression x101=x13.join(x15);
+        Expression x102=x87.join(x15);
+        Formula x100=x101.eq(x102);
+        Formula x89=x90.and(x100);
+        Formula x73=x74.and(x89);
+        Formula x70=x71.and(x73);
+        Expression x106=x68.join(x36);
+        Formula x105=x106.one();
+        Expression x108=x16.join(x15);
+        Formula x107=x108.eq(x10);
+        Formula x104=x105.and(x107);
+        Expression x112=x12.join(x14);
+        IntExpression x111=x112.sum();
+        IntExpression x113=IntConstant.constant(75);
+        Formula x110=x111.lte(x113);
+        Expression x116=x12.join(x14);
+        IntExpression x115=x116.sum();
+        IntExpression x117=IntConstant.constant(70);
+        Formula x114=x115.gte(x117);
+        Formula x109=x110.and(x114);
+        Formula x103=x104.and(x109);
+        Formula x69=x70.and(x103);
+        x66=x69.forAll(x67);
+        x120=Variable.unary("validsystem_t");
+        Decls x119=x120.oneOf(x7);
+        Expression x124=x120.join(x14);
+        Formula x123=x124.one();
+        Expression x126=x120.join(x15);
+        Formula x125=x126.one();
+        Formula x122=x123.and(x125);
+        Formula x130=x120.eq(x87);
+        Formula x129=x130.not();
+        Formula x128=x129.not();
+        Expression x134=x120.join(x15);
+        Formula x133=x134.eq(x9);
+        Expression x139=x120.join(x14);
+        IntExpression x138=x139.sum();
+        IntExpression x140=x11.sum();
+        Formula x137=x138.lt(x140);
+        Expression x144=x120.join(x17);
+        Expression x143=x144.join(x15);
+        Formula x142=x143.eq(x9);
+        Expression x147=x120.join(x17);
+        Expression x146=x147.join(x14);
+        Expression x151=x120.join(x14);
+        IntExpression x150=x151.sum();
+        IntExpression x152=IntConstant.constant(1);
+        IntExpression x149=x150.plus(x152);
+        Expression x148=x149.toExpression();
+        Formula x145=x146.eq(x148);
+        Formula x141=x142.and(x145);
+        Formula x136=x137.implies(x141);
+        Formula x154=x137.not();
+        Expression x158=x120.join(x17);
+        Expression x157=x158.join(x15);
+        Formula x156=x157.eq(x10);
+        Expression x161=x120.join(x17);
+        Expression x160=x161.join(x14);
+        Expression x162=x120.join(x14);
+        Formula x159=x160.eq(x162);
+        Formula x155=x156.and(x159);
+        Formula x153=x154.implies(x155);
+        Formula x135=x136.and(x153);
+        Formula x132=x133.implies(x135);
+        Formula x164=x133.not();
+        Expression x169=x120.join(x14);
+        IntExpression x168=x169.sum();
+        IntExpression x170=x11.sum();
+        Formula x167=x168.gte(x170);
+        Expression x174=x120.join(x17);
+        Expression x173=x174.join(x15);
+        Formula x172=x173.eq(x10);
+        Expression x177=x120.join(x17);
+        Expression x176=x177.join(x14);
+        Expression x181=x120.join(x14);
+        IntExpression x180=x181.sum();
+        IntExpression x182=IntConstant.constant(1);
+        IntExpression x179=x180.minus(x182);
+        Expression x178=x179.toExpression();
+        Formula x175=x176.eq(x178);
+        Formula x171=x172.and(x175);
+        Formula x166=x167.implies(x171);
+        Formula x184=x167.not();
+        Expression x188=x120.join(x17);
+        Expression x187=x188.join(x15);
+        Formula x186=x187.eq(x9);
+        Expression x191=x120.join(x17);
+        Expression x190=x191.join(x14);
+        Expression x192=x120.join(x14);
+        Formula x189=x190.eq(x192);
+        Formula x185=x186.and(x189);
+        Formula x183=x184.implies(x185);
+        Formula x165=x166.and(x183);
+        Formula x163=x164.implies(x165);
+        Formula x131=x132.and(x163);
+        Formula x127=x128.or(x131);
+        x121=x122.and(x127);
+        Formula x118=x121.forAll(x119);
+        x195=Variable.unary("FGcomfy_t");
+        Decls x194=x195.oneOf(x7);
+        Expression x200=x17.closure();
+        Expression x199=x12.join(x200);
+        Formula x198=x195.in(x199);
+        Formula x197=x198.not();
+        Expression x204=x195.join(x14);
+        IntExpression x203=x204.sum();
+        IntExpression x205=IntConstant.constant(75);
+        Formula x202=x203.lte(x205);
+        Expression x208=x195.join(x14);
+        IntExpression x207=x208.sum();
+        IntExpression x209=IntConstant.constant(70);
+        Formula x206=x207.gte(x209);
+        Formula x201=x202.and(x206);
+        x196=x197.or(x201);
+        Formula x193=x196.forAll(x194);
+        Formula x210=x0.eq(x0);
+        Formula x211=x1.eq(x1);
+        Formula x212=x2.eq(x2);
+        Formula x213=x3.eq(x3);
+        Formula x214=x4.eq(x4);
+        Formula x215=x5.eq(x5);
+        Formula x216=x6.eq(x6);
+        Formula x217=x7.eq(x7);
+        Formula x218=x8.eq(x8);
+        Formula x219=x9.eq(x9);
+        Formula x220=x10.eq(x10);
+        Formula x221=x11.eq(x11);
+        Formula x222=x12.eq(x12);
+        Formula x223=x13.eq(x13);
+        Formula x224=x14.eq(x14);
+        Formula x225=x15.eq(x15);
+        Formula x226=x16.eq(x16);
+        Formula x227=x17.eq(x17);
+        Formula x228=x18.eq(x18);
+        return Formula.compose(FormulaOperator.AND, x20, x22, x28, x33, x38, x45, x48, x56, x58, x61, x65, x66, x118, x193, x210, x211, x212, x213, x214, x215, x216, x217, x218, x219, x220, x221, x222, x223, x224, x225, x226, x227, x228);
     }
 
     // CEGIS
     @Override
     public Formula synthformula() {
+        // synth for some config
         List<Formula> formulas = new ArrayList<>();
-        formulas.add(bounds.findRelByName("this/Config.T").one());
-        Variable t = Variable.unary("t");
-        formulas.add(t.join(bounds.findRelByName("this/Time.temp")).one().forAll(t.oneOf(bounds.findRelByName("this/Time"))));
-        formulas.add(t.join(bounds.findRelByName("this/Time.heat")).one().forAll(t.oneOf(bounds.findRelByName("this/Time"))));
+        formulas.add(bounds.findRelByName("this/Config").one());
+        formulas.add(x66);
+        // TODO universal quantification over config types must be moved to an implication guard
+        // cegis chooses loop to be too early, forces uncomfy rising temp to by comfy, unsat (add guard, problem solved)
+        //formulas.add(bounds.findRelByName("this/Config.F").eq(bounds.findRelByName("Time$5")));
+        //formulas.add(bounds.findRelByName("this/Config.G").eq(bounds.findRelByName("Time$6")));
         return Formula.and(formulas);
     }
 
@@ -1701,35 +1507,15 @@ public class RoomHeat implements KodkodExample {
         final List<SynthGoal> results = new ArrayList<>();
         final List<Formula> formulas = new ArrayList<>();
         final Map<Variable, Expression> univars = new HashMap<>();
-        // phi,var,expr
-        // 155,152,153
-        univars.put(x152,x153);
-        univars.put(x137,x138);
-        formulas.add(x155);
+        // valid system forall t
+        univars.put(x120,x7);
+        formulas.add(x121);
         results.add(new RoomHeatGoal(univars, Formula.and(formulas)));
         formulas.clear();
         univars.clear();
-        // 73,69,70
-        univars.put(x69,x70);
-        formulas.add(x73);
-        results.add(new RoomHeatGoal(univars, Formula.and(formulas)));
-        formulas.clear();
-        univars.clear();
-        // 49,48,7
-        univars.put(x48,x7);
-        formulas.add(x49);
-        results.add(new RoomHeatGoal(univars, Formula.and(formulas)));
-        formulas.clear();
-        univars.clear();
-        // 39,38,7
-        //univars.put(x38,x7);
-        //formulas.add(x39);
-        //results.add(new RoomHeatGoal(univars, Formula.and(formulas)));
-        //formulas.clear();
-        //univars.clear();
-        // 29,28,7
-        univars.put(x28,x7);
-        formulas.add(x29);
+        // FGcomfy forall t
+        univars.put(x195,x7);
+        formulas.add(x196);
         results.add(new RoomHeatGoal(univars, Formula.and(formulas)));
         formulas.clear();
         univars.clear();
@@ -1741,6 +1527,8 @@ public class RoomHeat implements KodkodExample {
     public Bounds restrict(Bounds verifybounds, Instance synth, boolean onlySkeleton) {
         Bounds restricted = verifybounds.clone();
         restricted.boundExactly(verifybounds.findRelByName("this/Config.T"), synth.tuples("this/Config.T"));
+        restricted.boundExactly(verifybounds.findRelByName("this/Config.F"), synth.tuples("this/Config.F"));
+        restricted.boundExactly(verifybounds.findRelByName("this/Config.G"), synth.tuples("this/Config.G"));
         restricted.boundExactly(verifybounds.findRelByName("this/Time.heat"), synth.tuples("this/Time.heat"));
         restricted.boundExactly(verifybounds.findRelByName("this/Time.temp"), synth.tuples("this/Time.temp"));
         return restricted;
@@ -1755,7 +1543,7 @@ public class RoomHeat implements KodkodExample {
     public Bounds target(Bounds bounds) { throw new UnsupportedOperationException(); }
 }
 
-// FIXME class same across specs, make the interface an abstract class?
+// TODO class same across specs, make the interface an abstract class?
 class RoomHeatGoal implements KodkodExample.SynthGoal {
     Map<Variable, Expression> freevars;
     Formula unboundformula;
