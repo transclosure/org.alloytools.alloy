@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import edu.mit.csail.sdg.ast.*;
+import kodkod.ast.Formula;
 import org.alloytools.alloy.core.AlloyCore;
 
 import edu.mit.csail.sdg.alloy4.A4Reporter;
@@ -49,9 +51,6 @@ import edu.mit.csail.sdg.alloy4.WorkerEngine.WorkerTask;
 import edu.mit.csail.sdg.alloy4.XMLNode;
 import edu.mit.csail.sdg.alloy4viz.StaticInstanceReader;
 import edu.mit.csail.sdg.alloy4viz.VizGUI;
-import edu.mit.csail.sdg.ast.Command;
-import edu.mit.csail.sdg.ast.Module;
-import edu.mit.csail.sdg.ast.Sig;
 import edu.mit.csail.sdg.parser.CompUtil;
 import edu.mit.csail.sdg.translator.A4Options;
 import edu.mit.csail.sdg.translator.A4Solution;
@@ -655,7 +654,90 @@ final class SimpleReporter extends A4Reporter {
             if (rep.warn > 0 && !bundleWarningNonFatal)
                 return;
             List<String> result = new ArrayList<String>(cmds.size());
-            if (bundleIndex == -2) {
+            // TODO AMALGAM CEGIS loop
+            if (bundleIndex == -999) {
+                // FIXME assuming selfish5.als, what should the abstract syntax be?
+                // Starting verify/synth formulas and fixed verify/synth scopes
+                final int tsize = 9;
+                Expr vfml = world.parseOneExpressionFromString("verify[Person, Int]");
+                Expr sfml = world.parseOneExpressionFromString("synth");
+                List<CommandScope> vscope = new ArrayList<>();
+                List<CommandScope> sscope = new ArrayList<>();
+                for(Sig s : world.getAllReachableSigs()) {
+                    if(s.toString().equals("this/Config")) {
+                        vscope.add(new CommandScope(s, false, 1));
+                        sscope.add(new CommandScope(s, false, 1));
+                    } else if (s.toString().equals("this/Person")) {
+                        vscope.add(new CommandScope(s, false, 2));
+                        sscope.add(new CommandScope(s, false, 2));
+                    } else if (s.toString().equals("this/T")) {
+                        vscope.add(new CommandScope(s, false, tsize));
+                        sscope.add(new CommandScope(s, false, 1));
+                    }
+                }
+                A4Solution vmdl;
+                A4Solution smdl;
+                int iteration = 0;
+                // Loop until verify/synth returns UNSAT
+                while(true) {
+                    iteration++;
+                    // cegis verify
+                    Command vcmd = new Command(null, vfml, vfml.toString(), false, 0, 8, 4, -1, vscope, null, vfml, null);
+                    cb(out, "bold", "Verify \"" + vcmd + "\"\n");
+                    vmdl = TranslateAlloyToKodkod.execute_commandFromBook(rep, world.getAllReachableSigs(), vcmd, options);
+                    // vmdl = UNSAT, cegis success
+                    if (!vmdl.satisfiable()) {
+                        cb(out, "bold", "CEGIS SUCCESS in "+iteration+" iterations.\n");
+                        return;
+                    }
+                    // vmdl = SAT...
+                    else {
+                        // cegis learn
+                        String T = "first";
+                        for(int t=1; t<=tsize; t++) {
+                            String permitted_1 = vmdl.eval(world.parseOneExpressionFromString("permitted_1["+T+"]")).toString();
+                            String permitted_2 = vmdl.eval(world.parseOneExpressionFromString("permitted_2["+T+"]")).toString();
+                            if(!permitted_1.equals("{}") & !permitted_2.equals("{}")) {
+                                // FIXME brittle model -> spec renames (this is why models aren't a syntax object)
+                                permitted_1 = permitted_1.replaceAll("\\{", "");
+                                permitted_1 = permitted_1.replaceAll("\\$0", "");
+                                permitted_1 = permitted_1.replaceAll("}", "");
+                                permitted_2 = permitted_2.replaceAll("\\{", "");
+                                permitted_2 = permitted_2.replaceAll("\\$0", "");
+                                permitted_2 = permitted_2.replaceAll("}", "");
+                                //cb(out, "", "not permitted["+permitted_1+","+permitted_2+"]\n");
+                                sfml = sfml.and(world.parseOneExpressionFromString("not permitted["+permitted_1+","+permitted_2+"]"));
+                            }
+                            T += ".next";
+                        }
+                        // cegis synth
+                        Command scmd = new Command(null, sfml, sfml.toString(), false, 0, 8, 4, -1, sscope, null, sfml, null);
+                        cb(out, "bold", "Synth \"" + scmd + "\"\n");
+                        smdl = TranslateAlloyToKodkod.execute_commandFromBook(rep, world.getAllReachableSigs(), scmd, options);
+                        // smdl = UNSAT, cegis failure
+                        if (!vmdl.satisfiable()) {
+                            cb(out, "bold", "CEGIS FAILURE in "+iteration+" iterations.\n");
+                            return;
+                        }
+                        // smdl = SAT, retry
+                        else {
+                            String actors = smdl.eval(world.parseOneExpressionFromString("this/Config.actors")).toString();
+                            String actions = smdl.eval(world.parseOneExpressionFromString("this/Config.actions")).toString();
+                            // FIXME brittle model -> spec renames (this is why models aren't a syntax object)
+                            actors = actors.replaceAll("\\{", "");
+                            actors = actors.replaceAll("\\$0", "");
+                            actors = actors.replaceAll(", ", "+");
+                            actors = actors.replaceAll("}", "");
+                            actions = actions.replaceAll("\\{", "");
+                            actions = actions.replaceAll("\\$0", "");
+                            actions = actions.replaceAll(", ", "+");
+                            actions = actions.replaceAll("}", "");
+                            //cb(out, "", "verify["+actors+","+actions+"]\n");
+                            vfml = world.parseOneExpressionFromString("verify["+actors+","+actions+"]");
+                        }
+                    }
+                }
+            } else if (bundleIndex == -2) {
                 final String outf = tempdir + File.separatorChar + "m.xml";
                 cb(out, "S2", "Generating the metamodel...\n");
                 PrintWriter of = new PrintWriter(outf, "UTF-8");

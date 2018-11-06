@@ -1207,6 +1207,64 @@ public final class SimpleGUI implements ComponentListener, Listener {
     }
 
     /**
+     * TODO AMALGAM CEGIS loop
+     */
+    private Runner doCEGIS() {
+        if (wrap)
+            return wrapMe();
+        if (WorkerEngine.isBusy())
+            return null;
+        subrunningTask = 0;
+        latestAutoInstance = "";
+        // Worker thread hell
+        SimpleCallback1 cb = new SimpleCallback1(this, null, log, VerbosityPref.get().ordinal(), latestAlloyVersionName, latestAlloyVersion);
+        SimpleTask1 task = new SimpleTask1();
+        A4Options opt = new A4Options();
+        opt.tempDirectory = alloyHome() + fs + "tmp";
+        opt.solverDirectory = alloyHome() + fs + "binary";
+        opt.recordKodkod = RecordKodkod.get();
+        opt.noOverflow = NoOverflow.get();
+        opt.unrolls = Version.experimental ? Unrolls.get() : (-1);
+        opt.coreMinimization = CoreMinimization.get();
+        opt.inferPartialInstance = InferPartialInstance.get();
+        opt.coreGranularity = CoreGranularity.get();
+        opt.originalFilename = Util.canon(text.get().getFilename());
+        opt.solver = Solver.get();
+        // FIXME AMALGAM solver hardcoded options
+        opt.skolemDepth = -1;
+        opt.symmetry = 0;
+        //
+        task.bundleIndex = -999; // FIXME CEGIS magic number
+        task.bundleWarningNonFatal = WarningNonfatal.get();
+        task.map = text.takeSnapshot();
+        task.options = opt.dup();
+        task.resolutionMode = (Version.experimental && ImplicitThis.get()) ? 2 : 1;
+        task.tempdir = maketemp();
+        try {
+            runmenu.setEnabled(false);
+            runbutton.setVisible(false);
+            showbutton.setEnabled(false);
+            stopbutton.setVisible(true);
+            int newmem = SubMemory.get(), newstack = SubStack.get();
+            if (newmem != subMemoryNow || newstack != subStackNow)
+                WorkerEngine.stop();
+            if (AlloyCore.isDebug() && VerbosityPref.get() == Verbosity.FULLDEBUG)
+                WorkerEngine.runLocally(task, cb);
+            else
+                WorkerEngine.run(task, newmem, newstack, alloyHome() + fs + "binary", "", cb);
+            subMemoryNow = newmem;
+            subStackNow = newstack;
+        } catch (Throwable ex) {
+            WorkerEngine.stop();
+            log.logBold("Fatal Error: Solver failed due to unknown reason.\n" + "One possible cause is that, in the Options menu, your specified\n" + "memory size is larger than the amount allowed by your OS.\n" + "Also, please make sure \"java\" is in your program path.\n");
+            log.logDivider();
+            log.flush();
+            doStop(2);
+        }
+        return null;
+    }
+
+    /**
      * This method stops the current run or check (how==0 means DONE, how==1 means
      * FAIL, how==2 means STOP).
      */
@@ -2094,6 +2152,9 @@ public final class SimpleGUI implements ComponentListener, Listener {
             toolbar.add(OurUtil.button("Save", "Saves the current model", "images/24_save.gif", doSave()));
             toolbar.add(runbutton = OurUtil.button("Execute", "Executes the latest command", "images/24_execute.gif", doExecuteLatest()));
             toolbar.add(stopbutton = OurUtil.button("Stop", "Stops the current analysis", "images/24_execute_abort2.gif", doStop(2)));
+            // TODO AMALGAM
+            toolbar.add(runbutton = OurUtil.button("CEGIS", "Runs hardcoded CEGIS loop for this spec", "images/24_execute.gif", doCEGIS()));
+            //
             stopbutton.setVisible(false);
             toolbar.add(showbutton = OurUtil.button("Show", "Shows the latest instance", "images/24_graph.gif", doShowLatest()));
             toolbar.add(Box.createHorizontalGlue());
