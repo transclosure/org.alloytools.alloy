@@ -7,7 +7,6 @@ package amalgam.scripting;
 
 import amalgam.examples.HomeNet;
 import amalgam.examples.KodkodExample;
-import com.sun.javaws.exceptions.InvalidArgumentException;
 import kodkod.ast.*;
 import kodkod.engine.IncrementalSolver;
 import kodkod.engine.Solution;
