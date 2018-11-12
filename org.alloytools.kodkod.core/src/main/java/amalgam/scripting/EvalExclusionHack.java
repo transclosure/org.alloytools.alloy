@@ -593,6 +593,9 @@ public class EvalExclusionHack {
     }
 
     private static int maxTraceLength(Formula r) {
+        if(r instanceof NotFormula) {
+            return maxTraceLength(((NotFormula)r).formula());
+        }
         // number of "nexts" following the first, plus one
         if(r instanceof ComparisonFormula) {
             ComparisonFormula cr = (ComparisonFormula) r;
@@ -610,6 +613,31 @@ public class EvalExclusionHack {
             if(max < flen) max = flen;
         }
         return max;
+    }
+
+    private static boolean isTraceLiteral(Formula f) {
+
+        // TODO I don't know of a way to do this without instanceof and casting :-(; may need addition to fmla to avoid
+        // Could write a visitor, or record the literal formulas instead?
+        // This will also remove the goal literals, since they are negations, not comparisons
+
+        if(f instanceof NotFormula) {
+            return isTraceLiteral(((NotFormula) f).formula());
+        }
+
+        if(!(f instanceof ComparisonFormula)) {
+          return false;
+        }
+        // TODO: this is another kludge because of ad-hoc construction of these literal formulas
+        ComparisonFormula cf = (ComparisonFormula) f;
+        if(!cf.op().equals(ExprCompOperator.EQUALS) && !cf.op().equals(ExprCompOperator.SUBSET)) {
+            return false;
+        }
+
+        if(!cf.toString().contains("CONF_")) {
+            return false;
+        }
+        return true;
     }
 
     private static String cegis() {
@@ -727,25 +755,9 @@ public class EvalExclusionHack {
                 // Strip out local causes that aren't trace literals
                 HashSet<Formula> toRemove = new HashSet<>();
                 for(Formula f: localCause) {
-                    // TODO I don't know of a way to do this without instanceof and casting :-(; may need addition to fmla to avoid
-                    // Could write a visitor, or record the literal formulas instead?
-                    // This will also remove the goal literals, since they are negations, not comparisons
-                    if(!(f instanceof ComparisonFormula)) {
+                    if(!isTraceLiteral(f)) {
                         toRemove.add(f);
-                        continue;
                     }
-                    // TODO: this is another kludge because of ad-hoc construction of these literal formulas
-                    ComparisonFormula cf = (ComparisonFormula) f;
-                    if(!cf.op().equals(ExprCompOperator.EQUALS) && !cf.op().equals(ExprCompOperator.SUBSET)) {
-                        toRemove.add(f);
-                        continue;
-                    }
-
-                    if(!cf.toString().contains("CONF_")) {
-                        toRemove.add(f);
-                        continue;
-                    }
-
                 }
                 localCause.removeAll(toRemove);
 
@@ -805,12 +817,8 @@ public class EvalExclusionHack {
 
             // Step 4: extend synth formula
             // using IncrementalSolver now, so formula is the *delta*
-            // Combine trace exclusion with causal information in initial state
-            // TODO: trace exclusion is currently lacking the !initial option, which yields unsat. testing blame is isolation for now
-            //synthformula = traceExclusion(ce).and(initialStateCause.not());
             synthformula = initialStateCause.not();
 
-            // TODO: issue: core is not breaking down the unions...
             synthbounds = new Bounds(universe); // empty bounds for followup calls to IncrementalSolver
             // To measure performance vs. non-incremental, just restore original fmla/bnds and call normal exec
         }
