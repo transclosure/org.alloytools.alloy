@@ -615,6 +615,19 @@ public class EvalExclusionHack {
         return max;
     }
 
+    private static Formula removeDoubleNegation(Formula f) {
+        if(f instanceof NotFormula) {
+            NotFormula nf = (NotFormula) f;
+            Formula ff = nf.formula();
+            if(ff instanceof NotFormula) {
+                NotFormula nnf = (NotFormula) ff;
+                return nnf.formula();
+            }
+            return f;
+        }
+        return f;
+    }
+
     private static boolean isTraceLiteral(Formula f) {
 
         // TODO I don't know of a way to do this without instanceof and casting :-(; may need addition to fmla to avoid
@@ -638,6 +651,14 @@ public class EvalExclusionHack {
             return false;
         }
         return true;
+    }
+
+    private static boolean isOneOfNegated(Formula targ, Set<Formula> fs) {
+        for(Formula f: fs) {
+            if(f.not().toString().equals(targ.toString()))
+                return true; // TODO: strings again
+        }
+        return false;
     }
 
     private static String cegis() {
@@ -755,7 +776,12 @@ public class EvalExclusionHack {
                 // Strip out local causes that aren't trace literals
                 HashSet<Formula> toRemove = new HashSet<>();
                 for(Formula f: localCause) {
+                    // Not a trace literal (likely one of the transition axioms)
                     if(!isTraceLiteral(f)) {
+                        toRemove.add(f);
+                    }
+                    // The negated goal that we added before
+                    if(isOneOfNegated(f, rewrittenReasons)) {
                         toRemove.add(f);
                     }
                 }
@@ -776,15 +802,22 @@ public class EvalExclusionHack {
                     // I can't believe I'm doing this...
                     boolean needsMore = f.toString().contains("(first . next)");
                     if(!needsMore) initialReasons.add(f);
-                    else reasons.add(f);
+                    else reasons.add(removeDoubleNegation(f));
                 }
+                System.out.println("~~~ final reasons before iteration: "+reasons);
             }
-            //System.out.println("Final blame set in initial state:"+initialReasons);
+            //System.out.println("Final blame set in initial state (pre-conversion CE->S):"+initialReasons);
 
             // convert each initial reason from CE (first.rel) to S (rel).
             // TODO: current pipeline can't handle *negated* initial reasons; not sure if failure will be silent
             Set<Formula> initialReasonsS = new HashSet<>();
             for(Formula f : initialReasons) {
+                boolean negated = false;
+                if(f instanceof NotFormula) {
+                    negated = true;
+                    f = ((NotFormula)f).formula();
+                }
+
                 if(!(f instanceof ComparisonFormula)) throw new RuntimeException("Unexpected non-comparison initial-state reason formula: "+f);
                 ComparisonFormula cf = (ComparisonFormula) f;
                 if(!cf.op().equals(ExprCompOperator.EQUALS) && !cf.op().equals(ExprCompOperator.SUBSET))
@@ -807,7 +840,9 @@ public class EvalExclusionHack {
                     if (relside.toString().equals(first.join(allowedTempCE).toString())) sRel = allowedTempS;
                     else if (relside.toString().equals(first.join(canSetCE).toString())) sRel = canSetS;
                     else throw new RuntimeException("Unexpected RHS in initial-state reason formula: " + f);
-                    initialReasonsS.add(valside.compare(cf.op(), sRel));
+                    Formula reconstructed = valside.compare(cf.op(), sRel);
+                    if(negated) reconstructed = reconstructed.not();
+                    initialReasonsS.add(reconstructed);
                 } else
                     throw new RuntimeException("Unexpected initial-state reason formula: "+f);
             }
@@ -815,7 +850,7 @@ public class EvalExclusionHack {
             System.out.println("Initial state reasons: "+initialReasonsS);
             Formula initialStateCause = Formula.and(initialReasonsS);
 
-            // Step 4: extend synth formula
+            // FINALLY: extend synth formula
             // using IncrementalSolver now, so formula is the *delta*
             synthformula = initialStateCause.not();
 
