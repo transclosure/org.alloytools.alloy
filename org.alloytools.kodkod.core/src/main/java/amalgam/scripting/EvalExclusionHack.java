@@ -1,6 +1,5 @@
 package amalgam.scripting;
 
-import jdk.internal.dynalink.linker.ConversionComparator;
 import kodkod.ast.*;
 import kodkod.ast.operator.ExprCompOperator;
 import kodkod.ast.operator.ExprOperator;
@@ -10,14 +9,15 @@ import kodkod.engine.Solution;
 import kodkod.engine.Solver;
 import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
-import kodkod.engine.ucore.HybridStrategy;
 import kodkod.engine.ucore.RCEStrategy;
 import kodkod.instance.*;
-import org.sat4j.tools.encoding.Binary;
 
 import java.util.*;
 import java.util.function.Predicate;
 
+/**
+ * Hacky prototype of 4-part CEGIS synthesis loop for finding initial deployable configurations.
+ */
 public class EvalExclusionHack {
 
     final static int loopLimit = 100;
@@ -133,12 +133,16 @@ public class EvalExclusionHack {
         //  config relations that are stateful!)
         Set<Formula> synthliterals = new HashSet<>();
         if(!corePhase) {
-            // efficient version
+            // efficient version if we're in CE-generation phase
             synthliterals.add(first.join(allowedTempCE).eq(extractSynthExpression(synthSol, allowedTempS)));
             synthliterals.add(first.join(canSetCE).eq(extractSynthExpression(synthSol, canSetS)));
-        } else {
+        } else if(corePhasePhi) {
             synthliterals.addAll(desugarInUnion(first.join(allowedTempCE), extractSynthExpression(synthSol, allowedTempS), domain()));
             synthliterals.addAll(desugarInUnion(first.join(canSetCE), extractSynthExpression(synthSol, canSetS), domain()));
+        } else {
+            // Do nothing; this is a call for the 2-state
+
+            // TODO: really nothing? what if one of the 2 states is the initial state?
         }
         Formula synthInitial = Formula.and(synthliterals);
 
@@ -323,6 +327,7 @@ public class EvalExclusionHack {
         return result;
     }
 
+    /*
     private static Formula breakTransition(Solution ce, Object preatom, Object postatom) {
         // Extract pretemp, next_p, next_target, posttemp
         TransitionData tdata = new TransitionData(ce, preatom, postatom);
@@ -353,56 +358,43 @@ public class EvalExclusionHack {
         //System.out.println("TE: "+subs);
         // Either first isn't first, or some transition is broken
         return Formula.or(subs);
-    }
+    }*/
 
-    // TODO: factor out shared code here and in TE
-    private static Formula fixTraceAsFormula(Solution ce, Set<Formula> negateThese, int includeStates) {
-        List<Formula> subs = new ArrayList<>();
-        // Caller is responsible for clearing out traceLiterals
-
-        if(numStates < includeStates) throw new RuntimeException("ceBounds called with too many includeStates");
-        if(includeStates < 2) throw new RuntimeException("Must have at least two includestates, had "+includeStates);
-
-        Expression s = first;
+    private static Set<Formula> fixPreTransitionAsFormula(Solution ce, Expression s, boolean includePost, boolean includeAllPost, Set<Formula> negateThese) {
+        // s is prestate expression (e.g., first.next.next for 3rd state)
         Evaluator eval = new Evaluator(ce.instance());
+        Object pre=null, post=null;
+        TupleSet pres = eval.evaluate(s);
+        for(Tuple t : pres) {pre = t.atom(0);}
+        TupleSet posts = eval.evaluate(s.join(next));
+        for(Tuple t : posts) {post = t.atom(0);}
+        if(pre == null || post == null) throw new RuntimeException("fixTrace: unable to resolve pre/post: "+pres+"; "+posts);
 
-        // don't do this: assumes the iteration order matches the true ordering!
-        //for(Tuple nxt : ce.instance().relationTuples().get(next)) {
-        // Loop through all except last:
-        for(int iState=1;iState<includeStates;iState++) {
-            Object pre=null, post=null;
-            TupleSet pres = eval.evaluate(s);
-            for(Tuple t : pres) {pre = t.atom(0);}
-            TupleSet posts = eval.evaluate(s.join(next));
-            for(Tuple t : posts) {post = t.atom(0);}
-            if(pre == null || post == null) throw new RuntimeException("fixTrace: unable to resolve pre/post: "+pres+"; "+posts);
+        Set<Formula> subs = new HashSet<>();
 
-            TransitionData tdata = new TransitionData(ce, pre, post);
+        TransitionData tdata = new TransitionData(ce, pre, post);
 
-            // One sub-subformula for every state relation (pre and post)
-            //subs.add(s.join(allowedTempCE).eq(Expression.union(tdata.preAllowedTemp)));
-            //subs.add(s.join(next).join(allowedTempCE).eq(Expression.union(tdata.postAllowedTemp)));
-            subs.addAll(desugarInUnion(s.join(allowedTempCE), Expression.union(tdata.preAllowedTemp), domain()));
-            if(iState == includeStates-1) // handle last
-                subs.addAll(desugarInUnion(s.join(next).join(allowedTempCE), Expression.union(tdata.postAllowedTemp), domain()));
+        // One sub-subformula for every state relation (pre and post)
+        //subs.add(s.join(allowedTempCE).eq(Expression.union(tdata.preAllowedTemp)));
+        //subs.add(s.join(next).join(allowedTempCE).eq(Expression.union(tdata.postAllowedTemp)));
+        subs.addAll(desugarInUnion(s.join(allowedTempCE), Expression.union(tdata.preAllowedTemp), domain()));
+        if(includePost) // handle last
+            subs.addAll(desugarInUnion(s.join(next).join(allowedTempCE), Expression.union(tdata.postAllowedTemp), domain()));
 
-            subs.addAll(desugarInUnion(s.join(canSetCE), Expression.union(tdata.preCanSet), domain()));
-            if(iState == includeStates-1) // handle last
-                subs.addAll(desugarInUnion(s.join(next).join(canSetCE), Expression.union(tdata.postCanSet), domain()));
+        subs.addAll(desugarInUnion(s.join(canSetCE), Expression.union(tdata.preCanSet), domain()));
+        if(includePost) // handle last
+            subs.addAll(desugarInUnion(s.join(next).join(canSetCE), Expression.union(tdata.postCanSet), domain()));
 
-            // Single setting, no union
-            subs.add(s.join(setting).eq(tdata.pretemp.toExpression()));
-            if(iState == includeStates-1) // handle last
-                subs.add(s.join(next).join(setting).eq(tdata.posttemp.toExpression()));
+        // Single setting, no union
+        subs.add(s.join(setting).eq(tdata.pretemp.toExpression()));
+        if(includePost) // handle last
+            subs.add(s.join(next).join(setting).eq(tdata.posttemp.toExpression()));
 
-            // One sub-subformula for event components (no post)
-            subs.add(s.join(next_p).eq(tdata.p));
-            subs.add(s.join(next_target).eq(tdata.targ.toExpression()));
+        // One sub-subformula for event components (no post)
+        subs.add(s.join(next_p).eq(tdata.p));
+        subs.add(s.join(next_target).eq(tdata.targ.toExpression()));
 
-            // Move to next state
-            s = s.join(next);
-        }
-
+        ///// Do negation now
         // We've collected all state literals. Now negate as needed.
         // TODO: equals doesn't work; doing the slow thing.
         Set<String> strsNegate = new HashSet<>();
@@ -423,6 +415,32 @@ public class EvalExclusionHack {
             subs.add(Formula.and(toFlip).not());
         }
 
+        return subs;
+    }
+
+    /**
+     * Build a formula that expresses a counterexample trace, including values of all state relations and events (Moore style)
+     * @param ce The counterexample being expressed as a formula
+     * @param negateThese A set of formulas to be negated, if they appear (used by blame-extraction)
+     * @param includeStates Build a trace of this many states, including start state
+     * @return
+     */
+    private static Formula fixTraceAsFormula(Solution ce, Set<Formula> negateThese, int includeStates) {
+        List<Formula> subs = new ArrayList<>();
+        if(numStates < includeStates) throw new RuntimeException("ceBounds called with too many includeStates");
+        if(includeStates < 2) throw new RuntimeException("Must have at least two includestates, had "+includeStates);
+
+        // don't do this: assumes the iteration order matches the true ordering!
+        //for(Tuple nxt : ce.instance().relationTuples().get(next)) {
+        Expression s = first;
+        // Loop through all except last:
+        for(int iState=1;iState<includeStates;iState++) {
+            boolean forceIncludePost = (iState == includeStates-1);
+            // s prestate in ce, include everything in poststate even if not negated (but only for last state),
+            // negate the conjunction of negateThese
+            subs.addAll(fixPreTransitionAsFormula(ce, s, forceIncludePost, true, negateThese));
+            s = s.join(next);
+        }
         return Formula.and(subs);
     }
 
@@ -448,10 +466,8 @@ public class EvalExclusionHack {
         List<Tuple> next_targetUpper = new ArrayList<>();
         List<Tuple> canSetUpper = new ArrayList<>();
         List<Tuple> allowedTempUpper = new ArrayList<>();
-        List<Tuple> canSetLower = new ArrayList<>();
-        List<Tuple> allowedTempLower = new ArrayList<>();
 
-        if(numStates < includeStates) throw new RuntimeException("ceBounds called with too many includeStates");
+        if(numStates < includeStates) throw new RuntimeException("ceBounds called with bad first/last state");
         if(includeStates < 2) throw new RuntimeException("Must have at least two includestates, had "+includeStates);
 
         for(int i=0;i<includeStates;i++) {
@@ -466,34 +482,18 @@ public class EvalExclusionHack {
                 next_targetUpper.add(factory.tuple("State"+i, j));
                 settingUpper.add(factory.tuple("State"+i, j));
             }
-
-            /*if(i==0) {
-                // Keep initial setting for first state
-                for(Tuple cs : c_canSet) {
-                    canSetUpper.add(factory.tuple("State" + i, cs.atom(0)));
-                    canSetLower.add(factory.tuple("State" + i, cs.atom(0)));
-                }
-                for(Tuple at : c_allowedTemp) {
-                    allowedTempUpper.add(factory.tuple("State" + i, at.atom(0)));
-                    allowedTempLower.add(factory.tuple("State" + i, at.atom(0)));
-                }
-            } else {*/
             // Don't include synthesized initial config in bounds (see below)
             for(int j=minInt;j<=maxInt;j++) {
                 allowedTempUpper.add(factory.tuple("State"+i, j));
             }
             canSetUpper.add(factory.tuple("State"+i, "PersonA"));
             canSetUpper.add(factory.tuple("State"+i, "PersonB"));
-            //}
-
         }
 
-        // We could bound the *FIRST* state's configuration here (hence the vestigial lower-bound variables)
+        // We could bound the *FIRST* state's configuration here
         // However, since we want to use cores to extract blame in the initial config, we need to assert the
         // last-synthesized initial config as a formula. :-(
         // (Later states can be anything, hence non-exact bound)
-        //bounds.bound(canSetCE, factory.setOf(canSetLower), factory.setOf(canSetUpper));
-        //bounds.bound(allowedTempCE, factory.setOf(allowedTempLower), factory.setOf(allowedTempUpper));
         bounds.bound(canSetCE, factory.setOf(canSetUpper));
         bounds.bound(allowedTempCE, factory.setOf(allowedTempUpper));
 
@@ -561,6 +561,15 @@ public class EvalExclusionHack {
         return bounds;
     }
 
+    private static Expression buildStateExpr(int num) {
+        // Start at one:
+        if(num < 1) throw new RuntimeException("buildStateExpr called with num="+num);
+        Expression result = first;
+        for(int ii=2;ii<=num;ii++)
+            result = result.join(next);
+        return result;
+    }
+
     private static int maxTraceLength(Expression e) {
         if(e.equals(first)) return 1;
         if(e instanceof BinaryExpression) {
@@ -599,6 +608,8 @@ public class EvalExclusionHack {
         //Collection<Solution> counterexamples = new ArrayList<>();
         while(loopCount++<loopLimit) {
             System.out.println("------------------------- Loop:"+loopCount+"-------------------------");
+
+            ////////////////////////////////////////////////
             // Step 1: synthesize
             Solution sol = execIncrementalSynth(synthformula, synthbounds);
             stats(sol, "synth: ");
@@ -613,6 +624,7 @@ public class EvalExclusionHack {
 
             System.out.println();
 
+            ////////////////////////////////////////////////
             // Step 2: verify
             Bounds cebounds = ceBounds(numStates);
             //System.out.println(cebounds);
@@ -626,23 +638,24 @@ public class EvalExclusionHack {
 
             System.out.println();
 
-            // Step 3a: localize trace literals responsible for the property violation
-            //   if we ask outright "why is this the trace", the entire set of config primaries will be blamed
-            // instead: ask first why the trace violates the property, irrespective of the system transition rules
+            ////////////////////////////////////////////////
+            // Step 3: localize trace literals responsible for the property violation (proximate cause)
+            // i.e., ask first why the trace violates the property, irrespective of the system transition rules
 
-            // (careful: we can't just add the concrete trace as an exact bound. Then it won't be used in the core
-            // at all, because those variables will be eliminated! instead, encode the trace as fmla)
+            // Note on implementation: we can't just add the concrete trace as an exact bound. Then it wouldn't
+            //  be used in the core at all, because those variables will be eliminated! instead, encode the trace as a fmla.
 
-            // Include phi, but not system axioms
-            Formula whyFormula = ceFormula(true, true, sol).and(fixTraceAsFormula(ce, new HashSet<Formula>(), numStates));
+            // Include phi, but not system axioms.
+            Formula whyFormula = ceFormula(true, true, sol)
+            // Also include the entire trace from start to finish.
+                    .and(fixTraceAsFormula(ce, new HashSet<>(), numStates));
 
             Solution why = execNonincrementalCE(whyFormula, cebounds);
             if(why.sat()) {
-                System.out.println();
-                System.out.println(why.instance());
+                System.out.println(); System.out.println(why.instance());
                 return "Error: counterexample-why step returned SAT for property on CE trace.";
             }
-            //why.proof().minimize(new HybridStrategy(why.proof().log()));
+            // HybridStrategy is giving non-minimal cores, so use RCE
             why.proof().minimize(new RCEStrategy(why.proof().log()));
             Set<Formula> reasons = new HashSet(why.proof().highLevelCore().keySet());
             // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
@@ -650,25 +663,37 @@ public class EvalExclusionHack {
             reasons.removeIf(isAPhi);
             System.out.println("DEBUG: WHY core: "+reasons);
 
-            // We now have a set of reason formulas. These may involve multiple states.
-            // Ask: why is their conjunction necessary? This will give us immediate causes, not
-            // necessarily all the way back to the initial state.
 
-            // Step 3b: use fault to trace back to responsible initial settings
+            ////////////////////////////////////////////////
+            // Step 4: find root cause (in initial deployable config) of proximate cause
+            // We have a set of "reason" formulas. These may involve multiple states.
+            // Ask: why is their conjunction necessary? This loop is set up to seek immediate causes in the prestate,
+            // because it's easy to get an unhelpful core that might (e.g.) blame the state *AFTER* the one with the reason.
+            // It's also possible to get cores that point to things in the same state. Because of this, we create a problem
+            // that fixes the prestate literals but only the (negated) reason literals in the poststate.
+            // ^^ TODO
+
+            // Finally, because the set of reasons may involve multiple states, we should be (TODO: not yet done!)
+            // starting with the latest reasons, re-sorting every iteration. I believe it's OK to combine reasons
+            //  from the same state.
+
+
             // TODO: separate solver, single step per invocation? want push/pop!
             // TODO: Can we ever get the initial state literals directly, without iteration?
-            // TODO  ... if not, we can at least narrow the scope to 2 states at a time (even w/o incremental)
 
             Set<Formula> initialReasons = new HashSet<>();
             // until all blame obligations are discharged, keep moving toward initial state
-            // TODO: this might loop forever in case of a malformed or anticausal transition function
+            // TODO: this might loop forever in case of a malformed or anticausal transition function. detect.
             while(!reasons.isEmpty()) {
                 System.out.println("Deriving blame for: "+reasons+"; mtl: "+maxTraceLength(reasons));
                 // Negate the trace literals we want explained
                 int mtl = maxTraceLength(reasons);
-                Formula blameFormula = ceFormula(true, false, sol).and(fixTraceAsFormula(ce, reasons, mtl));
+                Formula blameFormula = ceFormula(true, false, sol)
+                        // Include this prestate (reason -1 depth) and negated reasons
+                        .and(fixPreTransitionAsFormula(ce, buildStateExpr(mtl-1), true, false, reasons));
                 //System.out.println("blame fmla: "+blameFormula);
-                Bounds blamebounds = ceBounds(mtl);
+                //Bounds blamebounds = ceBounds(mtl); // Later: use mtl to order the blames so we can maintain 2-state bounds
+                Bounds blamebounds = ceBounds(2); // include ONLY TWO STATES
                 //System.out.println("blame bounds: "+blamebounds);
                 Solution blame = execNonincrementalCE(blameFormula, blamebounds);
                 if(blame.sat()) {
@@ -677,7 +702,7 @@ public class EvalExclusionHack {
                     return "Error: counterexample-blame step returned SAT for property on CE trace.";
                 }
 
-                // HybridStrategy is producing vastly non-minimal cores on Theo+hack. Use RCE to get guaranteed minimum
+                // HybridStrategy is producing vastly non-minimal cores on Theo+hack. Use RCE to get guaranteed minimum.
                 //blame.proof().minimize(new HybridStrategy(blame.proof().log()));
                 blame.proof().minimize(new RCEStrategy(blame.proof().log()));
 
