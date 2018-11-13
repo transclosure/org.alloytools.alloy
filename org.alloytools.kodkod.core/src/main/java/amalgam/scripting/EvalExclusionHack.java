@@ -30,9 +30,10 @@ public class EvalExclusionHack {
     final static SATFactory coreSolver = SATFactory.MiniSatProver;
 
     public static void main(String[] args) {
+        long startTime = System.currentTimeMillis();
         setupBaseUniverse();
         System.out.println(cegis());
-        System.out.println("Time: "+transtotal+" "+solvetotal);
+        System.out.println("Total time (ms): "+(System.currentTimeMillis()-startTime)+". Translation: "+transtotal+", solve: "+solvetotal);
     }
 
     private static Relation next = Relation.binary("next");
@@ -674,7 +675,7 @@ public class EvalExclusionHack {
             ////////////////////////////////////////////////
             // Step 1: synthesize
             Solution sol = execIncrementalSynth(synthformula, synthbounds);
-            stats(sol, "synth: ");
+            stats(sol, CEGISPHASE.SYNTH);
             if(sol.sat()) {
                 System.out.println("Candidate: "+prettyConfigFromSynth(sol));
                 System.out.println();
@@ -688,7 +689,7 @@ public class EvalExclusionHack {
             // Step 2: verify
             Bounds cebounds = ceBounds(numStates);
             Solution ce =  execNonincrementalCE(ceFormula(false, false, sol), cebounds);
-            stats(ce, "verify: ");
+            stats(ce, CEGISPHASE.COUNTER);
             if(ce.unsat()) return "Success in "+loopCount+" iterations!";
             else {
                 System.out.println("CE:\n"+ce.instance());
@@ -709,6 +710,7 @@ public class EvalExclusionHack {
             //System.out.println("S3: whyCEFormula="+whyCEFormula);
             //System.out.println("S3: whyTFormula="+whyTFormula);
             Solution why = execNonincrementalCE(whyCEFormula.and(whyTFormula), cebounds);
+            stats(why, CEGISPHASE.PROXIMAL);
             if(why.sat()) {
                 System.out.println(); System.out.println(why.instance());
                 return "Error: counterexample-why step returned SAT for property on CE trace.";
@@ -762,6 +764,7 @@ public class EvalExclusionHack {
                 //System.out.println("blame ce: "+blameCEFormula);
                 //System.out.println("blame trans: "+blameTransitionFormula);
                 Solution blame = execNonincrementalCE(blameCEFormula.and(Formula.and(blameTransitionFormula)), blamebounds);
+                stats(blame, CEGISPHASE.ROOT);
                 if(blame.sat()) {
                     System.out.println();
                     System.out.println(blame.instance());
@@ -774,7 +777,7 @@ public class EvalExclusionHack {
 
                 HashSet<Formula> localCause = new HashSet<>(blame.proof().highLevelCore().keySet());
 
-                System.out.println("BLAME core (all fmlas): "+localCause);
+                //System.out.println("BLAME core (all fmlas, NOT rewritten): "+localCause);
                 // Strip out local causes that aren't trace literals
                 HashSet<Formula> toRemove = new HashSet<>();
                 for(Formula f: localCause) {
@@ -870,15 +873,24 @@ public class EvalExclusionHack {
         }
     }
 
-    private static int transtotal = 0;
-    private static int solvetotal = 0;
-    private static void stats(Solution sol, String prefix) {
+    private static Map<CEGISPHASE, Long> transtotal = new HashMap<>();
+    private static Map<CEGISPHASE, Long> solvetotal = new HashMap<>();
+    private static void updateTimeMap(Map<CEGISPHASE, Long> m, CEGISPHASE p, long add) {
+        if(!m.keySet().contains(CEGISPHASE.SYNTH)) m.put(CEGISPHASE.SYNTH, Long.valueOf(0));
+        if(!m.keySet().contains(CEGISPHASE.COUNTER)) m.put(CEGISPHASE.COUNTER, Long.valueOf(0));
+        if(!m.keySet().contains(CEGISPHASE.PROXIMAL)) m.put(CEGISPHASE.PROXIMAL, Long.valueOf(0));
+        if(!m.keySet().contains(CEGISPHASE.ROOT)) m.put(CEGISPHASE.ROOT, Long.valueOf(0));
+
+        m.put(p, m.get(p)+add);
+    }
+    private static void stats(Solution sol, CEGISPHASE phase) {
+        // TODO: not currently recording time doing core minimization
         String sat = sol.sat() ? "sat" : "unsat";
         long trans = sol.stats().translationTime();
         long solve = sol.stats().solvingTime();
-        System.out.println(prefix+"trans ms: " + trans + "\tsolve ms:"+ solve + "\t" + sat);
-        transtotal += trans;
-        solvetotal += solve;
+        System.out.println(phase+" trans ms: " + trans + "\tsolve ms: "+ solve + "\t sat: " + sat);
+        updateTimeMap(transtotal, phase, trans);
+        updateTimeMap(solvetotal, phase, solve);
     }
 
     private static IncrementalSolver synthSolver = null;
