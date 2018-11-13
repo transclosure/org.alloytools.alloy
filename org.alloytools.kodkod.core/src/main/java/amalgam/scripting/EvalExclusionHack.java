@@ -40,8 +40,8 @@ public class EvalExclusionHack {
     private static Relation first = Relation.unary("first");
     private static Relation last = Relation.unary("last");
     private static Relation setting = Relation.binary("setting");
-    private static Relation next_p = Relation.binary("next_p");
-    private static Relation next_target = Relation.binary("next_target");
+    private static Relation next_p = Relation.binary("EVENT_next_p");
+    private static Relation next_target = Relation.binary("EVENT_next_target");
 
     private static Relation comfyAt = Relation.binary("comfyAt");
     private static Relation personA = Relation.unary("PersonA");
@@ -51,11 +51,12 @@ public class EvalExclusionHack {
 
     // configuration: we have power over the *initial* value of this
     // Thus, synth phase uses a unary relation, and CE phase uses a binary relation.
-    // IMPORTANT: we do a lot of string comparison below; make sure config relations have CONF_ in them
-    private static Relation canSetCE = Relation.binary("CE_CONF_canSet");
-    private static Relation allowedTempCE = Relation.binary("CE_CONF_allowedTemp");
-    private static Relation canSetS = Relation.unary("S_CONF_canSet");
-    private static Relation allowedTempS = Relation.unary("S_CONF_allowedTemp");
+    // IMPORTANT: we do a lot of string comparison below; make sure config relations have CONF_ in them, and
+    // Event relations have EVENT_ in them.
+    private static Relation canSetCE = Relation.binary("CE_DCONF_canSet");
+    private static Relation allowedTempCE = Relation.binary("CE_DCONF_allowedTemp");
+    private static Relation canSetS = Relation.unary("S_DCONF_canSet");
+    private static Relation allowedTempS = Relation.unary("S_DCONF_allowedTemp");
 
     private static Set<Expression> domain() {
         // Sadly, we can't say "Expression.INTS" because that won't expand.
@@ -646,10 +647,9 @@ public class EvalExclusionHack {
             return false;
         }
 
-        // *** TODO below is wrong. Need to throw out event fields but *KEEP* config fields,
-        // *** even if those fields are not deployable (and thus not labeled CONF_)
-
-        if(!cf.toString().contains("CONF_")) {
+        // Throw out event literals; they aren't useful at this point (kludge; if keeping something we shouldn't, consider
+        //   labeling non-deployable configuration and keeping only if deploy/nondeploy relation)
+        if(cf.toString().contains("EVENT_")) {
             return false;
         }
         return true;
