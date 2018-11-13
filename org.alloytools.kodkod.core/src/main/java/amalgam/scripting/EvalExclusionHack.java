@@ -17,13 +17,14 @@ import java.util.function.Predicate;
 
 /**
  * Hacky prototype of 4-part CEGIS synthesis loop for finding initial deployable configurations.
+ * Exclusion refers to excluding some slice of the potential deployable-initial-config space, NOT trace exclusion.
  */
 public class EvalExclusionHack {
 
     final static int loopLimit = 100;
     final static int numStates = 5;
-    final static int minInt = 50; // -128;
-    final static int maxInt = 100; //127;
+    final static int minInt =  -128;
+    final static int maxInt = 127;
 
     final static SATFactory incrementalSolver = SATFactory.MiniSat;
     final static SATFactory coreSolver = SATFactory.MiniSatProver;
@@ -84,44 +85,42 @@ public class EvalExclusionHack {
         return s.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))).forAll(s.oneOf(state));
     }
 
+    enum CEGISPHASE {SYNTH, COUNTER, PROXIMAL, ROOT};
+
     // TODO: should be an enum, not a pair of booleans. it's modal.
     private static Formula ceFormula(boolean corePhase, boolean corePhasePhi, Solution synthSol) {
         Variable p = Variable.unary("p");
         Variable s = Variable.unary("s");
+        Set<Formula> subs = new HashSet<>();
 
-        // assertTraceSemantics if NOT providing a concrete trace for core-extraction (phase 2, not 3-4)
-        Formula trace;
-        Formula structure;
-        Formula initial;
+        // STRUCTURAL CONSTRAINTS and TRANSITION SEMANTICS
         if(!corePhase || !corePhasePhi) {
             // setting, next_p, next_target relations are functional
             // the other config settings are not (might imagine NOBODY being allowed to change temp in a state)
-            structure = setting.function(state, Expression.INTS)
-                    .and(next_p.function(state, personA.union(personB))) // TODO: person relation
-                    .and(next_target.function(state, Expression.INTS));
-
-            // Start in a state where everyone is comfy
-            //  all p: Person | s.setting in p.comfyAt    [applied to first]
-            initial = first.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB)));
+            subs.add(setting.function(state, Expression.INTS));
+            subs.add(next_p.function(state, personA.union(personB)));
+            subs.add(next_target.function(state, Expression.INTS));
 
             // This is a concrete trace of the system
             Formula transition = buildTransition(s, s.join(next));
-            trace = transition.forAll(s.oneOf(state.difference(last)));
-        } else {
-            trace = Formula.TRUE;
-            structure = Formula.TRUE;
-            initial = Formula.TRUE;
+            subs.add(transition.forAll(s.oneOf(state.difference(last))));
         }
 
+        // ASSUMPTIONS: applies to CE generation only:
+        if(!corePhase) {
+            //  start in a state where everyone is comfy
+            //  all p: Person | s.setting in p.comfyAt    [applied to first]
+            subs.add(first.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))));
+        }
+
+        // PROPERTIES: applies to CE and PROXIMAL phases
         //  all s: State | all p: Person | s.setting in p.comfyAt
         Formula property = buildPhi();
-        Formula modifiedProperty;
-        // not in core phase means negate the property to generate a CE
-        if(!corePhase) modifiedProperty = property.not();
-            // in core phase, but asking for property: asking why did property fail; don't negate
-        else if(corePhase && corePhasePhi) modifiedProperty = property;
-            // in core phase, NOT asking for property: asking why failure occurred (no prop needed)
-        else modifiedProperty = Formula.TRUE;
+        // In COUNTER phase: not in core phase means negate the property to generate a CE
+        if(!corePhase) subs.add(property.not());
+        // in ROOT phase; asking why did property fail---don't negate
+        else if(corePhase && corePhasePhi) subs.add(property);
+        // otherwise, in PROXIMAL phase, NOT asking for property: asking why failure occurred (no prop needed)
 
         // Finally, we need to encode the synthesized initial state
         // (if a config relation is flat, we could just add it in bounds; this is only for
@@ -141,7 +140,7 @@ public class EvalExclusionHack {
         }
         Formula synthInitial = Formula.and(synthliterals);
 
-        return structure.and(initial).and(trace).and(modifiedProperty).and(synthInitial);
+        return Formula.and(subs).and(synthInitial);
     }
 
     private static Expression extractSynthExpression(Solution synthSol, Relation synthRel) {
@@ -340,7 +339,7 @@ public class EvalExclusionHack {
         for(Tuple t : posts) {post = t.atom(0);}
         if(pre == null || post == null) throw new RuntimeException("fixTrace: unable to resolve pre/post: "+pres+"; "+posts);
 
-        System.out.println("fixPreTransitionAsFormula: "+s+"; negate="+negateThese);
+        //System.out.println("fixPreTransitionAsFormula: "+s+"; negate="+negateThese);
         s = null; // force trigger a nasty exception if we build with s below instead of sInFmlas
 
         Set<Formula> subs = new HashSet<>();
@@ -569,7 +568,7 @@ public class EvalExclusionHack {
             if(cf.op().equals(ExprCompOperator.EQUALS)) {
                 relside = cf.left(); // first . CE_CONF_allowedTemp = Int[96]+Int[97]
                 valside = cf.right();
-                System.out.println("relside="+relside+"; valside="+valside+"; final="+findFinalJoin(relside));
+                //System.out.println("relside="+relside+"; valside="+valside+"; final="+findFinalJoin(relside));
                 return replaceWith.join(findFinalJoin(relside)).eq(valside);
             }
             else {
@@ -647,6 +646,9 @@ public class EvalExclusionHack {
             return false;
         }
 
+        // *** TODO below is wrong. Need to throw out event fields but *KEEP* config fields,
+        // *** even if those fields are not deployable (and thus not labeled CONF_)
+
         if(!cf.toString().contains("CONF_")) {
             return false;
         }
@@ -704,8 +706,8 @@ public class EvalExclusionHack {
             Formula whyCEFormula = ceFormula(true, true, sol);
             // Also include the entire trace from start to finish
             Formula whyTFormula = fixTraceAsFormula(ce, new HashSet<>(), numStates);
-            System.out.println("S3: whyCEFormula="+whyCEFormula);
-            System.out.println("S3: whyTFormula="+whyTFormula);
+            //System.out.println("S3: whyCEFormula="+whyCEFormula);
+            //System.out.println("S3: whyTFormula="+whyTFormula);
             Solution why = execNonincrementalCE(whyCEFormula.and(whyTFormula), cebounds);
             if(why.sat()) {
                 System.out.println(); System.out.println(why.instance());
@@ -717,7 +719,7 @@ public class EvalExclusionHack {
             // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
             Predicate isAPhi = f -> f.toString().equals(buildPhi().toString());
             reasons.removeIf(isAPhi);
-            System.out.println("DEBUG: WHY core: "+reasons);
+            //System.out.println("DEBUG: WHY core: "+reasons);
 
 
             ////////////////////////////////////////////////
@@ -727,7 +729,6 @@ public class EvalExclusionHack {
             // because it's easy to get an unhelpful core that might (e.g.) blame the state *AFTER* the one with the reason.
             // It's also possible to get cores that point to things in the same state. Because of this, we create a problem
             // that fixes the prestate literals but only the (negated) reason literals in the poststate.
-            // ^^ TODO
 
             // Finally, because the set of reasons may involve multiple states, we should be (TODO: not yet done!)
             // starting with the latest reasons, re-sorting every iteration. I believe it's OK to combine reasons
@@ -744,11 +745,12 @@ public class EvalExclusionHack {
                 System.out.println("Deriving blame for: "+reasons+"; mtl: "+maxTraceLength(reasons));
                 int mtl = maxTraceLength(reasons);
 
+                // Because we're limiting ourselves to 2 states, need to rewrite state expressions in reasons.
                 Set<Formula> rewrittenReasons = new HashSet<Formula>();
                 for(Formula f : reasons) {
                     rewrittenReasons.add(rewriteStateLiteralDepth(f, 2)); // second state
                 }
-                System.out.println("Rewritten reasons: "+rewrittenReasons);
+                //System.out.println("Rewritten reasons: "+rewrittenReasons);
 
                 // Negate the trace literals we want explained
                 Formula blameCEFormula = ceFormula(true, false, sol);
@@ -757,8 +759,8 @@ public class EvalExclusionHack {
 
                 Bounds blamebounds = ceBounds(2); // include ONLY TWO STATES
                 //System.out.println("blame bounds: "+blamebounds);
-                System.out.println("blame ce: "+blameCEFormula);
-                System.out.println("blame trans: "+blameTransitionFormula);
+                //System.out.println("blame ce: "+blameCEFormula);
+                //System.out.println("blame trans: "+blameTransitionFormula);
                 Solution blame = execNonincrementalCE(blameCEFormula.and(Formula.and(blameTransitionFormula)), blamebounds);
                 if(blame.sat()) {
                     System.out.println();
@@ -787,7 +789,7 @@ public class EvalExclusionHack {
                 }
                 localCause.removeAll(toRemove);
 
-                System.out.println("BLAME core (post filter): "+localCause);
+               // System.out.println("BLAME core (post filter): "+localCause);
 
                 Set<Formula> localCauseRewritten = new HashSet<>();
                 for(Formula f : localCause) {
@@ -795,7 +797,7 @@ public class EvalExclusionHack {
                     localCauseRewritten.add(rewriteStateLiteralDepth(f, mtl-1));
                 }
 
-                System.out.println("localCauseRewritten: "+localCauseRewritten);
+                System.out.println("Blame core filtered and rewritten: "+localCauseRewritten);
                 // Finalize local causes that are about the initial state; add others to reasons and iterate
                 reasons.clear();
                 for(Formula f: localCauseRewritten) {
@@ -804,7 +806,6 @@ public class EvalExclusionHack {
                     if(!needsMore) initialReasons.add(f);
                     else reasons.add(removeDoubleNegation(f));
                 }
-                System.out.println("~~~ final reasons before iteration: "+reasons);
             }
             //System.out.println("Final blame set in initial state (pre-conversion CE->S):"+initialReasons);
 
