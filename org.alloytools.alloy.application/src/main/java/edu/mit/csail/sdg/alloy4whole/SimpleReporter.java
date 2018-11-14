@@ -656,7 +656,7 @@ final class SimpleReporter extends A4Reporter {
             List<String> result = new ArrayList<String>(cmds.size());
             // TODO AMALGAM CEGIS loop
             if (bundleIndex == -999) {
-                // FIXME assuming selfish5.als, what should the abstract syntax be?
+                // FIXME assuming selfish(5,6,7).als, what should the abstract syntax be?
                 // Starting verify/synth formulas and fixed verify/synth scopes
                 final int tsize = 9;
                 Expr vfml = world.parseOneExpressionFromString("verify[Person, Int]");
@@ -665,7 +665,7 @@ final class SimpleReporter extends A4Reporter {
                 List<CommandScope> sscope = new ArrayList<>();
                 for(Sig s : world.getAllReachableSigs()) {
                     if(s.toString().equals("this/Config")) {
-                        vscope.add(new CommandScope(s, false, 1));
+                        vscope.add(new CommandScope(s, false, tsize));
                         sscope.add(new CommandScope(s, false, 1));
                     } else if (s.toString().equals("this/Person")) {
                         vscope.add(new CommandScope(s, false, 2));
@@ -697,7 +697,10 @@ final class SimpleReporter extends A4Reporter {
                         for(int t=1; t<=tsize; t++) {
                             String permitted_1 = vmdl.eval(world.parseOneExpressionFromString("permitted_1["+T+"]")).toString();
                             String permitted_2 = vmdl.eval(world.parseOneExpressionFromString("permitted_2["+T+"]")).toString();
-                            if(!permitted_1.equals("{}") & !permitted_2.equals("{}")) {
+                            // FIXME unsound generalization
+                            String permitted_3 = "first.policy.actors";
+                            String permitted_4 = "first.policy.actions";
+                            if(!permitted_1.equals("{}") & !permitted_2.equals("{}") & !permitted_3.equals("{}") & !permitted_4.equals("{}")) {
                                 // FIXME brittle model -> spec renames (this is why models aren't a syntax object)
                                 permitted_1 = permitted_1.replaceAll("\\{", "");
                                 permitted_1 = permitted_1.replaceAll("\\$0", "");
@@ -705,8 +708,9 @@ final class SimpleReporter extends A4Reporter {
                                 permitted_2 = permitted_2.replaceAll("\\{", "");
                                 permitted_2 = permitted_2.replaceAll("\\$0", "");
                                 permitted_2 = permitted_2.replaceAll("}", "");
-                                //cb(out, "", "not permitted["+permitted_1+","+permitted_2+"]\n");
-                                sfml = sfml.and(world.parseOneExpressionFromString("not permitted["+permitted_1+","+permitted_2+"]"));
+                                String learned = "not permitted["+permitted_1+","+permitted_2+","+permitted_3+","+permitted_4+"]";
+                                //cb(out, "", learned+"\n");
+                                sfml = sfml.and(world.parseOneExpressionFromString(learned));
                             }
                             T += ".next";
                         }
