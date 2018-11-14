@@ -737,6 +737,7 @@ final class SimpleReporter extends A4Reporter {
                             actions = actions.replaceAll(", ", "+");
                             actions = actions.replaceAll("}", "");
                             //cb(out, "", "verify["+actors+","+actions+"]\n");
+                            sfml = sfml.and(world.parseOneExpressionFromString("first.policy.actions != "+actions));
                             vfml = world.parseOneExpressionFromString("verify["+actors+","+actions+"]");
                         }
                     }
