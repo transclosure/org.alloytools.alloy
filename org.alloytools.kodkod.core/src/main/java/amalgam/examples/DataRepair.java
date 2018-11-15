@@ -55,13 +55,12 @@ public final class DataRepair implements KodkodExample {
     }
 
     @Override
-    public Formula synthformula() { return Formula.TRUE; }
+    public Formula refine(Formula current, Instance refinement)  {
+        return Formula.TRUE;
+    }
 
     @Override
-    public Bounds refine(Bounds synthbounds, Instance avoid)  { return synthbounds; }
-
-    @Override
-    public Bounds restrict(Bounds verifybounds, Instance apply) { return verifybounds; }
+    public Bounds restrict(Bounds current, Instance restriction) { return current; }
 
     @Override
     public Formula formula() {
@@ -78,16 +77,14 @@ public final class DataRepair implements KodkodExample {
     }
 
     @Override
-    public Bounds target(Bounds current) {
-        Bounds bounds = current.clone();
-        Map<Relation,List<Tuple>> targets = new LinkedHashMap<>();
+    public Map<Relation,TupleSet> target(Bounds bounds) {
+        Map<Relation,TupleSet> targets = new LinkedHashMap<>();
         List<Tuple> colors = new ArrayList<>();
         int n = bounds.upperBound(node).size();
         for(int i=1; i<=n; i++) {
             colors.add(bounds.universe().factory().tuple("Node"+i, "Hue"+i));
         }
-        targets.put(bounds.findRelByName("color"), colors);
-        bounds.addTarget(targets);
-        return bounds;
+        targets.put(bounds.findRelByName("color"), bounds.universe().factory().setOf(colors));
+        return targets;
     }
 }

@@ -1,9 +1,12 @@
 package amalgam.examples;
 
-import kodkod.ast.*;
+import kodkod.ast.Formula;
+import kodkod.ast.Relation;
+import kodkod.ast.Variable;
 import kodkod.ast.operator.ExprCompOperator;
 import kodkod.instance.*;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,7 +16,6 @@ public class HomeNet implements KodkodExample {
 
     private final Relation device, interfac;
     private final Relation connected;
-
 
     public HomeNet() {
         device = Relation.unary("Device");
@@ -43,7 +45,7 @@ public class HomeNet implements KodkodExample {
             }
         }
         // Bounds
-        Bounds bounds = new Bounds(universe);
+        final Bounds bounds = new Bounds(universe);
         bounds.bound(device, factory.setOf(devices));
         bounds.bound(interfac, factory.setOf(interfacs));
         bounds.bound(connected, factory.setOf(connecteds));
@@ -51,68 +53,38 @@ public class HomeNet implements KodkodExample {
     }
 
     @Override
-    public Bounds refine(Bounds synthbounds, Instance avoid)  {
-        Bounds refined = synthbounds.clone();
-        // not-model as a target oriented bound (get a maxsat point for each tuple avoided)
-        // z3 solver side effect handles how targets become clauses
-        // things like priority, composition of targets, etc, are dealt with there
-        Map<Relation,List<Tuple>> targets = new LinkedHashMap<>();
-        TupleSet connectedM = avoid.tuples("connected");
-        List<Tuple> connectedN = new ArrayList<>();
-        int n = synthbounds.upperBound(device).size();
-        for(int i=1; i<=n; i++) {
-            for (int j = 1; j<=n; j++) {
-                Tuple tuple = synthbounds.universe().factory().tuple("Device" + i, "Interface" + j);
-                if(!connectedM.contains(tuple)) {
-                    connectedN.add(tuple);
-                }
-            }
-        }
-        targets.put(synthbounds.findRelByName("connected"), connectedN);
-        refined.addTarget(targets);
-        return refined;
+    public Formula refine(Formula current, Instance refinement)  {
+        // TODO and with negate diagram of refinement instance
+        return current;
     }
 
     @Override
-    public Bounds restrict(Bounds verifybounds, Instance apply) {
-        Bounds restricted = verifybounds.clone();
-        restricted.boundExactly(connected, apply.tuples("connected"));
+    public Bounds restrict(Bounds current, Instance restriction) {
+        Bounds restricted = current.clone();
+        restricted.boundExactly(connected, restriction.tuples("connected"));
         return restricted;
-    }
-
-    @Override
-    public Formula synthformula() {
-        return connected.some();
     }
 
     @Override
     public Formula formula() {
         final List<Formula> formulas = new ArrayList<>();
         // total
-        final Variable i1 = Variable.unary("i");
-        final Variable d1 = Variable.unary("d");
-        final Formula total = d1.join(connected).compare(ExprCompOperator.EQUALS, i1);
-        formulas.add(total.forSome(i1.oneOf(interfac)).forAll(d1.oneOf(device)));
+        final Variable i = Variable.unary("i");
+        final Variable d = Variable.unary("d");
+        Formula total = d.join(connected).compare(ExprCompOperator.EQUALS, i);
+        formulas.add(total.forSome(i.oneOf(interfac)).forAll(d.oneOf(device)));
         // one-to-one
         final Variable dA = Variable.unary("dA");
         final Variable dB = Variable.unary("dB");
-        final Formula lhs1 = dA.compare(ExprCompOperator.EQUALS, dB).not();
-        final Formula rhs1 = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
-        formulas.add(lhs1.implies(rhs1).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
+        Formula lhs = dA.compare(ExprCompOperator.EQUALS, dB).not();
+        Formula rhs = dA.join(connected).compare(ExprCompOperator.EQUALS, dB.join(connected)).not();
+        formulas.add(lhs.implies(rhs).forAll(dB.oneOf(device)).forAll(dA.oneOf(device)));
         // non-trivial
-        formulas.add(connected.count().eq(IntConstant.constant(7)));
+        formulas.add(connected.some());
         //
-
-        // force connected to be on (Device X Interface)
-        final Formula leftComponentInDevice = connected.join(Expression.UNIV).in(device);
-        final Formula rightComponentInInterface = Expression.UNIV.join(connected).in(interfac);
-        formulas.add(leftComponentInDevice);
-        formulas.add(rightComponentInInterface);
-
-        System.out.println(formulas);
         return Formula.and(formulas);
     }
 
     @Override
-    public Bounds target(Bounds bounds) { return bounds; }
+    public Map<Relation,TupleSet> target(Bounds bounds) { return null; }
 }

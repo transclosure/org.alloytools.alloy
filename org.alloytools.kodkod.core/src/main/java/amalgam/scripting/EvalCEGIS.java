@@ -4,59 +4,57 @@ import amalgam.examples.HomeNet;
 import amalgam.examples.KodkodExample;
 import kodkod.ast.Formula;
 import kodkod.engine.Solution;
-import kodkod.engine.SolutionIterator;
 import kodkod.engine.Solver;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Bounds;
 import kodkod.instance.Instance;
-
-import java.util.Iterator;
 
 public class EvalCEGIS {
 
     public static void main(String[] args) {
         KodkodExample spec = new HomeNet();
         SATFactory solver = SATFactory.Z3;
-        final int n = 5;
-        System.out.println(cegis(spec, solver, n));
-        System.out.println("Time: "+transtotal+" "+solvetotal);
-    }
+        final int n = 4;
 
-    final static int loopLimit = 1000;
-
-    private static String cegis(KodkodExample spec, SATFactory solver, int n) {
+        // CEGIS loop
         int i = 0;
-        Bounds synthbounds = spec.bounds(n);
-        Solution synth;
-        Bounds verifybounds = synthbounds.clone();
-        Solution verify;
-        while(i++<loopLimit) {
-            // synthesize
-            synth = exec(spec.synthformula(), synthbounds, solver);
-            stats(synth, "synth: ");
-            if(synth.sat()) System.out.println(synth.instance().toPrettyString());
-            else return "Synthesis step failed with UNSAT";
-            // restrict (synth output as kodkod partial instance)
-            verifybounds = spec.restrict(verifybounds, synth.instance());
-            // verify
-            verify = exec(spec.formula(), verifybounds, solver);
-            stats(verify, "verify: ");
-            if(verify.sat()) return "SAT";
-            // refine (synth input as solver side effect)
-            synthbounds = spec.refine(synthbounds, synth.instance());
+        Bounds initial = spec.bounds(n);
+        Formula refinement = Formula.TRUE;
+        Instance synth = null;
+        Bounds restriction = initial;
+        Instance verify = null;
+        while(verify==null && i++<10) {
+            // refine and synthesize
+            refinement = spec.refine(refinement, synth);
+            synth = time("synth"+i, refinement, initial, solver);
+            // restrict and verify
+            restriction = spec.restrict(restriction, synth);
+            verify = time("verify"+i, spec.formula(), restriction, solver);
         }
-        return "TIMEOUT: loop limit of "+loopLimit+" exceeded.";
     }
 
-    private static int transtotal = 0;
-    private static int solvetotal = 0;
-    private static void stats(Solution sol, String prefix) {
+    private static Instance time(String name, Formula f, Bounds b, SATFactory s) {
+        System.out.println(name);
+        System.out.println("--------------------");
+        double transtotal = 0;
+        double solvetotal = 0;
+        //
+        Solution sol = exec(f, b, s);
         String sat = sol.sat() ? "sat" : "unsat";
         long trans = sol.stats().translationTime();
         long solve = sol.stats().solvingTime();
-        System.out.println(prefix+"trans ms: " + trans + "\tsolve ms:"+ solve + "\t" + sat);
+        System.out.println(trans + "\t"+ solve + "\t" + sat);
+        if(sol.sat()) {
+            System.out.println(sol.instance().toPrettyString());
+        } else {
+            System.out.println("UNSAT");
+        }
         transtotal += trans;
         solvetotal += solve;
+        //
+        System.out.println("--------------------");
+        System.out.println("");
+        return sol.sat() ? sol.instance() : null;
     }
     private static Solution exec(Formula f, Bounds b, SATFactory s) {
         final Solver solver = new Solver();

@@ -24,8 +24,15 @@ package kodkod.instance;
 import static java.util.Collections.unmodifiableMap;
 import static kodkod.util.ints.Ints.unmodifiableSequence;
 
-import java.util.*;
+import java.util.AbstractSet;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import kodkod.ast.Expression;
 import kodkod.ast.IntConstant;
@@ -69,8 +76,7 @@ import kodkod.util.ints.TreeSequence;
 public final class Bounds implements Cloneable {
 
     private final TupleFactory             factory;
-    private final Map<Relation,TupleSet>   lowers, uppers;
-    private final List<Map<Relation,List<Tuple>>> targets;
+    private final Map<Relation,TupleSet>   lowers, uppers, targets; // AMALGAM
     private final SparseSequence<TupleSet> intbounds;
     private final Set<Relation>            relations;
     private final Map<Object,Relation>     atom2rel;
@@ -78,11 +84,11 @@ public final class Bounds implements Cloneable {
     /**
      * Constructs a Bounds object with the given factory and mappings.
      */
-    private Bounds(TupleFactory factory, Map<Relation,TupleSet> lower, Map<Relation,TupleSet> upper,  List<Map<Relation,List<Tuple>>> targets, SparseSequence<TupleSet> intbounds) {
+    private Bounds(TupleFactory factory, Map<Relation,TupleSet> lower, Map<Relation,TupleSet> upper,  Map<Relation,TupleSet> target, SparseSequence<TupleSet> intbounds) {
         this.factory = factory;
         this.lowers = lower;
         this.uppers = upper;
-        this.targets = targets;
+        this.targets = target;
         this.intbounds = intbounds;
         this.relations = relations(lowers, uppers);
         this.atom2rel = new HashMap<Object,Relation>();
@@ -101,7 +107,7 @@ public final class Bounds implements Cloneable {
         this.factory = universe.factory();
         this.lowers = new LinkedHashMap<Relation,TupleSet>();
         this.uppers = new LinkedHashMap<Relation,TupleSet>();
-        this.targets = new ArrayList<>();
+        this.targets = new LinkedHashMap<Relation, TupleSet>();
         this.intbounds = new TreeSequence<TupleSet>();
         this.relations = relations(lowers, uppers);
         this.atom2rel = new HashMap<Object,Relation>();
@@ -377,20 +383,13 @@ public final class Bounds implements Cloneable {
     /**
      * TODO AMALGAM
      */
-    public void addTarget(Map<Relation,List<Tuple>> targets) {
-        Map<Relation,List<Tuple>> target = new LinkedHashMap<>();
+    public void boundTargets(Map<Relation,TupleSet> targets) {
         for(Relation r : targets.keySet()) {
-            List<Tuple> tuples = targets.get(r);
-            target.put(r, tuples);
+            checkBound(r.arity(), targets.get(r));
+            putBound(this.targets, r, targets.get(r).clone().unmodifiableView());
         }
-        this.targets.add(target);
     }
-    public void clearTargets() {
-        this.targets.clear();
-    }
-    public List<Map<Relation,List<Tuple>>> getTargets() {
-        return targets;
-    }
+    public TupleSet targetBound(Relation r) { return this.targets.get(r); }
 
     /**
      * Creates atom relations for all atoms present in this Bounds for which
@@ -439,7 +438,7 @@ public final class Bounds implements Cloneable {
      * @return an unmodifiable view of his Bounds object.
      */
     public Bounds unmodifiableView() {
-        return new Bounds(factory, unmodifiableMap(lowers), unmodifiableMap(uppers), getTargets(), unmodifiableSequence(intbounds));
+        return new Bounds(factory, unmodifiableMap(lowers), unmodifiableMap(uppers), unmodifiableMap(targets), unmodifiableSequence(intbounds));
     }
 
     /**
@@ -450,11 +449,7 @@ public final class Bounds implements Cloneable {
     @Override
     public Bounds clone() {
         try {
-            List<Map<Relation,List<Tuple>>> clonedTargets = new ArrayList<>();
-            for(Map<Relation,List<Tuple>> target : targets) {
-                clonedTargets.add(new LinkedHashMap<Relation,List<Tuple>>(target));
-            }
-            return new Bounds(factory, new LinkedHashMap<Relation,TupleSet>(lowers), new LinkedHashMap<Relation,TupleSet>(uppers), clonedTargets, intbounds.clone());
+            return new Bounds(factory, new LinkedHashMap<Relation,TupleSet>(lowers), new LinkedHashMap<Relation,TupleSet>(uppers), new LinkedHashMap<Relation,TupleSet>(targets), intbounds.clone());
         } catch (CloneNotSupportedException cnse) {
             throw new InternalError(); // should not be reached
         }

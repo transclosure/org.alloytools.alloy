@@ -24,8 +24,8 @@ public class EvalObjectives {
         time("CACHE WARM", spec.formula(), lowb, solver, 10);
         time("datarepair 20 z3", spec.formula(), lowb, solver, 3);
         time("datarepair 40 z3", spec.formula(), highb, solver, 3);
-        lowb = spec.target(lowb);
-        highb = spec.target(highb);
+        lowb.boundTargets(spec.target(lowb));
+        highb.boundTargets(spec.target(highb));
         time("datarepair 20 z3+target", spec.formula(), lowb, solver, 3);
         time("datarepair 40 z3+target", spec.formula(), highb, solver, 3);
 
@@ -35,8 +35,8 @@ public class EvalObjectives {
         highb = spec.bounds(12);
         time("bidirtrans 8 z3", spec.formula(), lowb, solver, 3);
         time("bidirtrans 12 z3", spec.formula(), highb, solver, 3);
-        lowb = spec.target(lowb);
-        highb = spec.target(highb);
+        lowb.boundTargets(spec.target(lowb));
+        highb.boundTargets(spec.target(highb));
         time("bidirtrans 8 z3+target", spec.formula(), lowb, solver, 3);
         time("bidirtrans 12 z3+target", spec.formula(), highb, solver, 3);
     }
