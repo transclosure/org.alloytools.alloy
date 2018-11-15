@@ -33,44 +33,31 @@ public class EvalExclusionHack {
         long startTime = System.currentTimeMillis();
         setupBaseUniverse();
         System.out.println(cegis());
-        System.out.println("Total time (ms): "+(System.currentTimeMillis()-startTime)+
-                ".\nTranslation: "+transtotal+
-                ",\nsolve: "+solvetotal+
-                ",\ncore minimization (note vulnerable to GC etc.): "+coreMinTotal);
+        System.out.println("Total time (ms): "+(System.currentTimeMillis()-startTime)+". Translation: "+transtotal+", solve: "+solvetotal);
     }
 
-    // Infrastructure relations (same for every problem)
     private static Relation next = Relation.binary("next");
     private static Relation state = Relation.unary("State");
     private static Relation first = Relation.unary("first");
     private static Relation last = Relation.unary("last");
-
-    // Problem-specification relations (there are 2 people, they have comfort ranges)
-    // These don't change over time, and they aren't something we synthesize. Take them as input.
-    private static Relation comfyAt = Relation.binary("comfyAt");
-    private static Relation personA = Relation.unary("PersonA");
-    private static Relation personB = Relation.unary("PersonB");
-
-    // Non-deployable configuration. These may be changed by the transition relation, but aren't
-    // part of what we synthesize. We may have to take assumptions about these in order to synthesize correctly.
-    // (For instance, assume the initial temperature setting isn't something uncomfy.)
     private static Relation setting = Relation.binary("setting");
-
-    // Event relations. Must contain "EVENT_"
     private static Relation next_p = Relation.binary("EVENT_next_p");
     private static Relation next_target = Relation.binary("EVENT_next_target");
 
-    // Deployable configuration: we have power over the *initial* value of these
+    private static Relation comfyAt = Relation.binary("comfyAt");
+    private static Relation personA = Relation.unary("PersonA");
+    private static Relation personB = Relation.unary("PersonB");
+    private static Universe universe;
+    private static TupleFactory factory;
+
+    // configuration: we have power over the *initial* value of this
     // Thus, synth phase uses a unary relation, and CE phase uses a binary relation.
-    // IMPORTANT: we do some string comparison below; make sure config relations have CONF_ in them, and
-    //   event relations have EVENT_ in them.
+    // IMPORTANT: we do a lot of string comparison below; make sure config relations have CONF_ in them, and
+    // Event relations have EVENT_ in them.
     private static Relation canSetCE = Relation.binary("CE_DCONF_canSet");
     private static Relation allowedTempCE = Relation.binary("CE_DCONF_allowedTemp");
     private static Relation canSetS = Relation.unary("S_DCONF_canSet");
     private static Relation allowedTempS = Relation.unary("S_DCONF_allowedTemp");
-
-    private static Universe universe;
-    private static TupleFactory factory;
 
     private static Set<Expression> domain() {
         // Sadly, we can't say "Expression.INTS" because that won't expand.
@@ -85,7 +72,6 @@ public class EvalExclusionHack {
         return result;
     }
 
-    // TODO: these should be replaced by additional properties.
     private static Formula baseSynthFormula() {
         // Start out with a config that isn't empty...
         Formula tension1 = (canSetS.join(comfyAt)).intersection(allowedTempS).some();
@@ -103,7 +89,7 @@ public class EvalExclusionHack {
 
     enum CEGISPHASE {SYNTH, COUNTER, PROXIMAL, ROOT};
 
-    // TODO: should use the enum, not a pair of booleans. it's modal.
+    // TODO: should be an enum, not a pair of booleans. it's modal.
     private static Formula ceFormula(boolean corePhase, boolean corePhasePhi, Solution synthSol) {
         Variable p = Variable.unary("p");
         Variable s = Variable.unary("s");
@@ -179,7 +165,6 @@ public class EvalExclusionHack {
                 s2.join(setting), s2.join(canSetCE), s2.join(allowedTempCE));
     }
 
-    // This is a major part of the problem definition: the basic, state-atom-free transition function.
     private static Formula buildTransitionPrim(Expression pretemp, Expression preCanSet, Expression preAllowedTemp,
                                                Expression p, Expression targ,
                                                Expression posttemp, Expression postCanSet, Expression postAllowedTemp) {
@@ -308,7 +293,7 @@ public class EvalExclusionHack {
     private static Set<Formula> desugarInUnion(Expression lhs, Expression rhs, Set<Expression> domain) {
         // Constructed a lhs = rhs expression, where the rhs is a union (possibly nested).
         // Desugar that into a (potentially large) "or" for core purposes
-        // ASSUME: lhs is the thing that isnt the union
+        // ASSUMPTION: lhs is the thing that isnt the union
 
         Set<Expression> yes = flattenUnion(rhs);
         Set<String> yesStrings = new HashSet<>();
@@ -343,7 +328,7 @@ public class EvalExclusionHack {
      * @param ce
      * @param s
      * @param includeAllNonNegatedPost
-     * @param negateThese Will be included in the negated-conjunct even if not present in the trace; beware
+     * @param negateThese Will be negated even if not present in the trace; beware
      * @return
      */
     private static Set<Formula> fixPreTransitionAsFormula(Solution ce, Expression s, Expression sInFmlas, boolean includeAllNonNegatedPost, Set<Formula> negateThese) {
@@ -540,6 +525,7 @@ public class EvalExclusionHack {
         bounds.boundExactly(personA, factory.setOf(factory.tuple("PersonA")));
         bounds.boundExactly(personB, factory.setOf(factory.tuple("PersonB")));
 
+        // TODO: any issues with diff Tuple objects?
         // Set up integers as integers
         for(int i=minInt; i<=maxInt; i++) {
             bounds.boundExactly(i, factory.setOf(factory.tuple(i)));
@@ -548,7 +534,6 @@ public class EvalExclusionHack {
         return bounds;
     }
 
-    // Build an expression corresponding to the num-th state.
     private static Expression buildStateExpr(int num) {
         // Start at one:
         if(num < 1) throw new RuntimeException("buildStateExpr called with num="+num);
@@ -558,7 +543,6 @@ public class EvalExclusionHack {
         return result;
     }
 
-    // Extract the thing being joined onto the end of a first.next.next... expression
     private static Expression findFinalJoin(Expression e) {
         Expression fjoin = null;
         while(e instanceof BinaryExpression) {
@@ -732,10 +716,8 @@ public class EvalExclusionHack {
                 return "Error: counterexample-why step returned SAT for property on CE trace.";
             }
             // HybridStrategy is giving non-minimal cores, so use RCE
-            long beforeCore1 = System.currentTimeMillis();
             why.proof().minimize(new RCEStrategy(why.proof().log()));
             Set<Formula> reasons = new HashSet(why.proof().highLevelCore().keySet());
-            coreMinTotal += (System.currentTimeMillis() - beforeCore1);
             // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
             Predicate isAPhi = f -> f.toString().equals(buildPhi().toString());
             reasons.removeIf(isAPhi);
@@ -750,18 +732,9 @@ public class EvalExclusionHack {
             // It's also possible to get cores that point to things in the same state. Because of this, we create a problem
             // that fixes the prestate literals but only the (negated) reason literals in the poststate.
 
-            /////////////////////
             // Finally, because the set of reasons may involve multiple states, we should be (TODO: not yet done!)
             // starting with the latest reasons, re-sorting every iteration. I believe it's OK to combine reasons
             //  from the same state.
-            // Because this isn't done yet, confirm that all reasons have the same mtl:
-            int sharedmtl = 0;
-            for(Formula f: reasons) {
-                if(sharedmtl == 0) sharedmtl = maxTraceLength(f);
-                else if(sharedmtl != maxTraceLength(f))
-                    throw new RuntimeException("Proximal cause contained literals with differing state depth (enhancement needed to support more complex properties): "+reasons);
-            }
-            /////////////////////
 
 
             // TODO: separate solver, single step per invocation? want push/pop!
@@ -800,10 +773,9 @@ public class EvalExclusionHack {
 
                 // HybridStrategy is producing vastly non-minimal cores on Theo+hack. Use RCE to get guaranteed minimum.
                 //blame.proof().minimize(new HybridStrategy(blame.proof().log()));
-                long beforeCore2 = System.currentTimeMillis();
                 blame.proof().minimize(new RCEStrategy(blame.proof().log()));
+
                 HashSet<Formula> localCause = new HashSet<>(blame.proof().highLevelCore().keySet());
-                coreMinTotal += (System.currentTimeMillis() - beforeCore2);
 
                 //System.out.println("BLAME core (all fmlas, NOT rewritten): "+localCause);
                 // Strip out local causes that aren't trace literals
@@ -903,7 +875,6 @@ public class EvalExclusionHack {
 
     private static Map<CEGISPHASE, Long> transtotal = new HashMap<>();
     private static Map<CEGISPHASE, Long> solvetotal = new HashMap<>();
-    private static long coreMinTotal = 0;
     private static void updateTimeMap(Map<CEGISPHASE, Long> m, CEGISPHASE p, long add) {
         if(!m.keySet().contains(CEGISPHASE.SYNTH)) m.put(CEGISPHASE.SYNTH, Long.valueOf(0));
         if(!m.keySet().contains(CEGISPHASE.COUNTER)) m.put(CEGISPHASE.COUNTER, Long.valueOf(0));
@@ -913,7 +884,7 @@ public class EvalExclusionHack {
         m.put(p, m.get(p)+add);
     }
     private static void stats(Solution sol, CEGISPHASE phase) {
-        // Core minimization time is recorded elsewhere
+        // TODO: not currently recording time doing core minimization
         String sat = sol.sat() ? "sat" : "unsat";
         long trans = sol.stats().translationTime();
         long solve = sol.stats().solvingTime();
