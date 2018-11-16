@@ -12,14 +12,19 @@ import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.ucore.RCEStrategy;
 import kodkod.instance.*;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.logging.*;
 
 /**
  * Hacky prototype of 4-part CEGIS synthesis loop for finding initial deployable configurations.
  * Exclusion refers to excluding some slice of the potential deployable-initial-config space, NOT trace exclusion.
  */
 public class EvalExclusionHack {
+
+    private final static boolean writeLogFile = false; // turn on for debugging
+    private final static Logger logger = Logger.getLogger(EvalExclusionHack.class.getName());
 
     final static int loopLimit = 100;
     final static int numStates = 5;
@@ -29,11 +34,30 @@ public class EvalExclusionHack {
     final static SATFactory incrementalSolver = SATFactory.MiniSat;
     final static SATFactory coreSolver = SATFactory.MiniSatProver;
 
-    public static void main(String[] args) {
+    private static void output(Level l, String s) {
+        if(l.intValue() >= Level.INFO.intValue()) {
+            // Print the string if it is INFO or more important
+            System.out.println(s);
+        }
+        if(writeLogFile) {
+            logger.log(l, s);
+        }
+    }
+    private static void output(String s) {
+        output(Level.INFO, s);
+    }
+
+    public static void main(String[] args) throws IOException {
+        LogManager.getLogManager().reset(); // disable default handler
+        logger.setLevel(Level.ALL);
+        FileHandler textHandler = new FileHandler("cegis-log.txt");
+        textHandler.setFormatter(new SimpleFormatter());
+        logger.addHandler(textHandler);
+
         long startTime = System.currentTimeMillis();
         setupBaseUniverse();
-        System.out.println(cegis());
-        System.out.println("Total time (ms): "+(System.currentTimeMillis()-startTime)+
+        output(cegis());
+        output("Total time (ms): "+(System.currentTimeMillis()-startTime)+
                 ".\nTranslation: "+transtotal+
                 ",\nsolve: "+solvetotal+
                 ",\ncore minimization (note vulnerable to GC etc.): "+coreMinTotal);
@@ -195,7 +219,6 @@ public class EvalExclusionHack {
         elsef = postAllowedTemp.eq(preAllowedTemp).and(postCanSet.eq(preCanSet));
         Formula policyChange = ante.implies(thenf).and(ante.not().implies(elsef));
         Formula transition = settingChange.and(policyChange);
-        //System.out.println(" ~~~ "+transition);
         return transition;
     }
 
@@ -331,9 +354,9 @@ public class EvalExclusionHack {
             result.add(e.in(lhs).not());
         }
 
-        //System.out.println("DESUGARING: lhs: "+lhs+"; rhs: "+rhs);
-        //System.out.println("AS: "+result);
-        //System.out.println("YES was: "+yes);
+        output(Level.FINER, "DESUGARING: lhs: "+lhs+"; rhs: "+rhs+"\n"+
+          "AS: "+result+"\n"+
+          "YES was: "+yes);
 
         return result;
     }
@@ -356,7 +379,7 @@ public class EvalExclusionHack {
         for(Tuple t : posts) {post = t.atom(0);}
         if(pre == null || post == null) throw new RuntimeException("fixTrace: unable to resolve pre/post: "+pres+"; "+posts);
 
-        //System.out.println("fixPreTransitionAsFormula: "+s+"; negate="+negateThese);
+        output(Level.FINER, "fixPreTransitionAsFormula: "+s+"; negate="+negateThese);
         s = null; // force trigger a nasty exception if we build with s below instead of sInFmlas
 
         Set<Formula> subs = new HashSet<>();
@@ -395,12 +418,11 @@ public class EvalExclusionHack {
         }
         subs.removeAll(toFlip); // this is OK because we switched over to the original objects
 
-        // System.out.println("toFlip: "+toFlip+"; strNegate was: "+strsNegate);
-        // System.out.println(subs);
+        output(Level.FINER, "toFlip: "+toFlip+"; strNegate was: "+strsNegate+"\nsubs: "+subs);
         if(!negateThese.isEmpty()) {
             // Now add the negation of the conjunction of set to negate:
             subs.add(Formula.and(negateThese).not());
-            //System.out.println("negated: "+negateThese);
+            output(Level.FINER, "negated: "+negateThese);
         }
 
         return subs;
@@ -586,7 +608,7 @@ public class EvalExclusionHack {
             if(cf.op().equals(ExprCompOperator.EQUALS)) {
                 relside = cf.left(); // first . CE_CONF_allowedTemp = Int[96]+Int[97]
                 valside = cf.right();
-                //System.out.println("relside="+relside+"; valside="+valside+"; final="+findFinalJoin(relside));
+                output(Level.FINER, "rewriting... relside="+relside+"; valside="+valside+"; final="+findFinalJoin(relside));
                 return replaceWith.join(findFinalJoin(relside)).eq(valside);
             }
             else {
@@ -686,18 +708,17 @@ public class EvalExclusionHack {
         Formula synthformula = baseSynthFormula();
 
         while(loopCount++<loopLimit) {
-            System.out.println("------------------------- Loop:"+loopCount+"-------------------------");
+            output(Level.INFO, "------------------------- Loop:"+loopCount+"-------------------------");
 
             ////////////////////////////////////////////////
             // Step 1: synthesize
             Solution sol = execIncrementalSynth(synthformula, synthbounds);
             stats(sol, CEGISPHASE.SYNTH);
             if(sol.sat()) {
-                System.out.println("Candidate: "+prettyConfigFromSynth(sol));
-                System.out.println();
+                output(Level.INFO, "Candidate: "+prettyConfigFromSynth(sol)+"\n");
             }
             else {
-                System.out.println(sol.outcome());
+                output(Level.INFO, "synth failed, unsat: "+sol.outcome());
                 return "Synthesis step failed with UNSAT";
             }
 
@@ -708,8 +729,7 @@ public class EvalExclusionHack {
             stats(ce, CEGISPHASE.COUNTER);
             if(ce.unsat()) return "Success in "+loopCount+" iterations!";
             else {
-                System.out.println("CE:\n"+ce.instance());
-                System.out.println();
+                output(Level.INFO, "Counterexample:\n"+ce.instance().relationTuples()+"\n");
             }
 
             ////////////////////////////////////////////////
@@ -723,12 +743,12 @@ public class EvalExclusionHack {
             Formula whyCEFormula = ceFormula(true, true, sol);
             // Also include the entire trace from start to finish
             Formula whyTFormula = fixTraceAsFormula(ce, new HashSet<>(), numStates);
-            //System.out.println("S3: whyCEFormula="+whyCEFormula);
-            //System.out.println("S3: whyTFormula="+whyTFormula);
+            output(Level.FINER, "S3: whyCEFormula="+whyCEFormula);
+            output(Level.FINER, "S3: whyTFormula="+whyTFormula);
             Solution why = execNonincrementalCE(whyCEFormula.and(whyTFormula), cebounds);
             stats(why, CEGISPHASE.PROXIMAL);
             if(why.sat()) {
-                System.out.println(); System.out.println(why.instance());
+                output(Level.INFO, "\n"+why.instance());
                 return "Error: counterexample-why step returned SAT for property on CE trace.";
             }
             // HybridStrategy is giving non-minimal cores, so use RCE
@@ -739,7 +759,7 @@ public class EvalExclusionHack {
             // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
             Predicate isAPhi = f -> f.toString().equals(buildPhi().toString());
             reasons.removeIf(isAPhi);
-            //System.out.println("DEBUG: WHY core: "+reasons);
+            output(Level.FINER, "DEBUG: WHY core: "+reasons);
 
 
             ////////////////////////////////////////////////
@@ -771,7 +791,7 @@ public class EvalExclusionHack {
             // until all blame obligations are discharged, keep moving toward initial state
             // TODO: this might loop forever in case of a malformed or anticausal transition function. detect.
             while(!reasons.isEmpty()) {
-                System.out.println("Deriving blame for: "+reasons+"; mtl: "+maxTraceLength(reasons));
+                output(Level.INFO, "Deriving blame for: "+reasons+"; mtl: "+maxTraceLength(reasons));
                 int mtl = maxTraceLength(reasons);
 
                 // Because we're limiting ourselves to 2 states, need to rewrite state expressions in reasons.
@@ -779,7 +799,7 @@ public class EvalExclusionHack {
                 for(Formula f : reasons) {
                     rewrittenReasons.add(rewriteStateLiteralDepth(f, 2)); // second state
                 }
-                //System.out.println("Rewritten reasons: "+rewrittenReasons);
+                output(Level.FINER, "Rewritten reasons: "+rewrittenReasons);
 
                 // Negate the trace literals we want explained
                 Formula blameCEFormula = ceFormula(true, false, sol);
@@ -787,14 +807,10 @@ public class EvalExclusionHack {
                 Set<Formula> blameTransitionFormula = fixPreTransitionAsFormula(ce, buildStateExpr(mtl-1), first,false, rewrittenReasons);
 
                 Bounds blamebounds = ceBounds(2); // include ONLY TWO STATES
-                //System.out.println("blame bounds: "+blamebounds);
-                //System.out.println("blame ce: "+blameCEFormula);
-                //System.out.println("blame trans: "+blameTransitionFormula);
                 Solution blame = execNonincrementalCE(blameCEFormula.and(Formula.and(blameTransitionFormula)), blamebounds);
                 stats(blame, CEGISPHASE.ROOT);
                 if(blame.sat()) {
-                    System.out.println();
-                    System.out.println(blame.instance());
+                    output(Level.INFO, "\n"+blame.instance());
                     return "Error: counterexample-blame step returned SAT for property on CE trace.";
                 }
 
@@ -805,7 +821,7 @@ public class EvalExclusionHack {
                 HashSet<Formula> localCause = new HashSet<>(blame.proof().highLevelCore().keySet());
                 coreMinTotal += (System.currentTimeMillis() - beforeCore2);
 
-                //System.out.println("BLAME core (all fmlas, NOT rewritten): "+localCause);
+                output(Level.FINER, "BLAME core (all fmlas, NOT rewritten): "+localCause);
                 // Strip out local causes that aren't trace literals
                 HashSet<Formula> toRemove = new HashSet<>();
                 for(Formula f: localCause) {
@@ -820,7 +836,7 @@ public class EvalExclusionHack {
                 }
                 localCause.removeAll(toRemove);
 
-                // System.out.println("BLAME core (post filter): "+localCause);
+                output(Level.FINER, "BLAME core (post filter): "+localCause);
 
                 Set<Formula> localCauseRewritten = new HashSet<>();
                 for(Formula f : localCause) {
@@ -828,7 +844,7 @@ public class EvalExclusionHack {
                     localCauseRewritten.add(rewriteStateLiteralDepth(f, mtl-1));
                 }
 
-                System.out.println("Blame core filtered and rewritten: "+localCauseRewritten);
+                output(Level.INFO, "Blame core filtered and rewritten: "+localCauseRewritten);
                 // Finalize local causes that are about the initial state; add others to reasons and iterate
                 reasons.clear();
                 for(Formula f: localCauseRewritten) {
@@ -838,7 +854,7 @@ public class EvalExclusionHack {
                     else reasons.add(removeDoubleNegation(f));
                 }
             }
-            //System.out.println("Final blame set in initial state (pre-conversion CE->S):"+initialReasons);
+            output(Level.FINER, "Final blame set in initial state (pre-conversion CE->S):"+initialReasons);
 
             // convert each initial reason from CE (first.rel) to S (rel).
             // TODO: current pipeline can't handle *negated* initial reasons; not sure if failure will be silent
@@ -879,7 +895,7 @@ public class EvalExclusionHack {
                     throw new RuntimeException("Unexpected initial-state reason formula: "+f);
             }
 
-            System.out.println("Initial state reasons: "+initialReasonsS);
+            output(Level.INFO, "Initial state reasons: "+initialReasonsS);
             Formula initialStateCause = Formula.and(initialReasonsS);
 
             // FINALLY: extend synth formula
@@ -917,7 +933,7 @@ public class EvalExclusionHack {
         String sat = sol.sat() ? "sat" : "unsat";
         long trans = sol.stats().translationTime();
         long solve = sol.stats().solvingTime();
-        System.out.println(phase+" trans ms: " + trans + "\tsolve ms: "+ solve + "\t sat: " + sat);
+        output(Level.FINE, phase+" trans ms: " + trans + "\tsolve ms: "+ solve + "\t sat: " + sat);
         updateTimeMap(transtotal, phase, trans);
         updateTimeMap(solvetotal, phase, solve);
     }
