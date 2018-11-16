@@ -9,6 +9,7 @@ import kodkod.engine.Solution;
 import kodkod.engine.Solver;
 import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
+import kodkod.engine.ucore.DynamicRCEStrategy;
 import kodkod.engine.ucore.RCEStrategy;
 import kodkod.instance.*;
 
@@ -30,6 +31,12 @@ public class EvalExclusionHack {
     final static int numStates = 5;
     final static int minInt =  -128;
     final static int maxInt = 127;
+
+    final static int backdoorTemperature = 75;
+    final static int minAComfy = 72;
+    final static int maxAComfy = 75;
+    final static int minBComfy = 50;
+    final static int maxBComfy = 100;
 
     final static SATFactory incrementalSolver = SATFactory.MiniSat;
     final static SATFactory coreSolver = SATFactory.MiniSatProver;
@@ -209,12 +216,16 @@ public class EvalExclusionHack {
                                                Expression posttemp, Expression postCanSet, Expression postAllowedTemp) {
         // is the temp change permitted? (note these expressions don't have a state attached)
         Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp));
+        // TEST ANTE: require setting to be an odd number to go through
+        //Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp))
+        //        .and(targ.sum().modulo(IntConstant.constant(2)).eq(IntConstant.constant(1)));
+                // NOTE: add/sub around max/min can cause issues
         Formula thenf = posttemp.eq(targ);
         Formula elsef = posttemp.eq(pretemp);
         Formula settingChange = ante.implies(thenf).and(ante.not().implies(elsef));
 
-        // If try to set to 75 and forbidden...trigger vulnerability
-        ante = targ.eq(IntConstant.constant(75).toExpression()).and(ante.not());
+        // If try to set to backdoorTemperature and forbidden...trigger vulnerability
+        ante = targ.eq(IntConstant.constant(backdoorTemperature).toExpression()).and(ante.not());
         thenf = postAllowedTemp.eq(Expression.INTS).and(postCanSet.eq(personA.union(personB)));
         elsef = postAllowedTemp.eq(preAllowedTemp).and(postCanSet.eq(preCanSet));
         Formula policyChange = ante.implies(thenf).and(ante.not().implies(elsef));
@@ -542,10 +553,10 @@ public class EvalExclusionHack {
         List<Tuple> allowedUpper = new ArrayList<>();
 
         // changed to narrower range on A, wider range on B, because was getting a good config on first synth...
-        for(int i=72; i<=75; i++) {
+        for(int i=minAComfy; i<=maxAComfy; i++) {
             comfyAts.add(factory.tuple("PersonA", i));
         }
-        for(int i=50; i<=100; i++) {
+        for(int i=minBComfy; i<=maxBComfy; i++) {
             comfyAts.add(factory.tuple("PersonB", i));
         }
         canSetUpper.add(factory.tuple("PersonA"));
@@ -810,7 +821,7 @@ public class EvalExclusionHack {
                 Solution blame = execNonincrementalCE(blameCEFormula.and(Formula.and(blameTransitionFormula)), blamebounds);
                 stats(blame, CEGISPHASE.ROOT);
                 if(blame.sat()) {
-                    output(Level.INFO, "\n"+blame.instance());
+                    output(Level.INFO, "\n"+blame.instance().relationTuples());
                     return "Error: counterexample-blame step returned SAT for property on CE trace.";
                 }
 
@@ -818,10 +829,13 @@ public class EvalExclusionHack {
                 //blame.proof().minimize(new HybridStrategy(blame.proof().log()));
                 long beforeCore2 = System.currentTimeMillis();
                 blame.proof().minimize(new RCEStrategy(blame.proof().log()));
+                // Slower than RCEStrategy for this problem
+                //blame.proof().minimize(new DynamicRCEStrategy(blame.proof().log()));
                 HashSet<Formula> localCause = new HashSet<>(blame.proof().highLevelCore().keySet());
                 coreMinTotal += (System.currentTimeMillis() - beforeCore2);
 
                 output(Level.FINER, "BLAME core (all fmlas, NOT rewritten): "+localCause);
+                System.out.println("BLAME core (all fmlas, NOT rewritten): "+localCause);
                 // Strip out local causes that aren't trace literals
                 HashSet<Formula> toRemove = new HashSet<>();
                 for(Formula f: localCause) {
