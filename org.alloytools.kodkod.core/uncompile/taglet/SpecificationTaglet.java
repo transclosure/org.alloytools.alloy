@@ -29,7 +29,7 @@ import com.sun.javadoc.Tag;
 import com.sun.tools.doclets.formats.html.TagletOutputImpl;
 import com.sun.tools.doclets.internal.toolkit.taglets.InheritableTaglet;
 import com.sun.tools.doclets.internal.toolkit.taglets.Taglet;
-import com.sun.tools.doclets.internal.toolkit.taglets.Tagl	etOutput;
+import com.sun.tools.doclets.internal.toolkit.taglets.TagletOutput;
 import com.sun.tools.doclets.internal.toolkit.taglets.TagletWriter;
 import com.sun.tools.doclets.internal.toolkit.util.DocFinder;
 import com.sun.tools.doclets.internal.toolkit.util.DocFinder.Input;
