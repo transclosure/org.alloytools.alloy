@@ -759,7 +759,7 @@ public class EvalExclusionHack {
             // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
             Predicate isAPhi = f -> f.toString().equals(buildPhi().toString());
             reasons.removeIf(isAPhi);
-            output(Level.FINER, "DEBUG: WHY core: "+reasons);
+            output(Level.INFO, "PROXIMAL CAUSE: "+reasons);
 
 
             ////////////////////////////////////////////////
