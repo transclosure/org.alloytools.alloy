@@ -52,3 +52,4 @@ __pycache__/
 *.pyc
 *.class
 out/*
+cegis-log.txt

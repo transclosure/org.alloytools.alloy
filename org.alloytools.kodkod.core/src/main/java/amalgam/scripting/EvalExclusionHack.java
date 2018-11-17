@@ -9,7 +9,6 @@ import kodkod.engine.Solution;
 import kodkod.engine.Solver;
 import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
-import kodkod.engine.ucore.DynamicRCEStrategy;
 import kodkod.engine.ucore.RCEStrategy;
 import kodkod.instance.*;
 
@@ -32,11 +31,8 @@ public class EvalExclusionHack {
     final static int minInt =  -128;
     final static int maxInt = 127;
 
-    final static int backdoorTemperature = 75;
-    final static int minAComfy = 72;
-    final static int maxAComfy = 75;
-    final static int minBComfy = 50;
-    final static int maxBComfy = 100;
+    private static Universe universe;
+    private static TupleFactory factory;
 
     final static SATFactory incrementalSolver = SATFactory.MiniSat;
     final static SATFactory coreSolver = SATFactory.MiniSatProver;
@@ -61,82 +57,48 @@ public class EvalExclusionHack {
         textHandler.setFormatter(new SimpleFormatter());
         logger.addHandler(textHandler);
 
+        SynthProblem problem = new OriginalTheoTimHack();
+        EvalExclusionHack cegisSolver = new EvalExclusionHack(problem);
+
         long startTime = System.currentTimeMillis();
-        setupBaseUniverse();
-        output(cegis());
+        cegisSolver.setupBaseUniverse();
+        output(cegisSolver.cegis());
         output("Total time (ms): "+(System.currentTimeMillis()-startTime)+
-                ".\nTranslation: "+transtotal+
-                ",\nsolve: "+solvetotal+
-                ",\ncore minimization (note vulnerable to GC etc.): "+coreMinTotal);
+                ".\nTranslation: "+cegisSolver.transtotal+
+                ",\nsolve: "+cegisSolver.solvetotal+
+                ",\ncore minimization (note vulnerable to GC etc.): "+cegisSolver.coreMinTotal);
+    }
+
+    SynthProblem problem;
+    EvalExclusionHack(SynthProblem problem) {
+        this.problem = problem;
     }
 
     // Infrastructure relations (same for every problem)
-    private static Relation next = Relation.binary("next");
     private static Relation state = Relation.unary("State");
+    private static Relation next = Relation.binary("next");
     private static Relation first = Relation.unary("first");
     private static Relation last = Relation.unary("last");
 
-    // Problem-specification relations (there are 2 people, they have comfort ranges)
-    // These don't change over time, and they aren't something we synthesize. Take them as input.
-    private static Relation comfyAt = Relation.binary("comfyAt");
-    private static Relation personA = Relation.unary("PersonA");
-    private static Relation personB = Relation.unary("PersonB");
-
-    // Non-deployable configuration. These may be changed by the transition relation, but aren't
-    // part of what we synthesize. We may have to take assumptions about these in order to synthesize correctly.
-    // (For instance, assume the initial temperature setting isn't something uncomfy.)
-    private static Relation setting = Relation.binary("setting");
-
-    // Event relations. Must contain "EVENT_"
-    private static Relation next_p = Relation.binary("EVENT_next_p");
-    private static Relation next_target = Relation.binary("EVENT_next_target");
-
-    // Deployable configuration: we have power over the *initial* value of these
-    // Thus, synth phase uses a unary relation, and CE phase uses a binary relation.
-    // IMPORTANT: we do some string comparison below; make sure config relations have CONF_ in them, and
-    //   event relations have EVENT_ in them.
-    private static Relation canSetCE = Relation.binary("CE_DCONF_canSet");
-    private static Relation allowedTempCE = Relation.binary("CE_DCONF_allowedTemp");
-    private static Relation canSetS = Relation.unary("S_DCONF_canSet");
-    private static Relation allowedTempS = Relation.unary("S_DCONF_allowedTemp");
-
-    private static Universe universe;
-    private static TupleFactory factory;
-
-    private static Set<Expression> domain() {
+    private Set<Expression> domain() {
         // Sadly, we can't say "Expression.INTS" because that won't expand.
         // Instead, we have to make it explicit:
         Set<Expression> result = new HashSet<>();
         for(int i=minInt;i<=maxInt;i++) {
             result.add(IntConstant.constant(i).toExpression());
         }
-        result.add(personA);
-        result.add(personB);
+        for(Relation r : problem.constantRelations()) {
+            result.add(r);
+        }
+
         // TODO: could do this much better, perhaps (even things that are ill-typed will go in the "not" side
         return result;
-    }
-
-    // TODO: these should be replaced by additional properties.
-    private static Formula baseSynthFormula() {
-        // Start out with a config that isn't empty...
-        Formula tension1 = (canSetS.join(comfyAt)).intersection(allowedTempS).some();
-        Variable p = Variable.unary("p");
-        // Using forall, anticipating more people eventually
-        Formula tension2 = p.join(comfyAt).intersection(allowedTempS).count().gt(IntConstant.constant(1)).forAll(p.oneOf(personA.union(personB)));
-        return tension1.and(tension2);
-    }
-
-    private static Formula buildPhi() {
-        Variable p = Variable.unary("p");
-        Variable s = Variable.unary("s");
-        return s.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))).forAll(s.oneOf(state));
     }
 
     enum CEGISPHASE {SYNTH, COUNTER, PROXIMAL, ROOT};
 
     // TODO: should use the enum, not a pair of booleans. it's modal.
-    private static Formula ceFormula(boolean corePhase, boolean corePhasePhi, Solution synthSol) {
-        Variable p = Variable.unary("p");
+    private Formula ceFormula(boolean corePhase, boolean corePhasePhi, Solution synthSol) {
         Variable s = Variable.unary("s");
         Set<Formula> subs = new HashSet<>();
 
@@ -144,12 +106,10 @@ public class EvalExclusionHack {
         if(!corePhase || !corePhasePhi) {
             // setting, next_p, next_target relations are functional
             // the other config settings are not (might imagine NOBODY being allowed to change temp in a state)
-            subs.add(setting.function(state, Expression.INTS));
-            subs.add(next_p.function(state, personA.union(personB)));
-            subs.add(next_target.function(state, Expression.INTS));
+            subs.addAll(problem.structuralAxioms());
 
             // This is a concrete trace of the system
-            Formula transition = buildTransition(s, s.join(next));
+            Formula transition = problem.buildTransition(s, s.join(next));
             subs.add(transition.forAll(s.oneOf(state.difference(last))));
         }
 
@@ -157,12 +117,12 @@ public class EvalExclusionHack {
         if(!corePhase) {
             //  start in a state where everyone is comfy
             //  all p: Person | s.setting in p.comfyAt    [applied to first]
-            subs.add(first.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))));
+            subs.addAll(problem.initialStateAssumptions());
         }
 
         // PROPERTIES: applies to CE and PROXIMAL phases
-        //  all s: State | all p: Person | s.setting in p.comfyAt
-        Formula property = buildPhi();
+        // TODO: should we break these down separately? maybe no need to at first
+        Formula property = Formula.and(problem.goals());
         // In COUNTER phase: not in core phase means negate the property to generate a CE
         if(!corePhase) subs.add(property.not());
             // in ROOT phase; asking why did property fail---don't negate
@@ -175,22 +135,22 @@ public class EvalExclusionHack {
         Set<Formula> synthliterals = new HashSet<>();
         if(!corePhase) {
             // efficient version if we're in CE-generation phase
-            synthliterals.add(first.join(allowedTempCE).eq(extractSynthExpression(synthSol, allowedTempS)));
-            synthliterals.add(first.join(canSetCE).eq(extractSynthExpression(synthSol, canSetS)));
+            for(Relation r : problem.deployableRelationsCE()) {
+                synthliterals.add(first.join(r).eq(extractSynthExpression(synthSol, problem.ceToS(r))));
+            }
         } else if(corePhasePhi) {
-            synthliterals.addAll(desugarInUnion(first.join(allowedTempCE), extractSynthExpression(synthSol, allowedTempS), domain()));
-            synthliterals.addAll(desugarInUnion(first.join(canSetCE), extractSynthExpression(synthSol, canSetS), domain()));
+            for(Relation r : problem.deployableRelationsCE()) {
+                synthliterals.addAll(desugarInUnion(first.join(r), extractSynthExpression(synthSol, problem.ceToS(r)), domain()));
+            }
         } else {
             // Do nothing; this is a call for the 2-state
-
-            // TODO: really nothing? what if one of the 2 states is the initial state?
         }
         Formula synthInitial = Formula.and(synthliterals);
 
         return Formula.and(subs).and(synthInitial);
     }
 
-    private static Expression extractSynthExpression(Solution synthSol, Relation synthRel) {
+    private Expression extractSynthExpression(Solution synthSol, Relation synthRel) {
         // TODO is there duplicate code here vs. TransitionData?
         Set<Expression> rows = new HashSet<>();
         for(Tuple t : synthSol.instance().relationTuples().get(synthRel)) {
@@ -203,114 +163,76 @@ public class EvalExclusionHack {
         return Expression.union(rows);
     }
 
-    // The transition predicate on [s, s'] (minus type annotations, beware)
-    private static Formula buildTransition(Expression s, Expression s2) {
-        return buildTransitionPrim(s.join(setting), s.join(canSetCE), s.join(allowedTempCE),
-                s.join(next_p), s.join(next_target),
-                s2.join(setting), s2.join(canSetCE), s2.join(allowedTempCE));
-    }
 
-    // This is a major part of the problem definition: the basic, state-atom-free transition function.
-    private static Formula buildTransitionPrim(Expression pretemp, Expression preCanSet, Expression preAllowedTemp,
-                                               Expression p, Expression targ,
-                                               Expression posttemp, Expression postCanSet, Expression postAllowedTemp) {
-        // is the temp change permitted? (note these expressions don't have a state attached)
-        Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp));
-        // TEST ANTE: require setting to be an odd number to go through
-        //Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp))
-        //        .and(targ.sum().modulo(IntConstant.constant(2)).eq(IntConstant.constant(1)));
-                // NOTE: add/sub around max/min can cause issues
-        Formula thenf = posttemp.eq(targ);
-        Formula elsef = posttemp.eq(pretemp);
-        Formula settingChange = ante.implies(thenf).and(ante.not().implies(elsef));
-
-        // If try to set to backdoorTemperature and forbidden...trigger vulnerability
-        ante = targ.eq(IntConstant.constant(backdoorTemperature).toExpression()).and(ante.not());
-        thenf = postAllowedTemp.eq(Expression.INTS).and(postCanSet.eq(personA.union(personB)));
-        elsef = postAllowedTemp.eq(preAllowedTemp).and(postCanSet.eq(preCanSet));
-        Formula policyChange = ante.implies(thenf).and(ante.not().implies(elsef));
-        Formula transition = settingChange.and(policyChange);
-        return transition;
-    }
-
-    private static Expression atomToExpression(Object at) {
-        if(at.equals("PersonA")) return personA;
-        else if(at.equals("PersonB")) return personB;
-        else if(at instanceof Integer) return IntConstant.constant((Integer)at).toExpression();
-        else throw new IllegalArgumentException("no person expression built for "+at.toString());
-        // TODO: build an atom->expression table so this works more generally
+    Map<String, Expression> atom2Rel = new HashMap<>();
+    private Expression atomToExpression(Object at) {
+        if(at instanceof Integer) return IntConstant.constant((Integer)at).toExpression();
+        else if(atom2Rel.containsKey(at)) return atom2Rel.get(at);
+        else throw new IllegalArgumentException("no expression built for atom "+at.toString());
     }
 
     /**
      * Internal representation for a concrete state transition
      */
-    static class TransitionData {
-        IntConstant pretemp = null;
-        Set<Expression> preCanSet = new HashSet<>();
-        Set<Expression> preAllowedTemp = new HashSet<>();
+    class TransitionData {
+        Solution ce;
+        Object preatom;
+        Object postatom;
 
-        Expression p = null;
-        IntConstant targ = null;
+        Map<Relation, Set<Expression>> preValues = new HashMap<>();
+        Map<Relation, Set<Expression>> postValues = new HashMap<>();
+        Map<Relation, Set<Expression>> evValues = new HashMap<>();
 
-        IntConstant posttemp = null;
-        Set<Expression> postCanSet = new HashSet<>();
-        Set<Expression> postAllowedTemp = new HashSet<>();
-
-        TransitionData(Solution ce, Object preatom, Object postatom) {
-            // Casting/comparisons to null necessary because raw atoms are just Object :-(
-
-            // TODO: duplicate code structure in-method and also vs. ceFormula's extraction from synth
-            for(Tuple s : ce.instance().relationTuples().get(canSetCE)) {
+        private void processStateRelation(Relation r) {
+            if(r.arity() > 2)
+                throw new UnsupportedOperationException("state predicates of arity >2 (w/ state column) currently unsupported");
+            for(Tuple s : ce.instance().relationTuples().get(r)) {
                 Object sstate = s.atom(0);
                 if(sstate.equals(preatom)) {
-                    preCanSet.add(atomToExpression(s.atom(1)));
+                    preValues.putIfAbsent(r, new HashSet<>());
+                    preValues.get(r).add(atomToExpression(s.atom(1)));
                 }
                 if(sstate.equals(postatom)) {
-                    postCanSet.add(atomToExpression(s.atom(1)));
+                    postValues.putIfAbsent(r, new HashSet<>());
+                    postValues.get(r).add(atomToExpression(s.atom(1)));
                 }
             }
+        }
 
-            for(Tuple s : ce.instance().relationTuples().get(allowedTempCE)) {
-                Object sstate = s.atom(0);
-                if(sstate.equals(preatom)) {
-                    preAllowedTemp.add(atomToExpression(s.atom(1)));
-                }
-                if(sstate.equals(postatom)) {
-                    postAllowedTemp.add(atomToExpression(s.atom(1)));
-                }
-            }
-
-            for(Tuple s : ce.instance().relationTuples().get(setting)) {
-                Object sstate = s.atom(0);
-                if(sstate.equals(preatom)) {
-                    pretemp = IntConstant.constant((Integer)s.atom(1));
-                }
-                if(sstate.equals(postatom)) {
-                    posttemp = IntConstant.constant((Integer)s.atom(1));
-                }
-            }
-            for(Tuple s : ce.instance().relationTuples().get(next_p)) {
+        private void processEventRelation(Relation r) {
+            if(r.arity() > 2)
+                throw new UnsupportedOperationException("event predicates of arity >2 (w/ state column) currently unsupported");
+            for(Tuple s : ce.instance().relationTuples().get(r)) {
                 Object sstate = s.atom(0);
                 if (sstate.equals(preatom)) {
                     Object pa = s.atom(1);
-                    p = atomToExpression(pa);
+                    evValues.putIfAbsent(r, new HashSet<>());
+                    evValues.get(r).add(atomToExpression(pa));
                 }
             }
-            for(Tuple s : ce.instance().relationTuples().get(next_target)) {
-                Object sstate = s.atom(0);
-                if (sstate.equals(preatom)) {
-                    targ = IntConstant.constant((Integer)s.atom(1));
-                }
+        }
+
+        TransitionData(Solution ce, Object preatom, Object postatom) {
+            this.ce = ce;
+            this.preatom = preatom;
+            this.postatom = postatom;
+
+            // Casting/comparisons to null necessary because raw atoms are just Object :-(
+
+            // TODO: duplicate code structure vs. ceFormula's extraction from synth
+            for(Relation sr : problem.deployableRelationsCE()) {
+                processStateRelation(sr);
             }
-
-            if(pretemp == null || p == null || targ == null || posttemp == null)
-                throw new IllegalArgumentException("unable to build: ("+pretemp+";"+preCanSet+";"+preAllowedTemp+
-                        ")-"+p+";"+targ+"->("+posttemp+";"+postCanSet+";"+postAllowedTemp+")");
-
+            for(Relation sr : problem.nondeployableRelationsCE()) {
+                processStateRelation(sr);
+            }
+            for(Relation er : problem.eventRelationsCE()) {
+                processEventRelation(er);
+            }
         }
     }
 
-    private static Set<Expression> flattenUnion(Expression e) {
+    private Set<Expression> flattenUnion(Expression e) {
         Set<Expression> result = new HashSet<>();
         // base cases
         if(!(e instanceof BinaryExpression) && !(e instanceof NaryExpression)) {
@@ -339,7 +261,7 @@ public class EvalExclusionHack {
         return result;
     }
 
-    private static Set<Formula> desugarInUnion(Expression lhs, Expression rhs, Set<Expression> domain) {
+    private Set<Formula> desugarInUnion(Expression lhs, Expression rhs, Set<Expression> domain) {
         // Constructed a lhs = rhs expression, where the rhs is a union (possibly nested).
         // Desugar that into a (potentially large) "or" for core purposes
         // ASSUME: lhs is the thing that isnt the union
@@ -357,7 +279,7 @@ public class EvalExclusionHack {
                 no.add(e);
         }
 
-        Set<Formula> result = new HashSet<Formula>();
+        Set<Formula> result = new HashSet<>();
         for(Expression e : yes) {
             result.add(e.in(lhs));
         }
@@ -380,7 +302,7 @@ public class EvalExclusionHack {
      * @param negateThese Will be included in the negated-conjunct even if not present in the trace; beware
      * @return
      */
-    private static Set<Formula> fixPreTransitionAsFormula(Solution ce, Expression s, Expression sInFmlas, boolean includeAllNonNegatedPost, Set<Formula> negateThese) {
+    private Set<Formula> fixPreTransitionAsFormula(Solution ce, Expression s, Expression sInFmlas, boolean includeAllNonNegatedPost, Set<Formula> negateThese) {
         // s is prestate expression (e.g., first.next.next for 3rd state)
         Evaluator eval = new Evaluator(ce.instance());
         Object pre=null, post=null;
@@ -391,28 +313,27 @@ public class EvalExclusionHack {
         if(pre == null || post == null) throw new RuntimeException("fixTrace: unable to resolve pre/post: "+pres+"; "+posts);
 
         output(Level.FINER, "fixPreTransitionAsFormula: "+s+"; negate="+negateThese);
-        s = null; // force trigger a nasty exception if we build with s below instead of sInFmlas
+        s = null; // defensive fail: force trigger a nasty exception if we accidentally build with s below instead of sInFmlas
 
         Set<Formula> subs = new HashSet<>();
         TransitionData tdata = new TransitionData(ce, pre, post);
 
         // One sub-subformula for every state relation (pre and post)
-        subs.addAll(desugarInUnion(sInFmlas.join(allowedTempCE), Expression.union(tdata.preAllowedTemp), domain()));
-        if(includeAllNonNegatedPost) // handle last
-            subs.addAll(desugarInUnion(sInFmlas.join(next).join(allowedTempCE), Expression.union(tdata.postAllowedTemp), domain()));
-
-        subs.addAll(desugarInUnion(sInFmlas.join(canSetCE), Expression.union(tdata.preCanSet), domain()));
-        if(includeAllNonNegatedPost) // handle last
-            subs.addAll(desugarInUnion(sInFmlas.join(next).join(canSetCE), Expression.union(tdata.postCanSet), domain()));
-
-        // Single setting, no union
-        subs.add(sInFmlas.join(setting).eq(tdata.pretemp.toExpression()));
-        if(includeAllNonNegatedPost) // handle last
-            subs.add(sInFmlas.join(next).join(setting).eq(tdata.posttemp.toExpression()));
+        for(Relation r : problem.nondeployableRelationsCE()) {
+            subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), domain()));
+            if(includeAllNonNegatedPost) // handle last
+                subs.addAll(desugarInUnion(sInFmlas.join(next).join(r), Expression.union(tdata.postValues.get(r)), domain()));
+        }
+        for(Relation r : problem.deployableRelationsCE()) {
+            subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), domain()));
+            if(includeAllNonNegatedPost) // handle last
+                subs.addAll(desugarInUnion(sInFmlas.join(next).join(r), Expression.union(tdata.postValues.get(r)), domain()));
+        }
 
         // One sub-subformula for event components (no post)
-        subs.add(sInFmlas.join(next_p).eq(tdata.p));
-        subs.add(sInFmlas.join(next_target).eq(tdata.targ.toExpression()));
+        for(Relation r : problem.eventRelationsCE()) {
+            subs.add(sInFmlas.join(r).eq(Expression.union(tdata.evValues.get(r))));
+        }
 
         //////////////////////////////////////////////////
         // We've collected all state literals. Now negate as needed.
@@ -446,7 +367,7 @@ public class EvalExclusionHack {
      * @param includeStates Build a trace of this many states, including start state
      * @return
      */
-    private static Formula fixTraceAsFormula(Solution ce, Set<Formula> negateThese, int includeStates) {
+    private Formula fixTraceAsFormula(Solution ce, Set<Formula> negateThese, int includeStates) {
         List<Formula> subs = new ArrayList<>();
         if(numStates < includeStates) throw new UnsupportedOperationException("ceBounds called with too many includeStates");
         if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
@@ -473,7 +394,7 @@ public class EvalExclusionHack {
      *                      incremental, since we have to re-translate for every step backward in time.
      * @return
      */
-    private static Bounds ceBounds(int includeStates) {
+    private Bounds ceBounds(int includeStates) {
         // Start from synth bounds
         Bounds bounds = synthBounds();
 
@@ -529,11 +450,14 @@ public class EvalExclusionHack {
         return bounds;
     }
 
-    private static void setupBaseUniverse() {
+    private void setupBaseUniverse() {
         // Universe
         List<Object> atoms = new ArrayList<>();
-        atoms.add("PersonA");
-        atoms.add("PersonB");
+        for(Relation r : problem.constantRelations()) {
+            atoms.add(r.name());
+            atom2Rel.put(r.name(), r);
+        }
+
         // Add atoms for each integer. TODO: is this the way in Kodkod 2?
         for(int i=minInt; i<=maxInt; i++) {
             atoms.add(Integer.valueOf(i));
@@ -546,43 +470,23 @@ public class EvalExclusionHack {
         factory = universe.factory();
     }
 
-    private static Bounds synthBounds() {
+    private Bounds synthBounds() {
         // Relations
-        List<Tuple> comfyAts = new ArrayList<>();
-        List<Tuple> canSetUpper = new ArrayList<>();
-        List<Tuple> allowedUpper = new ArrayList<>();
 
-        // changed to narrower range on A, wider range on B, because was getting a good config on first synth...
-        for(int i=minAComfy; i<=maxAComfy; i++) {
-            comfyAts.add(factory.tuple("PersonA", i));
-        }
-        for(int i=minBComfy; i<=maxBComfy; i++) {
-            comfyAts.add(factory.tuple("PersonB", i));
-        }
-        canSetUpper.add(factory.tuple("PersonA"));
-        canSetUpper.add(factory.tuple("PersonB"));
-
-        for(int i=minInt; i<=maxInt; i++) {
-            allowedUpper.add(factory.tuple(i));
-        }
-        // Bounds
         Bounds bounds = new Bounds(universe);
-        bounds.boundExactly(comfyAt, factory.setOf(comfyAts));
-        bounds.bound(canSetS, factory.setOf(canSetUpper));
-        bounds.bound(allowedTempS, factory.setOf(allowedUpper));
-        bounds.boundExactly(personA, factory.setOf(factory.tuple("PersonA")));
-        bounds.boundExactly(personB, factory.setOf(factory.tuple("PersonB")));
 
-        // Set up integers as integers
+        // Set up integers as integers (this is the way Alloy does it)
         for(int i=minInt; i<=maxInt; i++) {
             bounds.boundExactly(i, factory.setOf(factory.tuple(i)));
         }
+
+        problem.setSynthBounds(bounds);
 
         return bounds;
     }
 
     // Build an expression corresponding to the num-th state.
-    private static Expression buildStateExpr(int num) {
+    private Expression buildStateExpr(int num) {
         // Start at one:
         if(num < 1) throw new UnsupportedOperationException("buildStateExpr called with num="+num);
         Expression result = first;
@@ -592,7 +496,7 @@ public class EvalExclusionHack {
     }
 
     // Extract the thing being joined onto the end of a first.next.next... expression
-    private static Expression findFinalJoin(Expression e) {
+    private Expression findFinalJoin(Expression e) {
         Expression fjoin = null;
         while(e instanceof BinaryExpression) {
             BinaryExpression be = (BinaryExpression)e;
@@ -606,7 +510,7 @@ public class EvalExclusionHack {
         return fjoin;
     }
 
-    private static Formula rewriteStateLiteralDepth(Formula f, int depth) {
+    private Formula rewriteStateLiteralDepth(Formula f, int depth) {
         // recur into the formula, replacing
         Expression replaceWith = buildStateExpr(depth);
 
@@ -632,7 +536,7 @@ public class EvalExclusionHack {
         throw new UnsupportedOperationException("rewriteStateLiteralDepth called with non-negation/comparison: "+f);
     }
 
-    private static int maxTraceLength(Expression e) {
+    private int maxTraceLength(Expression e) {
         if(e.equals(first)) return 1;
         if(e instanceof BinaryExpression) {
             BinaryExpression be = (BinaryExpression) e;
@@ -642,7 +546,7 @@ public class EvalExclusionHack {
         return 0;
     }
 
-    private static int maxTraceLength(Formula r) {
+    private int maxTraceLength(Formula r) {
         if(r instanceof NotFormula) {
             return maxTraceLength(((NotFormula)r).formula());
         }
@@ -656,7 +560,7 @@ public class EvalExclusionHack {
 
     }
 
-    private static int maxTraceLength(Set<Formula> reasons) {
+    private int maxTraceLength(Set<Formula> reasons) {
         int max = 1;
         for(Formula f: reasons) {
             int flen = maxTraceLength(f);
@@ -665,7 +569,7 @@ public class EvalExclusionHack {
         return max;
     }
 
-    private static Formula removeDoubleNegation(Formula f) {
+    private Formula removeDoubleNegation(Formula f) {
         if(f instanceof NotFormula) {
             NotFormula nf = (NotFormula) f;
             Formula ff = nf.formula();
@@ -678,7 +582,7 @@ public class EvalExclusionHack {
         return f;
     }
 
-    private static boolean isTraceLiteral(Formula f) {
+    private boolean isTraceLiteral(Formula f) {
 
         // TODO I don't know of a way to do this without instanceof and casting :-(; may need addition to fmla to avoid
         // Could write a visitor, or record the literal formulas instead?
@@ -705,7 +609,7 @@ public class EvalExclusionHack {
         return true;
     }
 
-    private static boolean isOneOfNegated(Formula targ, Set<Formula> fs) {
+    private boolean isOneOfNegated(Formula targ, Set<Formula> fs) {
         for(Formula f: fs) {
             if(f.not().toString().equals(targ.toString()))
                 return true; // TODO: strings again
@@ -713,10 +617,11 @@ public class EvalExclusionHack {
         return false;
     }
 
-    private static String cegis() {
+    private String cegis() {
         int loopCount = 0;
         Bounds synthbounds = synthBounds();
-        Formula synthformula = baseSynthFormula();
+        // Start with the basic constraints (may be some a priori limitations on what is a well-formed constraint)
+        Formula synthformula = Formula.and(problem.additionalConfigConstraints());
 
         while(loopCount++<loopLimit) {
             output(Level.INFO, "------------------------- Loop:"+loopCount+"-------------------------");
@@ -726,7 +631,7 @@ public class EvalExclusionHack {
             Solution sol = execIncrementalSynth(synthformula, synthbounds);
             stats(sol, CEGISPHASE.SYNTH);
             if(sol.sat()) {
-                output(Level.INFO, "Candidate: "+prettyConfigFromSynth(sol)+"\n");
+                output(Level.INFO, "Candidate: "+problem.prettyConfigFromSynth(sol)+"\n");
             }
             else {
                 output(Level.INFO, "synth failed, unsat: "+sol.outcome());
@@ -768,7 +673,7 @@ public class EvalExclusionHack {
             Set<Formula> reasons = new HashSet(why.proof().highLevelCore().keySet());
             coreMinTotal += (System.currentTimeMillis() - beforeCore1);
             // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
-            Predicate isAPhi = f -> f.toString().equals(buildPhi().toString());
+            Predicate isAPhi = f -> f.toString().equals(Formula.and(problem.goals()).toString());
             reasons.removeIf(isAPhi);
             output(Level.INFO, "PROXIMAL CAUSE: "+reasons);
 
@@ -919,10 +824,16 @@ public class EvalExclusionHack {
                 if(relside instanceof BinaryExpression) {
                     BinaryExpression be = (BinaryExpression) relside;
                     if (!(be.op().equals(ExprOperator.JOIN))) throw new RuntimeException("Unexpected formula: " + f);
-                    Relation sRel;
-                    if (relside.toString().equals(first.join(allowedTempCE).toString())) sRel = allowedTempS;
-                    else if (relside.toString().equals(first.join(canSetCE).toString())) sRel = canSetS;
-                    else throw new RuntimeException("Unexpected RHS in initial-state reason formula: " + f);
+                    Relation sRel = null;
+
+                    for(Relation r : problem.allStateRelationsCE()) {
+                        if (relside.toString().equals(first.join(r).toString())) {
+                            sRel = r;
+                            break;
+                        }
+                    }
+
+                    if(sRel == null) throw new RuntimeException("Unexpected RHS in initial-state reason formula: " + f);
                     Formula reconstructed = valside.compare(cf.op(), sRel);
                     if(negated) reconstructed = reconstructed.not();
                     initialReasonsS.add(reconstructed);
@@ -943,19 +854,10 @@ public class EvalExclusionHack {
         return "TIMEOUT: loop limit of "+loopLimit+" exceeded.";
     }
 
-    private static String prettyConfigFromSynth(Solution sol) {
-        if(sol.sat()) {
-            return "Allowed Temps: " + sol.instance().relationTuples().get(allowedTempS) + " " +
-                    "Can Set: " + sol.instance().relationTuples().get(canSetS);
-        } else {
-            return "UNSAT";
-        }
-    }
-
-    private static Map<CEGISPHASE, Long> transtotal = new HashMap<>();
-    private static Map<CEGISPHASE, Long> solvetotal = new HashMap<>();
-    private static long coreMinTotal = 0;
-    private static void updateTimeMap(Map<CEGISPHASE, Long> m, CEGISPHASE p, long add) {
+    private Map<CEGISPHASE, Long> transtotal = new HashMap<>();
+    private Map<CEGISPHASE, Long> solvetotal = new HashMap<>();
+    private long coreMinTotal = 0;
+    private void updateTimeMap(Map<CEGISPHASE, Long> m, CEGISPHASE p, long add) {
         if(!m.keySet().contains(CEGISPHASE.SYNTH)) m.put(CEGISPHASE.SYNTH, Long.valueOf(0));
         if(!m.keySet().contains(CEGISPHASE.COUNTER)) m.put(CEGISPHASE.COUNTER, Long.valueOf(0));
         if(!m.keySet().contains(CEGISPHASE.PROXIMAL)) m.put(CEGISPHASE.PROXIMAL, Long.valueOf(0));
@@ -963,7 +865,8 @@ public class EvalExclusionHack {
 
         m.put(p, m.get(p)+add);
     }
-    private static void stats(Solution sol, CEGISPHASE phase) {
+
+    private void stats(Solution sol, CEGISPHASE phase) {
         // Core minimization time is recorded elsewhere
         String sat = sol.sat() ? "sat" : "unsat";
         long trans = sol.stats().translationTime();
@@ -973,8 +876,8 @@ public class EvalExclusionHack {
         updateTimeMap(solvetotal, phase, solve);
     }
 
-    private static IncrementalSolver synthSolver = null;
-    private static Solution execIncrementalSynth(Formula f, Bounds b) {
+    private IncrementalSolver synthSolver = null;
+    private Solution execIncrementalSynth(Formula f, Bounds b) {
         if(synthSolver == null) {
             Options options = new Options();
             options.setSolver(incrementalSolver);
@@ -1000,7 +903,7 @@ public class EvalExclusionHack {
         return synthSolver.solve(f, b);
     }
 
-    private static Solution execNonincrementalCE(Formula f, Bounds b) {
+    private Solution execNonincrementalCE(Formula f, Bounds b) {
         // TODO (OPT): ideally we could clone copies of a base solver state to avoid re-translation
         //  (indeed, SMT provides this very thing with pop/push)
         // TODO (OPT): trace minimization (iterative deepening? aluminum won't work due to snags)
@@ -1016,6 +919,10 @@ public class EvalExclusionHack {
     }
 
 
+    ////////////////////////////////////////////////////////////////////////
+    // TODO move to separate files
+
+
     // In progress: sketching API/problem definitions.
     public interface SynthProblem {
         // FOL translation of the temporal goals we have. These should use the CE relations
@@ -1024,24 +931,62 @@ public class EvalExclusionHack {
         Set<Formula> initialStateAssumptions();
         // Structure, like "this relation is a function" or "A is a subtype of B"
         Set<Formula> structuralAxioms();
+        // Additional constraints on the configuration itself (should use S relations)
+        Set<Formula> additionalConfigConstraints();
 
         // Relation declarations (use real Relation objects, since we have formulas)
         // suffix of S = without the state column; suffix of CE = with the state column
-        Relation stateRelation();
-        Set<Relation> helperRelations();
-        Set<Relation> deployableRelations();
+        Set<Relation> helperRelations();        // helper relations that help describe the problem
+        Set<Relation> deployableRelationsS();   // relations that describe state that we *can* deploy
         Set<Relation> deployableRelationsCE();
-        Set<Relation> nondeployableRelationsS();
+        Set<Relation> nondeployableRelationsS(); // relations that describe state that we can't deploy
         Set<Relation> nondeployableRelationsCE();
-        Set<Relation> eventRelationsCE();
+        Set<Relation> allStateRelationsCE(); // union of nondeploy+deploy
+        Set<Relation> eventRelationsCE();  // relations that describe transition events
+        Set<Relation> constantSingletonRelations(); // personA, personB, fileX, etc.
+        Relation ceToS(Relation ce); // convert CE relation to S version
 
         // Total size of inputs should be eventRelationsCE.size()+2*(deployableRelationsCE.size()+nondeployableRelationsCE.size())
         Formula buildTransitionPrim(List<Expression> pre, List<Expression> ev, List<Expression> post);
+        Formula buildTransition(Expression pre, Expression post);
 
-        // CEGIS will need a validator to check, e.g., that eventRelations all contain "EVENT_", that arities match, etc.
+        String prettyConfigFromSynth(Solution sol);
+        void setSynthBounds(Bounds bounds);
+
+        // TODO CEGIS will need a validator to check, e.g., that eventRelations all contain "EVENT_", that arities match, etc.
     }
 
-    class OriginalTheoTimHack implements SynthProblem {
+    static class OriginalTheoTimHack implements SynthProblem {
+        final static int backdoorTemperature = 75;
+        final static int minAComfy = 72;
+        final static int maxAComfy = 75;
+        final static int minBComfy = 50;
+        final static int maxBComfy = 100;
+
+        // Problem-specification relations (there are 2 people, they have comfort ranges)
+        // These don't change over time, and they aren't something we synthesize. Take them as input.
+        private static Relation comfyAt = Relation.binary("comfyAt");
+        private static Relation personA = Relation.unary("PersonA");
+        private static Relation personB = Relation.unary("PersonB");
+
+        // Non-deployable configuration. These may be changed by the transition relation, but aren't
+        // part of what we synthesize. We may have to take assumptions about these in order to synthesize correctly.
+        // (For instance, assume the initial temperature setting isn't something uncomfy.)
+        private static Relation setting = Relation.binary("setting");
+
+        // Event relations. Must contain "EVENT_"
+        private static Relation next_p = Relation.binary("EVENT_next_p");
+        private static Relation next_target = Relation.binary("EVENT_next_target");
+
+        // Deployable configuration: we have power over the *initial* value of these
+        // Thus, synth phase uses a unary relation, and CE phase uses a binary relation.
+        // IMPORTANT: we do some string comparison below; make sure config relations have CONF_ in them, and
+        //   event relations have EVENT_ in them.
+        private static Relation canSetCE = Relation.binary("CE_DCONF_canSet");
+        private static Relation allowedTempCE = Relation.binary("CE_DCONF_allowedTemp");
+        private static Relation canSetS = Relation.unary("S_DCONF_canSet");
+        private static Relation allowedTempS = Relation.unary("S_DCONF_allowedTemp");
+
         @Override
         public Set<Formula> goals() {
             Variable p = Variable.unary("p");
@@ -1051,53 +996,173 @@ public class EvalExclusionHack {
         }
 
         @Override
+        public Set<Formula> additionalConfigConstraints() {
+            Set<Formula> result = new HashSet<>();
+            // Start out with a config that isn't empty...
+            result.add(canSetS.join(comfyAt).intersection(allowedTempS).some());
+            Variable p = Variable.unary("p");
+            // Using forall, anticipating more people eventually
+            result.add(p.join(comfyAt).intersection(allowedTempS).count().gt(IntConstant.constant(1)).forAll(p.oneOf(personA.union(personB))));
+            return result;
+        }
+
+        // The transition predicate on [s, s'] (minus type annotations, beware)
+        @Override
+        public Formula buildTransition(Expression s, Expression s2) {
+            List<Expression> pre = new ArrayList<>(3);
+            pre.add(s.join(setting)); pre.add(s.join(canSetCE)); pre.add(s.join(allowedTempCE));
+            List<Expression> post = new ArrayList<>(3);
+            post.add(s2.join(setting)); pre.add(s2.join(canSetCE)); pre.add(s2.join(allowedTempCE));
+            List<Expression> ev = new ArrayList<>(2);
+            ev.add(s.join(next_p)); ev.add(s.join(next_target));
+            return buildTransitionPrim(pre, ev, post);
+
+            // Keeping old formula around for debugging if needed
+            /*return buildTransitionPrim(s.join(setting), s.join(canSetCE), s.join(allowedTempCE),
+                    s.join(next_p), s.join(next_target),
+                    s2.join(setting), s2.join(canSetCE), s2.join(allowedTempCE));*/
+        }
+
+        // This is a major part of the problem definition: the basic, state-atom-free transition function.
+        @Override
+        public Formula buildTransitionPrim(List<Expression> pre, List<Expression> ev, List<Expression> post) {
+            Expression pretemp = pre.get(0);
+            Expression preCanSet = pre.get(1);
+            Expression preAllowedTemp = pre.get(2);
+            Expression posttemp = post.get(0);
+            Expression postCanSet = post.get(1);
+            Expression postAllowedTemp = post.get(2);
+            Expression p = ev.get(0);
+            Expression targ = ev.get(1);
+
+            // is the temp change permitted? (note these expressions don't have a state attached)
+            Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp));
+            // TEST ANTE: require setting to be an odd number to go through
+            //Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp))
+            //        .and(targ.sum().modulo(IntConstant.constant(2)).eq(IntConstant.constant(1)));
+            // NOTE: add/sub around max/min can cause issues
+            Formula thenf = posttemp.eq(targ);
+            Formula elsef = posttemp.eq(pretemp);
+            Formula settingChange = ante.implies(thenf).and(ante.not().implies(elsef));
+
+            // If try to set to backdoorTemperature and forbidden...trigger vulnerability
+            ante = targ.eq(IntConstant.constant(backdoorTemperature).toExpression()).and(ante.not());
+            thenf = postAllowedTemp.eq(Expression.INTS).and(postCanSet.eq(personA.union(personB)));
+            elsef = postAllowedTemp.eq(preAllowedTemp).and(postCanSet.eq(preCanSet));
+            Formula policyChange = ante.implies(thenf).and(ante.not().implies(elsef));
+            Formula transition = settingChange.and(policyChange);
+            return transition;
+        }
+
+        @Override
         public Set<Formula> initialStateAssumptions() {
-            return null;
+            Set<Formula> subs = new HashSet<>();
+            Variable p = Variable.unary("p");
+            subs.add(first.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))));
+            return subs;
         }
 
         @Override
         public Set<Formula> structuralAxioms() {
-            return null;
-        }
-
-        @Override
-        public Relation stateRelation() {
-            return null;
+            Set<Formula> subs = new HashSet<>();
+            subs.add(setting.function(state, Expression.INTS));
+            subs.add(next_p.function(state, personA.union(personB)));
+            subs.add(next_target.function(state, Expression.INTS));
+            return subs;
         }
 
         @Override
         public Set<Relation> helperRelations() {
-            return null;
+            Set<Relation> result = new HashSet<>();
+            result.add(comfyAt);
+            return result;
         }
 
         @Override
-        public Set<Relation> deployableRelations() {
-            return null;
+        public Set<Relation> deployableRelationsS() {
+            Set<Relation> result = new HashSet<>();
+            result.add(setting);
+            return result;
         }
 
         @Override
         public Set<Relation> deployableRelationsCE() {
-            return null;
-        }
-
-        @Override
-        public Set<Relation> nondeployableRelationsS() {
-            return null;
+            Set<Relation> result = new HashSet<>();
+            result.add(canSetCE); result.add(allowedTempCE);
+            return result;
         }
 
         @Override
         public Set<Relation> nondeployableRelationsCE() {
-            return null;
+            Set<Relation> result = new HashSet<>();
+            result.add(setting);
+            return result;
+        }
+
+        @Override
+        public Set<Relation> allStateRelationsCE() {
+            Set<Relation> result = new HashSet<>(this.deployableRelationsCE());
+            result.addAll(this.nondeployableRelationsCE());
+            return result;
         }
 
         @Override
         public Set<Relation> eventRelationsCE() {
-            return null;
+            Set<Relation> result = new HashSet<>();
+            result.add(next_p); result.add(next_target);
+            return result;
         }
 
         @Override
-        public Formula buildTransitionPrim(List<Expression> pre, List<Expression> ev, List<Expression> post) {
-            return null;
+        public Set<Relation> constantSingletonRelations() {
+            Set<Relation> result = new HashSet<>();
+            result.add(personA);
+            result.add(personB);
+            return result;
+        }
+
+        @Override
+        public Relation ceToS(Relation ce) {
+            if(canSetCE.equals(ce)) return canSetS;
+            if(allowedTempCE.equals(ce)) return allowedTempS;
+            throw new NoSuchElementException("ceToS: "+ce);
+        }
+
+        @Override
+        public String prettyConfigFromSynth(Solution sol) {
+            if(sol.sat()) {
+                return "Allowed Temps: " + sol.instance().relationTuples().get(allowedTempS) + " " +
+                        "Can Set: " + sol.instance().relationTuples().get(canSetS);
+            } else {
+                return "UNSAT";
+            }
+        }
+
+        @Override
+        public void setSynthBounds(Bounds bounds) {
+            List<Tuple> comfyAts = new ArrayList<>();
+            List<Tuple> canSetUpper = new ArrayList<>();
+            List<Tuple> allowedUpper = new ArrayList<>();
+
+            // changed to narrower range on A, wider range on B, because was getting a good config on first synth...
+            for(int i=minAComfy; i<=maxAComfy; i++) {
+                comfyAts.add(factory.tuple("PersonA", i));
+            }
+            for(int i=minBComfy; i<=maxBComfy; i++) {
+                comfyAts.add(factory.tuple("PersonB", i));
+            }
+            canSetUpper.add(factory.tuple("PersonA"));
+            canSetUpper.add(factory.tuple("PersonB"));
+
+            for(int i=minInt; i<=maxInt; i++) {
+                allowedUpper.add(factory.tuple(i));
+            }
+            // Bounds
+            bounds.boundExactly(comfyAt, factory.setOf(comfyAts));
+            bounds.bound(canSetS, factory.setOf(canSetUpper));
+            bounds.bound(allowedTempS, factory.setOf(allowedUpper));
+            bounds.boundExactly(personA, factory.setOf(factory.tuple("PersonA")));
+            bounds.boundExactly(personB, factory.setOf(factory.tuple("PersonB")));
         }
     }
 
