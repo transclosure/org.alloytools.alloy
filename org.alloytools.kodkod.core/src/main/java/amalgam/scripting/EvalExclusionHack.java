@@ -448,8 +448,8 @@ public class EvalExclusionHack {
      */
     private static Formula fixTraceAsFormula(Solution ce, Set<Formula> negateThese, int includeStates) {
         List<Formula> subs = new ArrayList<>();
-        if(numStates < includeStates) throw new RuntimeException("ceBounds called with too many includeStates");
-        if(includeStates < 2) throw new RuntimeException("Must have at least two includestates, had "+includeStates);
+        if(numStates < includeStates) throw new UnsupportedOperationException("ceBounds called with too many includeStates");
+        if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
 
         // don't do this: assumes the iteration order matches the true ordering!
         //for(Tuple nxt : ce.instance().relationTuples().get(next)) {
@@ -488,8 +488,8 @@ public class EvalExclusionHack {
         List<Tuple> canSetUpper = new ArrayList<>();
         List<Tuple> allowedTempUpper = new ArrayList<>();
 
-        if(numStates < includeStates) throw new RuntimeException("ceBounds called with bad first/last state");
-        if(includeStates < 2) throw new RuntimeException("Must have at least two includestates, had "+includeStates);
+        if(numStates < includeStates) throw new UnsupportedOperationException("ceBounds called with bad first/last state");
+        if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
 
         for(int i=0;i<includeStates;i++) {
             stateExactly.add(factory.tuple("State"+i));
@@ -584,7 +584,7 @@ public class EvalExclusionHack {
     // Build an expression corresponding to the num-th state.
     private static Expression buildStateExpr(int num) {
         // Start at one:
-        if(num < 1) throw new RuntimeException("buildStateExpr called with num="+num);
+        if(num < 1) throw new UnsupportedOperationException("buildStateExpr called with num="+num);
         Expression result = first;
         for(int ii=2;ii<=num;ii++)
             result = result.join(next);
@@ -629,7 +629,7 @@ public class EvalExclusionHack {
             }
 
         }
-        throw new RuntimeException("rewriteStateLiteralDepth: "+f);
+        throw new UnsupportedOperationException("rewriteStateLiteralDepth called with non-negation/comparison: "+f);
     }
 
     private static int maxTraceLength(Expression e) {
@@ -651,7 +651,7 @@ public class EvalExclusionHack {
             ComparisonFormula cr = (ComparisonFormula) r;
             return Integer.max(maxTraceLength(cr.left()), maxTraceLength(cr.right()));
         } else {
-            throw new RuntimeException("maxTraceLength malformed: "+r);
+            throw new UnsupportedOperationException("maxTraceLength malformed: "+r);
         }
 
     }
@@ -790,7 +790,7 @@ public class EvalExclusionHack {
             for(Formula f: reasons) {
                 if(sharedmtl == 0) sharedmtl = maxTraceLength(f);
                 else if(sharedmtl != maxTraceLength(f))
-                    throw new RuntimeException("Proximal cause contained literals with differing state depth (enhancement needed to support more complex properties): "+reasons);
+                    throw new UnsupportedOperationException("Proximal cause contained literals with differing state depth (enhancement needed to support more complex properties): "+reasons);
             }
             /////////////////////
 
@@ -852,13 +852,34 @@ public class EvalExclusionHack {
 
                 output(Level.FINER, "BLAME core (post filter): "+localCause);
 
-                Set<Formula> localCauseRewritten = new HashSet<>();
+                // If filtered core is empty, we've found a contradiction in the spec.
+                if(localCause.isEmpty()) {
+                    String prettyCore = "";
+                    for(Formula f : toRemove) {
+                        prettyCore += f + "\n";
+                    }
+
+                    output(Level.INFO,
+                            "==========================================================================\n"+
+                            "Contradiction found in backtracing to root cause. It is possible that you are seeing this\n" +
+                            "because the problematic behavior cannot be prevented by any initial deployable config.\n"+
+                            "Pre-filter core was *independent* of prestate. It was: \n"+prettyCore+"\n"+
+                            "Remember that these are rewritten formulas; mtl was: "+mtl);
+                    return "==========================================================================\n"+
+                            "Synthesis failed due to contradiction in backtracing to root cause. "+
+                            "It is possible that the synthesizer identified problematic behavior that "+
+                            "cannot be prevented by any initial deployable config. See logs for more information.";
+                }
+
+
+                    Set<Formula> localCauseRewritten = new HashSet<>();
                 for(Formula f : localCause) {
                     if(maxTraceLength(f) != 1) throw new RuntimeException("blame stage returned non-causal core fmla: "+f);
                     localCauseRewritten.add(rewriteStateLiteralDepth(f, mtl-1));
                 }
 
                 output(Level.INFO, "Blame core filtered and rewritten: "+localCauseRewritten);
+
                 // Finalize local causes that are about the initial state; add others to reasons and iterate
                 reasons.clear();
                 for(Formula f: localCauseRewritten) {
@@ -993,4 +1014,32 @@ public class EvalExclusionHack {
         solver.options().setNoOverflow(true); // added TN
         return solver.solve(f, b);
     }
+
+
+    // In progress: sketching API/problem definitions.
+    interface SynthProblem {
+        // FOL translation of the temporal goals we have. These should use the CE relations
+        Set<Formula> goals();
+        // Assumptions (about initial state) like "room always starts at 70 degrees"
+        Set<Formula> initialStateAssumptions();
+        // Structure, like "this relation is a function" or "A is a subtype of B"
+        Set<Formula> structuralAxioms();
+
+        // Relation declarations (use real Relation objects, since we have formulas)
+        // suffix of S = without the state column; suffix of CE = with the state column
+        Relation stateRelation();
+        Set<Relation> helperRelations();
+        Set<Relation> deployableRelations();
+        Set<Relation> deployableRelationsCE();
+        Set<Relation> nondeployableRelationsS();
+        Set<Relation> nondeployableRelationsCE();
+        Set<Relation> eventRelationsCE();
+
+        // Total size of inputs should be eventRelationsCE.size()+2*(deployableRelationsCE.size()+nondeployableRelationsCE.size())
+        Formula buildTransitionPrim(List<Expression> pre, List<Expression> ev, List<Expression> post);
+
+        // CEGIS will need a validator to check, e.g., that eventRelations all contain "EVENT_", that arities match, etc.
+    }
+
+
 }
