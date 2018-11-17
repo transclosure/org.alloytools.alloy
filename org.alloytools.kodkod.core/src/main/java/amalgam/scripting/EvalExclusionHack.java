@@ -1017,7 +1017,7 @@ public class EvalExclusionHack {
 
 
     // In progress: sketching API/problem definitions.
-    interface SynthProblem {
+    public interface SynthProblem {
         // FOL translation of the temporal goals we have. These should use the CE relations
         Set<Formula> goals();
         // Assumptions (about initial state) like "room always starts at 70 degrees"
@@ -1041,5 +1041,64 @@ public class EvalExclusionHack {
         // CEGIS will need a validator to check, e.g., that eventRelations all contain "EVENT_", that arities match, etc.
     }
 
+    class OriginalTheoTimHack implements SynthProblem {
+        @Override
+        public Set<Formula> goals() {
+            Variable p = Variable.unary("p");
+            Variable s = Variable.unary("s");
+            Formula Gcomfy = s.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))).forAll(s.oneOf(state));
+            return Collections.singleton(Gcomfy); // immutable
+        }
+
+        @Override
+        public Set<Formula> initialStateAssumptions() {
+            return null;
+        }
+
+        @Override
+        public Set<Formula> structuralAxioms() {
+            return null;
+        }
+
+        @Override
+        public Relation stateRelation() {
+            return null;
+        }
+
+        @Override
+        public Set<Relation> helperRelations() {
+            return null;
+        }
+
+        @Override
+        public Set<Relation> deployableRelations() {
+            return null;
+        }
+
+        @Override
+        public Set<Relation> deployableRelationsCE() {
+            return null;
+        }
+
+        @Override
+        public Set<Relation> nondeployableRelationsS() {
+            return null;
+        }
+
+        @Override
+        public Set<Relation> nondeployableRelationsCE() {
+            return null;
+        }
+
+        @Override
+        public Set<Relation> eventRelationsCE() {
+            return null;
+        }
+
+        @Override
+        public Formula buildTransitionPrim(List<Expression> pre, List<Expression> ev, List<Expression> post) {
+            return null;
+        }
+    }
 
 }
