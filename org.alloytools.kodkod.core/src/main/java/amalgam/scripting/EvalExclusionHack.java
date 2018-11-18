@@ -87,7 +87,7 @@ public class EvalExclusionHack {
         for(int i=minInt;i<=maxInt;i++) {
             result.add(IntConstant.constant(i).toExpression());
         }
-        for(Relation r : problem.constantRelations()) {
+        for(Relation r : problem.constantSingletonRelations()) {
             result.add(r);
         }
 
@@ -395,6 +395,9 @@ public class EvalExclusionHack {
      * @return
      */
     private Bounds ceBounds(int includeStates) {
+        if(numStates < includeStates) throw new UnsupportedOperationException("ceBounds called with bad first/last state");
+        if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
+
         // Start from synth bounds
         Bounds bounds = synthBounds();
 
@@ -403,57 +406,27 @@ public class EvalExclusionHack {
         // if make non-exact, be sure to add containment axioms
         List<Tuple> stateExactly = new ArrayList<>();
         List<Tuple> nextExactly = new ArrayList<>();
-        List<Tuple> settingUpper = new ArrayList<>();
-        List<Tuple> next_pUpper = new ArrayList<>();
-        List<Tuple> next_targetUpper = new ArrayList<>();
-        List<Tuple> canSetUpper = new ArrayList<>();
-        List<Tuple> allowedTempUpper = new ArrayList<>();
 
-        if(numStates < includeStates) throw new UnsupportedOperationException("ceBounds called with bad first/last state");
-        if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
-
+        // Bound the state infrastructure, but defer the rest to the problem
         for(int i=0;i<includeStates;i++) {
-            stateExactly.add(factory.tuple("State"+i));
-            if(i < includeStates-1) {
+            stateExactly.add(factory.tuple("State" + i));
+            if (i < includeStates - 1) {
                 nextExactly.add(factory.tuple("State" + i, "State" + (i + 1)));
             }
-
-            next_pUpper.add(factory.tuple("State"+i, "PersonA"));
-            next_pUpper.add(factory.tuple("State"+i, "PersonB"));
-            for(int j=minInt;j<=maxInt;j++) {
-                next_targetUpper.add(factory.tuple("State"+i, j));
-                settingUpper.add(factory.tuple("State"+i, j));
-            }
-            // Don't include synthesized initial config in bounds (see below)
-            for(int j=minInt;j<=maxInt;j++) {
-                allowedTempUpper.add(factory.tuple("State"+i, j));
-            }
-            canSetUpper.add(factory.tuple("State"+i, "PersonA"));
-            canSetUpper.add(factory.tuple("State"+i, "PersonB"));
         }
-
-        // We could bound the *FIRST* state's configuration here
-        // However, since we want to use cores to extract blame in the initial config, we need to assert the
-        // last-synthesized initial config as a formula. :-(
-        // (Later states can be anything, hence non-exact bound)
-        bounds.bound(canSetCE, factory.setOf(canSetUpper));
-        bounds.bound(allowedTempCE, factory.setOf(allowedTempUpper));
-
         bounds.boundExactly(state, factory.setOf(stateExactly));
         bounds.boundExactly(first, factory.setOf(factory.tuple("State0")));
         bounds.boundExactly(last, factory.setOf(factory.tuple("State"+(includeStates-1))));
         bounds.boundExactly(next, factory.setOf(nextExactly));
-        bounds.bound(setting, factory.setOf(settingUpper));
-        bounds.bound(next_p, factory.setOf(next_pUpper));
-        bounds.bound(next_target, factory.setOf(next_targetUpper));
 
+        problem.setCEBounds(bounds, stateExactly);
         return bounds;
     }
 
     private void setupBaseUniverse() {
         // Universe
         List<Object> atoms = new ArrayList<>();
-        for(Relation r : problem.constantRelations()) {
+        for(Relation r : problem.constantSingletonRelations()) {
             atoms.add(r.name());
             atom2Rel.put(r.name(), r);
         }
@@ -828,7 +801,7 @@ public class EvalExclusionHack {
 
                     for(Relation r : problem.allStateRelationsCE()) {
                         if (relside.toString().equals(first.join(r).toString())) {
-                            sRel = r;
+                            sRel = problem.ceToS(r); // found it! convert to S version
                             break;
                         }
                     }
@@ -939,7 +912,7 @@ public class EvalExclusionHack {
         Set<Relation> helperRelations();        // helper relations that help describe the problem
         Set<Relation> deployableRelationsS();   // relations that describe state that we *can* deploy
         Set<Relation> deployableRelationsCE();
-        Set<Relation> nondeployableRelationsS(); // relations that describe state that we can't deploy
+        //Set<Relation> nondeployableRelationsS(); // relations that describe state that we can't deploy
         Set<Relation> nondeployableRelationsCE();
         Set<Relation> allStateRelationsCE(); // union of nondeploy+deploy
         Set<Relation> eventRelationsCE();  // relations that describe transition events
@@ -952,6 +925,7 @@ public class EvalExclusionHack {
 
         String prettyConfigFromSynth(Solution sol);
         void setSynthBounds(Bounds bounds);
+        void setCEBounds(Bounds bounds, Collection<Tuple> stateExactly);
 
         // TODO CEGIS will need a validator to check, e.g., that eventRelations all contain "EVENT_", that arities match, etc.
     }
@@ -1012,7 +986,7 @@ public class EvalExclusionHack {
             List<Expression> pre = new ArrayList<>(3);
             pre.add(s.join(setting)); pre.add(s.join(canSetCE)); pre.add(s.join(allowedTempCE));
             List<Expression> post = new ArrayList<>(3);
-            post.add(s2.join(setting)); pre.add(s2.join(canSetCE)); pre.add(s2.join(allowedTempCE));
+            post.add(s2.join(setting)); post.add(s2.join(canSetCE)); post.add(s2.join(allowedTempCE));
             List<Expression> ev = new ArrayList<>(2);
             ev.add(s.join(next_p)); ev.add(s.join(next_target));
             return buildTransitionPrim(pre, ev, post);
@@ -1163,6 +1137,41 @@ public class EvalExclusionHack {
             bounds.bound(allowedTempS, factory.setOf(allowedUpper));
             bounds.boundExactly(personA, factory.setOf(factory.tuple("PersonA")));
             bounds.boundExactly(personB, factory.setOf(factory.tuple("PersonB")));
+        }
+
+        @Override
+        public void setCEBounds(Bounds bounds, Collection<Tuple> stateExactly) {
+            List<Tuple> settingUpper = new ArrayList<>();
+            List<Tuple> next_pUpper = new ArrayList<>();
+            List<Tuple> next_targetUpper = new ArrayList<>();
+            List<Tuple> canSetUpper = new ArrayList<>();
+            List<Tuple> allowedTempUpper = new ArrayList<>();
+
+            for(Tuple st: stateExactly) {
+                next_pUpper.add(st.product(factory.tuple("PersonA")));
+                next_pUpper.add(st.product(factory.tuple("PersonB")));
+
+                for(int j=minInt;j<=maxInt;j++) {
+                    next_targetUpper.add(st.product(factory.tuple(j)));
+                    settingUpper.add(st.product(factory.tuple(j)));
+                    allowedTempUpper.add(st.product(factory.tuple(j)));
+                }
+
+                // Don't include synthesized initial config in bounds (see below)
+
+                canSetUpper.add(st.product(factory.tuple("PersonA")));
+                canSetUpper.add(st.product(factory.tuple("PersonB")));
+            }
+
+            // We could bound the *FIRST* state's configuration here
+            // However, since we want to use cores to extract blame in the initial config, we need to assert the
+            // last-synthesized initial config as a formula. :-(
+            // (Later states can be anything, hence non-exact bound)
+            bounds.bound(canSetCE, factory.setOf(canSetUpper));
+            bounds.bound(allowedTempCE, factory.setOf(allowedTempUpper));
+            bounds.bound(setting, factory.setOf(settingUpper));
+            bounds.bound(next_p, factory.setOf(next_pUpper));
+            bounds.bound(next_target, factory.setOf(next_targetUpper));
         }
     }
 
