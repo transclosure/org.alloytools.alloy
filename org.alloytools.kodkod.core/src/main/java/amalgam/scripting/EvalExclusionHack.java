@@ -57,11 +57,10 @@ public class EvalExclusionHack {
         textHandler.setFormatter(new SimpleFormatter());
         logger.addHandler(textHandler);
 
-        SynthProblem problem = new OriginalTheoTimHack();
+        SynthProblem problem = new OriginalTimTheoHack(minInt, maxInt);
         EvalExclusionHack cegisSolver = new EvalExclusionHack(problem);
 
         long startTime = System.currentTimeMillis();
-        cegisSolver.setupBaseUniverse();
         output(cegisSolver.cegis());
         output("Total time (ms): "+(System.currentTimeMillis()-startTime)+
                 ".\nTranslation: "+cegisSolver.transtotal+
@@ -72,6 +71,7 @@ public class EvalExclusionHack {
     SynthProblem problem;
     EvalExclusionHack(SynthProblem problem) {
         this.problem = problem;
+        setupBaseUniverse();
     }
 
     // Infrastructure relations (same for every problem)
@@ -106,7 +106,7 @@ public class EvalExclusionHack {
         if(!corePhase || !corePhasePhi) {
             // setting, next_p, next_target relations are functional
             // the other config settings are not (might imagine NOBODY being allowed to change temp in a state)
-            subs.addAll(problem.structuralAxioms());
+            subs.addAll(problem.structuralAxioms(state));
 
             // This is a concrete trace of the system
             Formula transition = problem.buildTransition(s, s.join(next));
@@ -117,12 +117,12 @@ public class EvalExclusionHack {
         if(!corePhase) {
             //  start in a state where everyone is comfy
             //  all p: Person | s.setting in p.comfyAt    [applied to first]
-            subs.addAll(problem.initialStateAssumptions());
+            subs.addAll(problem.initialStateAssumptions(first));
         }
 
         // PROPERTIES: applies to CE and PROXIMAL phases
         // TODO: should we break these down separately? maybe no need to at first
-        Formula property = Formula.and(problem.goals());
+        Formula property = Formula.and(problem.goals(state));
         // In COUNTER phase: not in core phase means negate the property to generate a CE
         if(!corePhase) subs.add(property.not());
             // in ROOT phase; asking why did property fail---don't negate
@@ -423,6 +423,7 @@ public class EvalExclusionHack {
         return bounds;
     }
 
+    // The CEGIS engine must do this, not the SynthProblem, since the engine is responsible for the state abstraction.
     private void setupBaseUniverse() {
         // Universe
         List<Object> atoms = new ArrayList<>();
@@ -431,7 +432,7 @@ public class EvalExclusionHack {
             atom2Rel.put(r.name(), r);
         }
 
-        // Add atoms for each integer. TODO: is this the way in Kodkod 2?
+        // Add atoms for each integer. This is the way Alloy->Kodkod does it.
         for(int i=minInt; i<=maxInt; i++) {
             atoms.add(Integer.valueOf(i));
         }
@@ -646,7 +647,7 @@ public class EvalExclusionHack {
             Set<Formula> reasons = new HashSet(why.proof().highLevelCore().keySet());
             coreMinTotal += (System.currentTimeMillis() - beforeCore1);
             // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
-            Predicate isAPhi = f -> f.toString().equals(Formula.and(problem.goals()).toString());
+            Predicate isAPhi = f -> f.toString().equals(Formula.and(problem.goals(state)).toString());
             reasons.removeIf(isAPhi);
             output(Level.INFO, "PROXIMAL CAUSE: "+reasons);
 
@@ -671,7 +672,6 @@ public class EvalExclusionHack {
                     throw new UnsupportedOperationException("Proximal cause contained literals with differing state depth (enhancement needed to support more complex properties): "+reasons);
             }
             /////////////////////
-
 
             // TODO: separate solver, single step per invocation? want push/pop!
             // TODO: Can we ever get the initial state literals directly, without iteration?
@@ -890,289 +890,4 @@ public class EvalExclusionHack {
         solver.options().setNoOverflow(true); // added TN
         return solver.solve(f, b);
     }
-
-
-    ////////////////////////////////////////////////////////////////////////
-    // TODO move to separate files
-
-
-    // In progress: sketching API/problem definitions.
-    public interface SynthProblem {
-        // FOL translation of the temporal goals we have. These should use the CE relations
-        Set<Formula> goals();
-        // Assumptions (about initial state) like "room always starts at 70 degrees"
-        Set<Formula> initialStateAssumptions();
-        // Structure, like "this relation is a function" or "A is a subtype of B"
-        Set<Formula> structuralAxioms();
-        // Additional constraints on the configuration itself (should use S relations)
-        Set<Formula> additionalConfigConstraints();
-
-        // Relation declarations (use real Relation objects, since we have formulas)
-        // suffix of S = without the state column; suffix of CE = with the state column
-        Set<Relation> helperRelations();        // helper relations that help describe the problem
-        Set<Relation> deployableRelationsS();   // relations that describe state that we *can* deploy
-        Set<Relation> deployableRelationsCE();
-        //Set<Relation> nondeployableRelationsS(); // relations that describe state that we can't deploy
-        Set<Relation> nondeployableRelationsCE();
-        Set<Relation> allStateRelationsCE(); // union of nondeploy+deploy
-        Set<Relation> eventRelationsCE();  // relations that describe transition events
-        Set<Relation> constantSingletonRelations(); // personA, personB, fileX, etc.
-        Relation ceToS(Relation ce); // convert CE relation to S version
-
-        // Total size of inputs should be eventRelationsCE.size()+2*(deployableRelationsCE.size()+nondeployableRelationsCE.size())
-        Formula buildTransitionPrim(List<Expression> pre, List<Expression> ev, List<Expression> post);
-        Formula buildTransition(Expression pre, Expression post);
-
-        String prettyConfigFromSynth(Solution sol);
-        void setSynthBounds(Bounds bounds);
-        void setCEBounds(Bounds bounds, Collection<Tuple> stateExactly);
-
-        // TODO CEGIS will need a validator to check, e.g., that eventRelations all contain "EVENT_", that arities match, etc.
-    }
-
-    static class OriginalTheoTimHack implements SynthProblem {
-        final static int backdoorTemperature = 75;
-        final static int minAComfy = 72;
-        final static int maxAComfy = 75;
-        final static int minBComfy = 50;
-        final static int maxBComfy = 100;
-
-        // Problem-specification relations (there are 2 people, they have comfort ranges)
-        // These don't change over time, and they aren't something we synthesize. Take them as input.
-        private static Relation comfyAt = Relation.binary("comfyAt");
-        private static Relation personA = Relation.unary("PersonA");
-        private static Relation personB = Relation.unary("PersonB");
-
-        // Non-deployable configuration. These may be changed by the transition relation, but aren't
-        // part of what we synthesize. We may have to take assumptions about these in order to synthesize correctly.
-        // (For instance, assume the initial temperature setting isn't something uncomfy.)
-        private static Relation setting = Relation.binary("setting");
-
-        // Event relations. Must contain "EVENT_"
-        private static Relation next_p = Relation.binary("EVENT_next_p");
-        private static Relation next_target = Relation.binary("EVENT_next_target");
-
-        // Deployable configuration: we have power over the *initial* value of these
-        // Thus, synth phase uses a unary relation, and CE phase uses a binary relation.
-        // IMPORTANT: we do some string comparison below; make sure config relations have CONF_ in them, and
-        //   event relations have EVENT_ in them.
-        private static Relation canSetCE = Relation.binary("CE_DCONF_canSet");
-        private static Relation allowedTempCE = Relation.binary("CE_DCONF_allowedTemp");
-        private static Relation canSetS = Relation.unary("S_DCONF_canSet");
-        private static Relation allowedTempS = Relation.unary("S_DCONF_allowedTemp");
-
-        @Override
-        public Set<Formula> goals() {
-            Variable p = Variable.unary("p");
-            Variable s = Variable.unary("s");
-            Formula Gcomfy = s.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))).forAll(s.oneOf(state));
-            return Collections.singleton(Gcomfy); // immutable
-        }
-
-        @Override
-        public Set<Formula> additionalConfigConstraints() {
-            Set<Formula> result = new HashSet<>();
-            // Start out with a config that isn't empty...
-            result.add(canSetS.join(comfyAt).intersection(allowedTempS).some());
-            Variable p = Variable.unary("p");
-            // Using forall, anticipating more people eventually
-            result.add(p.join(comfyAt).intersection(allowedTempS).count().gt(IntConstant.constant(1)).forAll(p.oneOf(personA.union(personB))));
-            return result;
-        }
-
-        // The transition predicate on [s, s'] (minus type annotations, beware)
-        @Override
-        public Formula buildTransition(Expression s, Expression s2) {
-            List<Expression> pre = new ArrayList<>(3);
-            pre.add(s.join(setting)); pre.add(s.join(canSetCE)); pre.add(s.join(allowedTempCE));
-            List<Expression> post = new ArrayList<>(3);
-            post.add(s2.join(setting)); post.add(s2.join(canSetCE)); post.add(s2.join(allowedTempCE));
-            List<Expression> ev = new ArrayList<>(2);
-            ev.add(s.join(next_p)); ev.add(s.join(next_target));
-            return buildTransitionPrim(pre, ev, post);
-
-            // Keeping old formula around for debugging if needed
-            /*return buildTransitionPrim(s.join(setting), s.join(canSetCE), s.join(allowedTempCE),
-                    s.join(next_p), s.join(next_target),
-                    s2.join(setting), s2.join(canSetCE), s2.join(allowedTempCE));*/
-        }
-
-        // This is a major part of the problem definition: the basic, state-atom-free transition function.
-        @Override
-        public Formula buildTransitionPrim(List<Expression> pre, List<Expression> ev, List<Expression> post) {
-            Expression pretemp = pre.get(0);
-            Expression preCanSet = pre.get(1);
-            Expression preAllowedTemp = pre.get(2);
-            Expression posttemp = post.get(0);
-            Expression postCanSet = post.get(1);
-            Expression postAllowedTemp = post.get(2);
-            Expression p = ev.get(0);
-            Expression targ = ev.get(1);
-
-            // is the temp change permitted? (note these expressions don't have a state attached)
-            Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp));
-            // TEST ANTE: require setting to be an odd number to go through
-            //Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp))
-            //        .and(targ.sum().modulo(IntConstant.constant(2)).eq(IntConstant.constant(1)));
-            // NOTE: add/sub around max/min can cause issues
-            Formula thenf = posttemp.eq(targ);
-            Formula elsef = posttemp.eq(pretemp);
-            Formula settingChange = ante.implies(thenf).and(ante.not().implies(elsef));
-
-            // If try to set to backdoorTemperature and forbidden...trigger vulnerability
-            ante = targ.eq(IntConstant.constant(backdoorTemperature).toExpression()).and(ante.not());
-            thenf = postAllowedTemp.eq(Expression.INTS).and(postCanSet.eq(personA.union(personB)));
-            elsef = postAllowedTemp.eq(preAllowedTemp).and(postCanSet.eq(preCanSet));
-            Formula policyChange = ante.implies(thenf).and(ante.not().implies(elsef));
-            Formula transition = settingChange.and(policyChange);
-            return transition;
-        }
-
-        @Override
-        public Set<Formula> initialStateAssumptions() {
-            Set<Formula> subs = new HashSet<>();
-            Variable p = Variable.unary("p");
-            subs.add(first.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))));
-            return subs;
-        }
-
-        @Override
-        public Set<Formula> structuralAxioms() {
-            Set<Formula> subs = new HashSet<>();
-            subs.add(setting.function(state, Expression.INTS));
-            subs.add(next_p.function(state, personA.union(personB)));
-            subs.add(next_target.function(state, Expression.INTS));
-            return subs;
-        }
-
-        @Override
-        public Set<Relation> helperRelations() {
-            Set<Relation> result = new HashSet<>();
-            result.add(comfyAt);
-            return result;
-        }
-
-        @Override
-        public Set<Relation> deployableRelationsS() {
-            Set<Relation> result = new HashSet<>();
-            result.add(setting);
-            return result;
-        }
-
-        @Override
-        public Set<Relation> deployableRelationsCE() {
-            Set<Relation> result = new HashSet<>();
-            result.add(canSetCE); result.add(allowedTempCE);
-            return result;
-        }
-
-        @Override
-        public Set<Relation> nondeployableRelationsCE() {
-            Set<Relation> result = new HashSet<>();
-            result.add(setting);
-            return result;
-        }
-
-        @Override
-        public Set<Relation> allStateRelationsCE() {
-            Set<Relation> result = new HashSet<>(this.deployableRelationsCE());
-            result.addAll(this.nondeployableRelationsCE());
-            return result;
-        }
-
-        @Override
-        public Set<Relation> eventRelationsCE() {
-            Set<Relation> result = new HashSet<>();
-            result.add(next_p); result.add(next_target);
-            return result;
-        }
-
-        @Override
-        public Set<Relation> constantSingletonRelations() {
-            Set<Relation> result = new HashSet<>();
-            result.add(personA);
-            result.add(personB);
-            return result;
-        }
-
-        @Override
-        public Relation ceToS(Relation ce) {
-            if(canSetCE.equals(ce)) return canSetS;
-            if(allowedTempCE.equals(ce)) return allowedTempS;
-            throw new NoSuchElementException("ceToS: "+ce);
-        }
-
-        @Override
-        public String prettyConfigFromSynth(Solution sol) {
-            if(sol.sat()) {
-                return "Allowed Temps: " + sol.instance().relationTuples().get(allowedTempS) + " " +
-                        "Can Set: " + sol.instance().relationTuples().get(canSetS);
-            } else {
-                return "UNSAT";
-            }
-        }
-
-        @Override
-        public void setSynthBounds(Bounds bounds) {
-            List<Tuple> comfyAts = new ArrayList<>();
-            List<Tuple> canSetUpper = new ArrayList<>();
-            List<Tuple> allowedUpper = new ArrayList<>();
-
-            // changed to narrower range on A, wider range on B, because was getting a good config on first synth...
-            for(int i=minAComfy; i<=maxAComfy; i++) {
-                comfyAts.add(factory.tuple("PersonA", i));
-            }
-            for(int i=minBComfy; i<=maxBComfy; i++) {
-                comfyAts.add(factory.tuple("PersonB", i));
-            }
-            canSetUpper.add(factory.tuple("PersonA"));
-            canSetUpper.add(factory.tuple("PersonB"));
-
-            for(int i=minInt; i<=maxInt; i++) {
-                allowedUpper.add(factory.tuple(i));
-            }
-            // Bounds
-            bounds.boundExactly(comfyAt, factory.setOf(comfyAts));
-            bounds.bound(canSetS, factory.setOf(canSetUpper));
-            bounds.bound(allowedTempS, factory.setOf(allowedUpper));
-            bounds.boundExactly(personA, factory.setOf(factory.tuple("PersonA")));
-            bounds.boundExactly(personB, factory.setOf(factory.tuple("PersonB")));
-        }
-
-        @Override
-        public void setCEBounds(Bounds bounds, Collection<Tuple> stateExactly) {
-            List<Tuple> settingUpper = new ArrayList<>();
-            List<Tuple> next_pUpper = new ArrayList<>();
-            List<Tuple> next_targetUpper = new ArrayList<>();
-            List<Tuple> canSetUpper = new ArrayList<>();
-            List<Tuple> allowedTempUpper = new ArrayList<>();
-
-            for(Tuple st: stateExactly) {
-                next_pUpper.add(st.product(factory.tuple("PersonA")));
-                next_pUpper.add(st.product(factory.tuple("PersonB")));
-
-                for(int j=minInt;j<=maxInt;j++) {
-                    next_targetUpper.add(st.product(factory.tuple(j)));
-                    settingUpper.add(st.product(factory.tuple(j)));
-                    allowedTempUpper.add(st.product(factory.tuple(j)));
-                }
-
-                // Don't include synthesized initial config in bounds (see below)
-
-                canSetUpper.add(st.product(factory.tuple("PersonA")));
-                canSetUpper.add(st.product(factory.tuple("PersonB")));
-            }
-
-            // We could bound the *FIRST* state's configuration here
-            // However, since we want to use cores to extract blame in the initial config, we need to assert the
-            // last-synthesized initial config as a formula. :-(
-            // (Later states can be anything, hence non-exact bound)
-            bounds.bound(canSetCE, factory.setOf(canSetUpper));
-            bounds.bound(allowedTempCE, factory.setOf(allowedTempUpper));
-            bounds.bound(setting, factory.setOf(settingUpper));
-            bounds.bound(next_p, factory.setOf(next_pUpper));
-            bounds.bound(next_target, factory.setOf(next_targetUpper));
-        }
-    }
-
 }
