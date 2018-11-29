@@ -48,10 +48,10 @@ public class OriginalTimTheoHack implements SynthProblem {
     private static Relation allowedTemp = Relation.binary("DCONF_allowedTemp");
 
     @Override
-    public Set<Formula> goals(Expression state) {
+    public Set<Formula> goals(Relation stateDomain) {
         Variable p = Variable.unary("p");
         Variable s = Variable.unary("s");
-        Formula Gcomfy = s.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))).forAll(s.oneOf(state));
+        Formula Gcomfy = s.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))).forAll(s.oneOf(stateDomain));
         return Collections.singleton(Gcomfy); // immutable
     }
 
@@ -132,13 +132,6 @@ public class OriginalTimTheoHack implements SynthProblem {
     public Set<Relation> nondeployableRelations() {
         Set<Relation> result = new HashSet<>();
         result.add(setting);
-        return result;
-    }
-
-    @Override
-    public Set<Relation> allStateRelations() {
-        Set<Relation> result = new HashSet<>(this.deployableRelations());
-        result.addAll(this.nondeployableRelations());
         return result;
     }
 

@@ -18,18 +18,19 @@ import java.util.function.Predicate;
 import java.util.logging.*;
 
 /**
- * Hacky prototype of 4-part CEGIS synthesis loop for finding initial deployable configurations.
+ * Prototype of 4-part CEGIS synthesis loop for finding initial deployable configurations.
  * Exclusion refers to excluding some slice of the potential deployable-initial-config space, NOT trace exclusion.
  */
-public class EvalExclusionHack {
+public class CEGISEngine {
 
     private final static boolean writeLogFile = false; // turn on for debugging
-    private final static Logger logger = Logger.getLogger(EvalExclusionHack.class.getName());
+    private final static Logger logger = Logger.getLogger(CEGISEngine.class.getName());
 
     final static int loopLimit = 100;
     final static int numStates = 5;
     final static int minInt =  -128;
     final static int maxInt = 127;
+    final static int bitwidth = 8;
 
     private static Universe universe;
     private static TupleFactory factory;
@@ -58,7 +59,7 @@ public class EvalExclusionHack {
         logger.addHandler(textHandler);
 
         SynthProblem problem = new OriginalTimTheoHack(minInt, maxInt);
-        EvalExclusionHack cegisSolver = new EvalExclusionHack(problem);
+        CEGISEngine cegisSolver = new CEGISEngine(problem);
 
         long startTime = System.currentTimeMillis();
         output(cegisSolver.cegis());
@@ -69,7 +70,7 @@ public class EvalExclusionHack {
     }
 
     SynthProblem problem;
-    EvalExclusionHack(SynthProblem problem) {
+    CEGISEngine(SynthProblem problem) {
         this.problem = problem;
         setupBaseUniverse();
     }
@@ -91,7 +92,8 @@ public class EvalExclusionHack {
             result.add(r);
         }
 
-        // TODO: could do this much better, perhaps (even things that are ill-typed will go in the "not" side
+        /* TODO: could do this much better: even things that are ill-typed will be considered by the caller of this
+        method, making the set of formulas bigger than it needs to be. */
         return result;
     }
 
@@ -120,7 +122,7 @@ public class EvalExclusionHack {
         }
 
         // PROPERTIES: applies to CE and PROXIMAL phases
-        // TODO: should we break these down separately? maybe no need to at first
+        // TODO: should we break goals down separately? maybe no need to at first
         Formula property = Formula.and(problem.goals(state));
         // In COUNTER phase: not in core phase means negate the property to generate a CE
         if(!corePhase) subs.add(property.not());
@@ -220,7 +222,6 @@ public class EvalExclusionHack {
 
             // Casting/comparisons to null necessary because raw atoms are just Object :-(
 
-            // TODO: duplicate code structure vs. ceFormula's extraction from synth
             for(Relation sr : problem.deployableRelations()) {
                 processStateRelation(sr);
             }
@@ -407,6 +408,7 @@ public class EvalExclusionHack {
 
         // Create an explicit trace (if only one includeStates, we're doing initial synthesis, not really a "trace")
         // TODO: exact bound = a weakness in the model, because might miss a shorter trace!
+        // TODO: add lasso cycle point as another singleton unary relation, require transition (in fmlas)
         // if make non-exact, be sure to add containment axioms
         List<Tuple> stateExactly = new ArrayList<>();
         List<Tuple> nextExactly = new ArrayList<>();
@@ -485,7 +487,6 @@ public class EvalExclusionHack {
             return rewriteStateLiteralDepth(((NotFormula)f).formula(), depth).not();
         } else if(f instanceof ComparisonFormula) {
             ComparisonFormula cf = (ComparisonFormula) f;
-            // TODO duplicate code
             Expression relside, valside;
             if(cf.op().equals(ExprCompOperator.EQUALS)) {
                 relside = cf.left(); // first . CE_CONF_allowedTemp = Int[96]+Int[97]
@@ -512,7 +513,6 @@ public class EvalExclusionHack {
         }
         return 0;
     }
-
     private int maxTraceLength(Formula r) {
         if(r instanceof NotFormula) {
             return maxTraceLength(((NotFormula)r).formula());
@@ -526,7 +526,6 @@ public class EvalExclusionHack {
         }
 
     }
-
     private int maxTraceLength(Set<Formula> reasons) {
         int max = 1;
         for(Formula f: reasons) {
@@ -667,17 +666,23 @@ public class EvalExclusionHack {
             /////////////////////
 
             // TODO: separate solver, single step per invocation? want push/pop!
-            // TODO: Can we ever get the initial state literals directly, without iteration?
 
             Set<Formula> initialReasons = new HashSet<>();
             // until all blame obligations are discharged, keep moving toward initial state
-            // TODO: this might loop forever in case of a malformed or anticausal transition function. detect.
+            int lastMTL = Integer.MAX_VALUE;
             while(!reasons.isEmpty()) {
                 output(Level.INFO, "Deriving blame for: "+reasons+"; mtl: "+maxTraceLength(reasons));
                 int mtl = maxTraceLength(reasons);
 
+                // Prevent looping forever in case the blame process is not making progress
+                if(mtl >= lastMTL) {
+                    throw new RuntimeException("Potentially malformed or anti-causal transition relation. Reasons: "+reasons);
+                } else {
+                    lastMTL = mtl;
+                }
+
                 // Because we're limiting ourselves to 2 states, need to rewrite state expressions in reasons.
-                Set<Formula> rewrittenReasons = new HashSet<Formula>();
+                Set<Formula> rewrittenReasons = new HashSet<>();
                 for(Formula f : reasons) {
                     rewrittenReasons.add(rewriteStateLiteralDepth(f, 2)); // second state
                 }
@@ -760,60 +765,8 @@ public class EvalExclusionHack {
                     else reasons.add(removeDoubleNegation(f));
                 }
             }
-            output(Level.FINER, "Final blame set in initial state (pre-conversion CE->S):"+initialReasons);
-
-
-            /*
-            // convert each initial reason from CE (first.rel) to S (rel).
-            // TODO: current pipeline can't handle *negated* initial reasons; not sure if failure will be silent
-            // TODO remove this block if possible
-            Set<Formula> initialReasonsS = new HashSet<>();
-            for(Formula f : initialReasons) {
-                boolean negated = false;
-                if(f instanceof NotFormula) {
-                    negated = true;
-                    f = ((NotFormula)f).formula();
-                }
-
-                if(!(f instanceof ComparisonFormula)) throw new RuntimeException("Unexpected non-comparison initial-state reason formula: "+f);
-                ComparisonFormula cf = (ComparisonFormula) f;
-                if(!cf.op().equals(ExprCompOperator.EQUALS) && !cf.op().equals(ExprCompOperator.SUBSET))
-                    throw new RuntimeException("Unexpected formula: "+f);
-                // Making assumptions about how we created these, but in the absence of a robust substitution visitor
-                //     (and .equals/canonicity on Formulas ...)
-                Expression relside, valside;
-                if(cf.op().equals(ExprCompOperator.EQUALS)) {
-                    relside = cf.left(); // first . CE_CONF_allowedTemp = Int[96]+Int[97]
-                    valside = cf.right();
-                }
-                else {
-                    relside = cf.right(); // Int[96] in (first . CE_CONF_allowedTemp)
-                    valside = cf.left();
-                }
-                if(relside instanceof BinaryExpression) {
-                    BinaryExpression be = (BinaryExpression) relside;
-                    if (!(be.op().equals(ExprOperator.JOIN))) throw new RuntimeException("Unexpected formula: " + f);
-                    Relation sRel = null;
-
-                    for(Relation r : problem.allStateRelations()) {
-                        if (relside.toString().equals(first.join(r).toString())) {
-                            sRel = problem.ceToS(r); // found it! convert to S version
-                            break;
-                        }
-                    }
-
-                    if(sRel == null) throw new RuntimeException("Unexpected RHS in initial-state reason formula: " + f);
-                    Formula reconstructed = valside.compare(cf.op(), sRel);
-                    if(negated) reconstructed = reconstructed.not();
-                    initialReasonsS.add(reconstructed);
-                } else
-                    throw new RuntimeException("Unexpected initial-state reason formula: "+f);
-            }
-
-            output(Level.INFO, "Initial state reasons: "+initialReasonsS);
-            Formula initialStateCause = Formula.and(initialReasonsS);*/
+            output(Level.INFO, "Final blame set in initial state:"+initialReasons);
             Formula initialStateCause = Formula.and(initialReasons);
-            output(Level.INFO, "Initial reasons (just before adding to synthfmla): "+initialStateCause);
 
             // FINALLY: extend synth formula
             // using IncrementalSolver now, so formula is the *delta*
@@ -855,7 +808,7 @@ public class EvalExclusionHack {
             options.setSymmetryBreaking(20);
             options.setSkolemDepth(-1);
             options.setLogTranslation(0); // changed by TN from 2->0; MUST be 0 to use IncrementalSolver
-            options.setBitwidth(8); // [-128,127]
+            options.setBitwidth(bitwidth);
             options.setNoOverflow(true); // added TN
             synthSolver = IncrementalSolver.solver(options);
         }
@@ -884,7 +837,7 @@ public class EvalExclusionHack {
         solver.options().setSkolemDepth(-1);
         solver.options().setLogTranslation(2);
         solver.options().setCoreGranularity(3); // max = 3
-        solver.options().setBitwidth(8); // [-128,127]
+        solver.options().setBitwidth(bitwidth);
         solver.options().setNoOverflow(true); // added TN
         return solver.solve(f, b);
     }
