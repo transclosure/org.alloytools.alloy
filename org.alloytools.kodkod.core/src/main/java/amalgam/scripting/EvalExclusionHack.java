@@ -113,11 +113,10 @@ public class EvalExclusionHack {
             subs.add(transition.forAll(s.oneOf(state.difference(last))));
         }
 
-        // ASSUMPTIONS: applies to CE generation only:
+        // ASSUMPTIONS: applies to CE generation only, not core phases
         if(!corePhase) {
-            //  start in a state where everyone is comfy
-            //  all p: Person | s.setting in p.comfyAt    [applied to first]
-            subs.addAll(problem.initialStateAssumptions(first));
+            //  start in a state where everyone is comfy,
+            subs.addAll(problem.additionalInitialConstraintsP1P2(first));
         }
 
         // PROPERTIES: applies to CE and PROXIMAL phases
@@ -129,18 +128,19 @@ public class EvalExclusionHack {
         else if(corePhase && corePhasePhi) subs.add(property);
         // otherwise, in PROXIMAL phase, NOT asking for property: asking why failure occurred (no prop needed)
 
-        // Finally, we need to encode the synthesized initial state
-        // (if a config relation is flat, we could just add it in bounds; this is only for
-        //  config relations that are stateful!)
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Encode the synthesized initial state
+        // (if a config relation is flat, we could just add it in bounds; this is only for config relations that are stateful!)
         Set<Formula> synthliterals = new HashSet<>();
         if(!corePhase) {
             // efficient version if we're in CE-generation phase
-            for(Relation r : problem.deployableRelationsCE()) {
-                synthliterals.add(first.join(r).eq(extractSynthExpression(synthSol, problem.ceToS(r))));
+            for(Relation r : problem.deployableRelations()) {
+                synthliterals.add(first.join(r).eq(extractSynthExpression(synthSol, r)));
             }
         } else if(corePhasePhi) {
-            for(Relation r : problem.deployableRelationsCE()) {
-                synthliterals.addAll(desugarInUnion(first.join(r), extractSynthExpression(synthSol, problem.ceToS(r)), domain()));
+            // inefficient version for blame-generation: need to include the *negative* literals, too.
+            for(Relation r : problem.deployableRelations()) {
+                synthliterals.addAll(desugarInUnion(first.join(r), extractSynthExpression(synthSol, r), domain()));
             }
         } else {
             // Do nothing; this is a call for the 2-state
@@ -220,13 +220,13 @@ public class EvalExclusionHack {
             // Casting/comparisons to null necessary because raw atoms are just Object :-(
 
             // TODO: duplicate code structure vs. ceFormula's extraction from synth
-            for(Relation sr : problem.deployableRelationsCE()) {
+            for(Relation sr : problem.deployableRelations()) {
                 processStateRelation(sr);
             }
-            for(Relation sr : problem.nondeployableRelationsCE()) {
+            for(Relation sr : problem.nondeployableRelations()) {
                 processStateRelation(sr);
             }
-            for(Relation er : problem.eventRelationsCE()) {
+            for(Relation er : problem.eventRelations()) {
                 processEventRelation(er);
             }
         }
@@ -319,19 +319,19 @@ public class EvalExclusionHack {
         TransitionData tdata = new TransitionData(ce, pre, post);
 
         // One sub-subformula for every state relation (pre and post)
-        for(Relation r : problem.nondeployableRelationsCE()) {
+        for(Relation r : problem.nondeployableRelations()) {
             subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), domain()));
             if(includeAllNonNegatedPost) // handle last
                 subs.addAll(desugarInUnion(sInFmlas.join(next).join(r), Expression.union(tdata.postValues.get(r)), domain()));
         }
-        for(Relation r : problem.deployableRelationsCE()) {
+        for(Relation r : problem.deployableRelations()) {
             subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), domain()));
             if(includeAllNonNegatedPost) // handle last
                 subs.addAll(desugarInUnion(sInFmlas.join(next).join(r), Expression.union(tdata.postValues.get(r)), domain()));
         }
 
         // One sub-subformula for event components (no post)
-        for(Relation r : problem.eventRelationsCE()) {
+        for(Relation r : problem.eventRelations()) {
             subs.add(sInFmlas.join(r).eq(Expression.union(tdata.evValues.get(r))));
         }
 
@@ -369,7 +369,7 @@ public class EvalExclusionHack {
      */
     private Formula fixTraceAsFormula(Solution ce, Set<Formula> negateThese, int includeStates) {
         List<Formula> subs = new ArrayList<>();
-        if(numStates < includeStates) throw new UnsupportedOperationException("ceBounds called with too many includeStates");
+        if(numStates < includeStates) throw new UnsupportedOperationException("fixTraceAsFormula called with too many includeStates");
         if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
 
         // don't do this: assumes the iteration order matches the true ordering!
@@ -386,7 +386,6 @@ public class EvalExclusionHack {
         return Formula.and(subs);
     }
 
-
     /**
      *
      * @param includeStates indicates how many states to instantiate (up to numStates), for use by blaming via cores.
@@ -394,14 +393,18 @@ public class EvalExclusionHack {
      *                      incremental, since we have to re-translate for every step backward in time.
      * @return
      */
-    private Bounds ceBounds(int includeStates) {
-        if(numStates < includeStates) throw new UnsupportedOperationException("ceBounds called with bad first/last state");
-        if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
+    private Bounds buildBounds(int includeStates) {
+        if(numStates < includeStates) throw new UnsupportedOperationException("buildBounds called with bad first/last state");
+        if(includeStates < 1) throw new UnsupportedOperationException("Must have at least one includestate, had "+includeStates);
 
-        // Start from synth bounds
-        Bounds bounds = synthBounds();
+        Bounds bounds = new Bounds(universe);
 
-        // Create an explicit trace
+        // Set up integers as integers (this is the way Alloy does it)
+        for(int i=minInt; i<=maxInt; i++) {
+            bounds.boundExactly(i, factory.setOf(factory.tuple(i)));
+        }
+
+        // Create an explicit trace (if only one includeStates, we're doing initial synthesis, not really a "trace")
         // TODO: exact bound = a weakness in the model, because might miss a shorter trace!
         // if make non-exact, be sure to add containment axioms
         List<Tuple> stateExactly = new ArrayList<>();
@@ -417,9 +420,13 @@ public class EvalExclusionHack {
         bounds.boundExactly(state, factory.setOf(stateExactly));
         bounds.boundExactly(first, factory.setOf(factory.tuple("State0")));
         bounds.boundExactly(last, factory.setOf(factory.tuple("State"+(includeStates-1))));
-        bounds.boundExactly(next, factory.setOf(nextExactly));
+        if(!nextExactly.isEmpty()) {
+            bounds.boundExactly(next, factory.setOf(nextExactly));
+        } else {
+            bounds.boundExactly(next, factory.noneOf(2));
+        }
 
-        problem.setCEBounds(bounds, stateExactly);
+        problem.setBounds(bounds, stateExactly);
         return bounds;
     }
 
@@ -442,21 +449,6 @@ public class EvalExclusionHack {
 
         universe = new Universe(atoms);
         factory = universe.factory();
-    }
-
-    private Bounds synthBounds() {
-        // Relations
-
-        Bounds bounds = new Bounds(universe);
-
-        // Set up integers as integers (this is the way Alloy does it)
-        for(int i=minInt; i<=maxInt; i++) {
-            bounds.boundExactly(i, factory.setOf(factory.tuple(i)));
-        }
-
-        problem.setSynthBounds(bounds);
-
-        return bounds;
     }
 
     // Build an expression corresponding to the num-th state.
@@ -593,9 +585,9 @@ public class EvalExclusionHack {
 
     private String cegis() {
         int loopCount = 0;
-        Bounds synthbounds = synthBounds();
+        Bounds synthbounds = buildBounds(1);
         // Start with the basic constraints (may be some a priori limitations on what is a well-formed constraint)
-        Formula synthformula = Formula.and(problem.additionalConfigConstraints());
+        Formula synthformula = Formula.and(problem.additionalInitialConstraintsP1P2(first));
 
         while(loopCount++<loopLimit) {
             output(Level.INFO, "------------------------- Loop:"+loopCount+"-------------------------");
@@ -614,7 +606,7 @@ public class EvalExclusionHack {
 
             ////////////////////////////////////////////////
             // Step 2: verify
-            Bounds cebounds = ceBounds(numStates);
+            Bounds cebounds = buildBounds(numStates);
             Solution ce =  execNonincrementalCE(ceFormula(false, false, sol), cebounds);
             stats(ce, CEGISPHASE.COUNTER);
             if(ce.unsat()) return "Success in "+loopCount+" iterations!";
@@ -695,7 +687,7 @@ public class EvalExclusionHack {
                 // Include this prestate (reason -1 depth) and negated reasons
                 Set<Formula> blameTransitionFormula = fixPreTransitionAsFormula(ce, buildStateExpr(mtl-1), first,false, rewrittenReasons);
 
-                Bounds blamebounds = ceBounds(2); // include ONLY TWO STATES
+                Bounds blamebounds = buildBounds(2); // include ONLY TWO STATES
                 Solution blame = execNonincrementalCE(blameCEFormula.and(Formula.and(blameTransitionFormula)), blamebounds);
                 stats(blame, CEGISPHASE.ROOT);
                 if(blame.sat()) {
@@ -769,8 +761,11 @@ public class EvalExclusionHack {
             }
             output(Level.FINER, "Final blame set in initial state (pre-conversion CE->S):"+initialReasons);
 
+
+            /*
             // convert each initial reason from CE (first.rel) to S (rel).
             // TODO: current pipeline can't handle *negated* initial reasons; not sure if failure will be silent
+            // TODO remove this block if possible
             Set<Formula> initialReasonsS = new HashSet<>();
             for(Formula f : initialReasons) {
                 boolean negated = false;
@@ -799,7 +794,7 @@ public class EvalExclusionHack {
                     if (!(be.op().equals(ExprOperator.JOIN))) throw new RuntimeException("Unexpected formula: " + f);
                     Relation sRel = null;
 
-                    for(Relation r : problem.allStateRelationsCE()) {
+                    for(Relation r : problem.allStateRelations()) {
                         if (relside.toString().equals(first.join(r).toString())) {
                             sRel = problem.ceToS(r); // found it! convert to S version
                             break;
@@ -815,7 +810,9 @@ public class EvalExclusionHack {
             }
 
             output(Level.INFO, "Initial state reasons: "+initialReasonsS);
-            Formula initialStateCause = Formula.and(initialReasonsS);
+            Formula initialStateCause = Formula.and(initialReasonsS);*/
+            Formula initialStateCause = Formula.and(initialReasons);
+            output(Level.INFO, "Initial reasons (just before adding to synthfmla): "+initialStateCause);
 
             // FINALLY: extend synth formula
             // using IncrementalSolver now, so formula is the *delta*

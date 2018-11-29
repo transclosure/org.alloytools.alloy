@@ -25,7 +25,6 @@ public class OriginalTimTheoHack implements SynthProblem {
         this.maxInt = maxInt;
     }
 
-
     // Problem-specification relations (there are 2 people, they have comfort ranges)
     // These don't change over time, and they aren't something we synthesize. Take them as input.
     private static Relation comfyAt = Relation.binary("comfyAt");
@@ -45,8 +44,8 @@ public class OriginalTimTheoHack implements SynthProblem {
     // Thus, synth phase uses a unary relation, and CE phase uses a binary relation.
     // IMPORTANT: we do some string comparison below; make sure config relations have CONF_ in them, and
     //   event relations have EVENT_ in them.
-    private static Relation canSetCE = Relation.binary("DCONF_canSet");
-    private static Relation allowedTempCE = Relation.binary("DCONF_allowedTemp");
+    private static Relation canSet = Relation.binary("DCONF_canSet");
+    private static Relation allowedTemp = Relation.binary("DCONF_allowedTemp");
 
     @Override
     public Set<Formula> goals(Expression state) {
@@ -57,13 +56,17 @@ public class OriginalTimTheoHack implements SynthProblem {
     }
 
     @Override
-    public Set<Formula> additionalConfigConstraints() {
+    public Set<Formula> additionalInitialConstraintsP1P2(Expression first) {
         Set<Formula> result = new HashSet<>();
         // Start out with a config that isn't empty...
-        result.add(canSetS.join(comfyAt).intersection(allowedTempS).some());
+        result.add(first.join(canSet).join(comfyAt).intersection(first.join(allowedTemp)).some());
         Variable p = Variable.unary("p");
         // Using forall, anticipating more people eventually
-        result.add(p.join(comfyAt).intersection(allowedTempS).count().gt(IntConstant.constant(1)).forAll(p.oneOf(personA.union(personB))));
+        result.add(p.join(comfyAt).intersection(first.join(allowedTemp)).count().gt(IntConstant.constant(1)).forAll(p.oneOf(personA.union(personB))));
+
+        // Setting will start out comfortable.
+        result.add(first.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))));
+
         return result;
     }
 
@@ -76,11 +79,11 @@ public class OriginalTimTheoHack implements SynthProblem {
     @Override
     public Formula buildTransition(Expression s, Expression s2) {
         Expression pretemp = s.join(setting);
-        Expression preCanSet = s.join(canSetCE);
-        Expression preAllowedTemp = s.join(allowedTempCE);
+        Expression preCanSet = s.join(canSet);
+        Expression preAllowedTemp = s.join(allowedTemp);
         Expression posttemp = s2.join(setting);
-        Expression postCanSet = s2.join(canSetCE);
-        Expression postAllowedTemp = s2.join(allowedTempCE);
+        Expression postCanSet = s2.join(canSet);
+        Expression postAllowedTemp = s2.join(allowedTemp);
         Expression p = s.join(next_p);
         Expression targ = s.join(next_target);
 
@@ -103,14 +106,6 @@ public class OriginalTimTheoHack implements SynthProblem {
     }
 
     @Override
-    public Set<Formula> initialStateAssumptions(Expression first) {
-        Set<Formula> subs = new HashSet<>();
-        Variable p = Variable.unary("p");
-        subs.add(first.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))));
-        return subs;
-    }
-
-    @Override
     public Set<Formula> structuralAxioms(Expression state) {
         Set<Formula> subs = new HashSet<>();
         subs.add(setting.function(state, Expression.INTS));
@@ -127,28 +122,28 @@ public class OriginalTimTheoHack implements SynthProblem {
     }
 
     @Override
-    public Set<Relation> deployableRelationsCE() {
+    public Set<Relation> deployableRelations() {
         Set<Relation> result = new HashSet<>();
-        result.add(canSetCE); result.add(allowedTempCE);
+        result.add(canSet); result.add(allowedTemp);
         return result;
     }
 
     @Override
-    public Set<Relation> nondeployableRelationsCE() {
+    public Set<Relation> nondeployableRelations() {
         Set<Relation> result = new HashSet<>();
         result.add(setting);
         return result;
     }
 
     @Override
-    public Set<Relation> allStateRelationsCE() {
-        Set<Relation> result = new HashSet<>(this.deployableRelationsCE());
-        result.addAll(this.nondeployableRelationsCE());
+    public Set<Relation> allStateRelations() {
+        Set<Relation> result = new HashSet<>(this.deployableRelations());
+        result.addAll(this.nondeployableRelations());
         return result;
     }
 
     @Override
-    public Set<Relation> eventRelationsCE() {
+    public Set<Relation> eventRelations() {
         Set<Relation> result = new HashSet<>();
         result.add(next_p); result.add(next_target);
         return result;
@@ -165,14 +160,15 @@ public class OriginalTimTheoHack implements SynthProblem {
     @Override
     public String prettyConfigFromSynth(Solution sol) {
         if(sol.sat()) {
-            return "Allowed Temps: " + sol.instance().relationTuples().get(allowedTempS) + " " +
-                    "Can Set: " + sol.instance().relationTuples().get(canSetS);
+            return "Allowed Temps: " + sol.instance().relationTuples().get(allowedTemp) + " " +
+                    "Can Set: " + sol.instance().relationTuples().get(canSet);
         } else {
             return "UNSAT";
         }
     }
 
     /**
+     * For now, the problem has control over what gets provided as bounds and what gets provided as constraints.
      *
      * @param bounds The Bounds object to provide bounds to
      * @param stateExactly Assume this is the set of state atoms that the engine will use.
@@ -217,11 +213,13 @@ public class OriginalTimTheoHack implements SynthProblem {
         // However, since we want to use cores to extract blame in the initial config, we need to assert the
         // last-synthesized initial config as a formula. :-(
         // (Later states can be anything, hence non-exact bound)
-        bounds.bound(canSetCE, factory.setOf(canSetUpper));
-        bounds.bound(allowedTempCE, factory.setOf(allowedTempUpper));
+        bounds.bound(canSet, factory.setOf(canSetUpper));
+        bounds.bound(allowedTemp, factory.setOf(allowedTempUpper));
         bounds.bound(setting, factory.setOf(settingUpper));
         bounds.bound(next_p, factory.setOf(next_pUpper));
         bounds.bound(next_target, factory.setOf(next_targetUpper));
         bounds.boundExactly(comfyAt, factory.setOf(comfyAts));
+        bounds.boundExactly(personA, factory.setOf(factory.tuple("PersonA")));
+        bounds.boundExactly(personB, factory.setOf(factory.tuple("PersonB")));
     }
 }
