@@ -151,11 +151,12 @@ public class EvalExclusionHack {
     }
 
     private Expression extractSynthExpression(Solution synthSol, Relation synthRel) {
-        // TODO is there duplicate code here vs. TransitionData?
         Set<Expression> rows = new HashSet<>();
         for(Tuple t : synthSol.instance().relationTuples().get(synthRel)) {
             Set<Expression> cols = new HashSet<>();
-            for(int ii = 0; ii<t.arity(); ii++) {
+            // Leftmost column is state
+            if(!t.atom(0).toString().startsWith("State")) throw new RuntimeException("extractSynthExpression: "+t);
+            for(int ii = 1; ii<t.arity(); ii++) {
                 cols.add(atomToExpression(t.atom(ii)));
             }
             rows.add(Expression.product(cols));
