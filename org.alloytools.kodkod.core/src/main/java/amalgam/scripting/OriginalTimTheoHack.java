@@ -1,7 +1,5 @@
 package amalgam.scripting;
 
-// TODO CEGIS will need a validator to check, e.g., that eventRelations all contain "EVENT_", that arities match, etc.
-
 import kodkod.ast.*;
 import kodkod.engine.Solution;
 import kodkod.instance.Bounds;

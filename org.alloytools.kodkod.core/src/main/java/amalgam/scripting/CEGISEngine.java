@@ -51,7 +51,28 @@ public class CEGISEngine {
         output(Level.INFO, s);
     }
 
-    public static void main(String[] args) throws IOException {
+    public void validate() throws CEGISException {
+      // Check that the problem given is well-formed. For instance, event relations must all contain "EVENT_" in their name.
+
+      for(Relation r : problem.eventRelations()) {
+          if(r.arity() < 2) throw new CEGISException("Validation failure: event relation "+r+" had arity < 2");
+          if(!r.toString().contains("EVENT_"))
+              throw new CEGISException("Validation failure: "+r+" was an event relation but did not contain EVENT_ in name");
+      }
+      for(Relation r : problem.deployableRelations()) {
+          if(r.arity() < 2) throw new CEGISException("Validation failure: state relation "+r+" had arity < 2");
+          if(r.toString().contains("EVENT_"))
+              throw new CEGISException("Validation failure: "+r+" was *NOT* an event relation but contained EVENT_ in name");
+      }
+      for(Relation r : problem.nondeployableRelations()) {
+          if(r.arity() < 2) throw new CEGISException("Validation failure: state relation "+r+" had arity < 2");
+          if(r.toString().contains("EVENT_"))
+              throw new CEGISException("Validation failure: "+r+" was *NOT* an event relation but contained EVENT_ in name");
+      }
+      // TODO likely more checks to do here, but the interface/API are still very fluid, so not spending much time on it yet
+    }
+
+    public static void main(String[] args) throws CEGISException, IOException {
         LogManager.getLogManager().reset(); // disable default handler
         logger.setLevel(Level.ALL);
         FileHandler textHandler = new FileHandler("cegis-log.txt");
@@ -70,8 +91,9 @@ public class CEGISEngine {
     }
 
     SynthProblem problem;
-    CEGISEngine(SynthProblem problem) {
+    CEGISEngine(SynthProblem problem) throws CEGISException {
         this.problem = problem;
+        validate();
         setupBaseUniverse();
     }
 
