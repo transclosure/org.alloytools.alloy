@@ -45,10 +45,8 @@ public class OriginalTimTheoHack implements SynthProblem {
     // Thus, synth phase uses a unary relation, and CE phase uses a binary relation.
     // IMPORTANT: we do some string comparison below; make sure config relations have CONF_ in them, and
     //   event relations have EVENT_ in them.
-    private static Relation canSetCE = Relation.binary("CE_DCONF_canSet");
-    private static Relation allowedTempCE = Relation.binary("CE_DCONF_allowedTemp");
-    private static Relation canSetS = Relation.unary("S_DCONF_canSet");
-    private static Relation allowedTempS = Relation.unary("S_DCONF_allowedTemp");
+    private static Relation canSetCE = Relation.binary("DCONF_canSet");
+    private static Relation allowedTempCE = Relation.binary("DCONF_allowedTemp");
 
     @Override
     public Set<Formula> goals(Expression state) {
@@ -165,13 +163,6 @@ public class OriginalTimTheoHack implements SynthProblem {
     }
 
     @Override
-    public Relation ceToS(Relation ce) {
-        if(canSetCE.equals(ce)) return canSetS;
-        if(allowedTempCE.equals(ce)) return allowedTempS;
-        throw new NoSuchElementException("ceToS: "+ce);
-    }
-
-    @Override
     public String prettyConfigFromSynth(Solution sol) {
         if(sol.sat()) {
             return "Allowed Temps: " + sol.instance().relationTuples().get(allowedTempS) + " " +
@@ -181,44 +172,30 @@ public class OriginalTimTheoHack implements SynthProblem {
         }
     }
 
+    /**
+     *
+     * @param bounds The Bounds object to provide bounds to
+     * @param stateExactly Assume this is the set of state atoms that the engine will use.
+     *                     This is a parameter because different phases use different numbers of state atoms.
+     *                     E.g., synthesis needs only 1, root-cause needs 2, etc.
+     */
     @Override
-    public void setSynthBounds(Bounds bounds) {
+    public void setBounds(Bounds bounds, Collection<Tuple> stateExactly) {
         TupleFactory factory = bounds.universe().factory();
 
         List<Tuple> comfyAts = new ArrayList<>();
+        List<Tuple> settingUpper = new ArrayList<>();
+        List<Tuple> next_pUpper = new ArrayList<>();
+        List<Tuple> next_targetUpper = new ArrayList<>();
         List<Tuple> canSetUpper = new ArrayList<>();
-        List<Tuple> allowedUpper = new ArrayList<>();
+        List<Tuple> allowedTempUpper = new ArrayList<>();
 
-        // changed to narrower range on A, wider range on B, because was getting a good config on first synth...
         for(int i=minAComfy; i<=maxAComfy; i++) {
             comfyAts.add(factory.tuple("PersonA", i));
         }
         for(int i=minBComfy; i<=maxBComfy; i++) {
             comfyAts.add(factory.tuple("PersonB", i));
         }
-        canSetUpper.add(factory.tuple("PersonA"));
-        canSetUpper.add(factory.tuple("PersonB"));
-
-        for(int i=minInt; i<=maxInt; i++) {
-            allowedUpper.add(factory.tuple(i));
-        }
-        // Bounds
-        bounds.boundExactly(comfyAt, factory.setOf(comfyAts));
-        bounds.bound(canSetS, factory.setOf(canSetUpper));
-        bounds.bound(allowedTempS, factory.setOf(allowedUpper));
-        bounds.boundExactly(personA, factory.setOf(factory.tuple("PersonA")));
-        bounds.boundExactly(personB, factory.setOf(factory.tuple("PersonB")));
-    }
-
-    @Override
-    public void setCEBounds(Bounds bounds, Collection<Tuple> stateExactly) {
-        TupleFactory factory = bounds.universe().factory();
-
-        List<Tuple> settingUpper = new ArrayList<>();
-        List<Tuple> next_pUpper = new ArrayList<>();
-        List<Tuple> next_targetUpper = new ArrayList<>();
-        List<Tuple> canSetUpper = new ArrayList<>();
-        List<Tuple> allowedTempUpper = new ArrayList<>();
 
         for(Tuple st: stateExactly) {
             next_pUpper.add(st.product(factory.tuple("PersonA")));
@@ -245,5 +222,6 @@ public class OriginalTimTheoHack implements SynthProblem {
         bounds.bound(setting, factory.setOf(settingUpper));
         bounds.bound(next_p, factory.setOf(next_pUpper));
         bounds.bound(next_target, factory.setOf(next_targetUpper));
+        bounds.boundExactly(comfyAt, factory.setOf(comfyAts));
     }
 }

@@ -33,12 +33,10 @@ public interface SynthProblem {
     Set<Relation> allStateRelationsCE(); // union of nondeploy+deploy
     Set<Relation> eventRelationsCE();  // relations that describe transition events
     Set<Relation> constantSingletonRelations(); // personA, personB, fileX, etc.
-    Relation ceToS(Relation ce); // convert CE relation to S version
 
     // Total size of inputs should be eventRelationsCE.size()+2*(deployableRelationsCE.size()+nondeployableRelationsCE.size())
     Formula buildTransition(Expression pre, Expression post);
 
     String prettyConfigFromSynth(Solution sol);
-    void setSynthBounds(Bounds bounds);
-    void setCEBounds(Bounds bounds, Collection<Tuple> stateExactly);
+    void setBounds(Bounds bounds, Collection<Tuple> stateExactly);
 }
