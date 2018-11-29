@@ -27,9 +27,8 @@ public interface SynthProblem {
     // Relation declarations (use real Relation objects, since we have formulas)
     // suffix of S = without the state column; suffix of CE = with the state column
     Set<Relation> helperRelations();        // helper relations that help describe the problem
-    Set<Relation> deployableRelationsS();   // relations that describe state that we *can* deploy
+
     Set<Relation> deployableRelationsCE();
-    //Set<Relation> nondeployableRelationsS(); // relations that describe state that we can't deploy
     Set<Relation> nondeployableRelationsCE();
     Set<Relation> allStateRelationsCE(); // union of nondeploy+deploy
     Set<Relation> eventRelationsCE();  // relations that describe transition events
@@ -37,7 +36,6 @@ public interface SynthProblem {
     Relation ceToS(Relation ce); // convert CE relation to S version
 
     // Total size of inputs should be eventRelationsCE.size()+2*(deployableRelationsCE.size()+nondeployableRelationsCE.size())
-    Formula buildTransitionPrim(List<Expression> pre, List<Expression> ev, List<Expression> post);
     Formula buildTransition(Expression pre, Expression post);
 
     String prettyConfigFromSynth(Solution sol);

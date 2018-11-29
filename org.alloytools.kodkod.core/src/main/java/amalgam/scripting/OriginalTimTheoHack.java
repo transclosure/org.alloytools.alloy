@@ -69,36 +69,23 @@ public class OriginalTimTheoHack implements SynthProblem {
         return result;
     }
 
-    // The transition predicate on [s, s'] (minus type annotations, beware)
+    /**
+     * Construct the transition predicate for s --> s2.
+     * @param s The pre-state expression
+     * @param s2 The post-state expression (often s.next, but engine controls "next").
+     * @return
+     */
     @Override
     public Formula buildTransition(Expression s, Expression s2) {
-        List<Expression> pre = new ArrayList<>(3);
-        pre.add(s.join(setting)); pre.add(s.join(canSetCE)); pre.add(s.join(allowedTempCE));
-        List<Expression> post = new ArrayList<>(3);
-        post.add(s2.join(setting)); post.add(s2.join(canSetCE)); post.add(s2.join(allowedTempCE));
-        List<Expression> ev = new ArrayList<>(2);
-        ev.add(s.join(next_p)); ev.add(s.join(next_target));
-        return buildTransitionPrim(pre, ev, post);
+        Expression pretemp = s.join(setting);
+        Expression preCanSet = s.join(canSetCE);
+        Expression preAllowedTemp = s.join(allowedTempCE);
+        Expression posttemp = s2.join(setting);
+        Expression postCanSet = s2.join(canSetCE);
+        Expression postAllowedTemp = s2.join(allowedTempCE);
+        Expression p = s.join(next_p);
+        Expression targ = s.join(next_target);
 
-        // Keeping old formula around for debugging if needed
-            /*return buildTransitionPrim(s.join(setting), s.join(canSetCE), s.join(allowedTempCE),
-                    s.join(next_p), s.join(next_target),
-                    s2.join(setting), s2.join(canSetCE), s2.join(allowedTempCE));*/
-    }
-
-    // This is a major part of the problem definition: the basic, state-atom-free transition function.
-    @Override
-    public Formula buildTransitionPrim(List<Expression> pre, List<Expression> ev, List<Expression> post) {
-        Expression pretemp = pre.get(0);
-        Expression preCanSet = pre.get(1);
-        Expression preAllowedTemp = pre.get(2);
-        Expression posttemp = post.get(0);
-        Expression postCanSet = post.get(1);
-        Expression postAllowedTemp = post.get(2);
-        Expression p = ev.get(0);
-        Expression targ = ev.get(1);
-
-        // is the temp change permitted? (note these expressions don't have a state attached)
         Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp));
         // TEST ANTE: require setting to be an odd number to go through
         //Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp))
@@ -138,13 +125,6 @@ public class OriginalTimTheoHack implements SynthProblem {
     public Set<Relation> helperRelations() {
         Set<Relation> result = new HashSet<>();
         result.add(comfyAt);
-        return result;
-    }
-
-    @Override
-    public Set<Relation> deployableRelationsS() {
-        Set<Relation> result = new HashSet<>();
-        result.add(setting);
         return result;
     }
 
