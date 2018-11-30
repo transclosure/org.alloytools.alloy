@@ -35,7 +35,9 @@ public class CEGISEngine {
     private static Universe universe;
     private static TupleFactory factory;
 
+    //SATFactory.LightSAT4J; //SATFactory.DefaultSAT4J; //SATFactory.MiniSat; //SATFactory.Glucose;
     final static SATFactory incrementalSolver = SATFactory.MiniSat;
+
     final static SATFactory coreSolver = SATFactory.MiniSatProver;
 
     private static void output(Level l, String s) {
@@ -92,8 +94,9 @@ public class CEGISEngine {
         textHandler.setFormatter(new SimpleFormatter());
         logger.addHandler(textHandler);
 
-        //run(new OriginalTimTheoHack(minInt, maxInt));
-        run(new XLockingDoor(minInt, maxInt));
+        run(new OriginalTimTheoHack(minInt, maxInt));
+        run(new XLockingDoor(false));
+        run(new XLockingDoor(true));
     }
 
     SynthProblem problem;
@@ -105,9 +108,11 @@ public class CEGISEngine {
 
     // Infrastructure relations (same for every problem)
     private static Relation state = Relation.unary("State");
-    private static Relation next = Relation.binary("next");
+    private static Relation enext = Relation.binary("next");
     private static Relation first = Relation.unary("first");
     private static Relation last = Relation.unary("last");
+
+    private static final String STR_FIRSTNEXT = "(first . next)";
 
     private Set<Expression> domain() {
         // Sadly, we can't say "Expression.INTS" because that won't expand.
@@ -139,16 +144,16 @@ public class CEGISEngine {
             subs.addAll(problem.structuralAxioms(state));
 
             // This is a concrete trace of the system
-            Formula transition = problem.buildTransition(s, s.join(next));
-            // Consecution from s->s.next for all except s=last.
+            Formula transition = problem.buildTransition(s, s.join(enext));
+            // Consecution from s->s.enext for all except s=last.
             subs.add(transition.forAll(s.oneOf(state.difference(last))));
 
             // Lasso constraints:
             // (1) lone point that last state progresses to (may not progress if finiteness reqd)
             // TODO: should this stutter instead if no progress is possible?
-            Formula loneLoop = last.join(next).lone();
+            Formula loneLoop = last.join(enext).lone();
             // (2) If last does step forward, must obey the transition predicate
-            Formula loopObeys = problem.buildTransition(last, last.join(next));
+            Formula loopObeys = problem.buildTransition(last, last.join(enext));
             subs.add(loneLoop);
             subs.add(loopObeys);
         }
@@ -161,7 +166,7 @@ public class CEGISEngine {
 
         // PROPERTIES: applies to CE and PROXIMAL phases
         // TODO: should we break goals down separately? maybe no need to at first
-        Formula property = Formula.and(problem.goals(state, next)); // TODO: next needs to be "enhanced" next, with lasso
+        Formula property = Formula.and(problem.goals(state, enext)); // TODO: enext needs to be "enhanced" enext, with lasso
         // In COUNTER phase: not in core phase means negate the property to generate a CE
         if(!corePhase) subs.add(property.not());
             // in ROOT phase; asking why did property fail---don't negate
@@ -344,12 +349,12 @@ public class CEGISEngine {
      * @return
      */
     private Set<Formula> fixPreTransitionAsFormula(Solution ce, Expression s, Expression sInFmlas, boolean includeAllNonNegatedPost, Set<Formula> negateThese) {
-        // s is prestate expression (e.g., first.next.next for 3rd state)
+        // s is prestate expression (e.g., first.enext.enext for 3rd state)
         Evaluator eval = new Evaluator(ce.instance());
         Object pre=null, post=null;
         TupleSet pres = eval.evaluate(s);
         for(Tuple t : pres) {pre = t.atom(0);}
-        TupleSet posts = eval.evaluate(s.join(next));
+        TupleSet posts = eval.evaluate(s.join(enext));
         for(Tuple t : posts) {post = t.atom(0);}
         if(pre == null || post == null) throw new RuntimeException("fixTrace: unable to resolve pre/post: "+pres+"; "+posts);
 
@@ -363,12 +368,12 @@ public class CEGISEngine {
         for(Relation r : problem.nondeployableRelations()) {
             subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), domain()));
             if(includeAllNonNegatedPost) // handle last
-                subs.addAll(desugarInUnion(sInFmlas.join(next).join(r), Expression.union(tdata.postValues.get(r)), domain()));
+                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), Expression.union(tdata.postValues.get(r)), domain()));
         }
         for(Relation r : problem.deployableRelations()) {
             subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), domain()));
             if(includeAllNonNegatedPost) // handle last
-                subs.addAll(desugarInUnion(sInFmlas.join(next).join(r), Expression.union(tdata.postValues.get(r)), domain()));
+                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), Expression.union(tdata.postValues.get(r)), domain()));
         }
 
         // One sub-subformula for event components (no post)
@@ -414,7 +419,7 @@ public class CEGISEngine {
         if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
 
         // don't do this: assumes the iteration order matches the true ordering!
-        //for(Tuple nxt : ce.instance().relationTuples().get(next)) {
+        //for(Tuple nxt : ce.instance().relationTuples().get(enext)) {
         Expression s = first;
         // Loop through all except last:
         for(int iState=1;iState<includeStates;iState++) {
@@ -422,7 +427,7 @@ public class CEGISEngine {
             // s prestate in ce, include everything in poststate even if not negated (but only for last state),
             // negate the conjunction of negateThese
             subs.addAll(fixPreTransitionAsFormula(ce, s, s, forceIncludePost, negateThese));
-            s = s.join(next);
+            s = s.join(enext);
         }
         return Formula.and(subs);
     }
@@ -462,7 +467,7 @@ public class CEGISEngine {
                 nextUpper.add(factory.tuple("State" + i, "State" + (i + 1)));
                 nextLower.add(factory.tuple("State" + i, "State" + (i + 1)));
             }
-            // Add "enhanced" next bounds: permit lasso if numStates > 1
+            // Add "enhanced" enext bounds: permit lasso if numStates > 1
             if(includeStates > 1)
                 nextUpper.add(factory.tuple(lastAtom, "State"+i)); // might loop back here
         }
@@ -470,9 +475,9 @@ public class CEGISEngine {
         bounds.boundExactly(first, factory.setOf(factory.tuple("State0")));
         bounds.boundExactly(last, factory.setOf(factory.tuple(lastAtom)));
         if(!nextUpper.isEmpty()) {
-            bounds.bound(next, factory.setOf(nextLower), factory.setOf(nextUpper));
+            bounds.bound(enext, factory.setOf(nextLower), factory.setOf(nextUpper));
         } else {
-            bounds.boundExactly(next, factory.noneOf(2));
+            bounds.boundExactly(enext, factory.noneOf(2));
         }
 
         problem.setBounds(bounds, stateExactly);
@@ -506,11 +511,11 @@ public class CEGISEngine {
         if(num < 1) throw new UnsupportedOperationException("buildStateExpr called with num="+num);
         Expression result = first;
         for(int ii=2;ii<=num;ii++)
-            result = result.join(next);
+            result = result.join(enext);
         return result;
     }
 
-    // Extract the thing being joined onto the end of a first.next.next... expression
+    // Extract the thing being joined onto the end of a first.enext.enext... expression
     private Expression findFinalJoin(Expression e) {
         Expression fjoin = null;
         while(e instanceof BinaryExpression) {
@@ -519,7 +524,7 @@ public class CEGISEngine {
                 fjoin = be.right();
                 e = be.left();
             }
-            else if(be.right().equals(next)) e = be.left();
+            else if(be.right().equals(enext)) e = be.left();
             else break;
         }
         return fjoin;
@@ -554,8 +559,8 @@ public class CEGISEngine {
         if(e.equals(first)) return 1;
         if(e instanceof BinaryExpression) {
             BinaryExpression be = (BinaryExpression) e;
-            if(be.right().equals(next)) return 1 + maxTraceLength(be.left());
-            return maxTraceLength(be.left()); // e.g., first.next.setting
+            if(be.right().equals(enext)) return 1 + maxTraceLength(be.left());
+            return maxTraceLength(be.left()); // e.g., first.enext.setting
         }
         return 0;
     }
@@ -687,7 +692,7 @@ public class CEGISEngine {
             Set<Formula> reasons = new HashSet(why.proof().highLevelCore().keySet());
             coreMinTotal += (System.currentTimeMillis() - beforeCore1);
             // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
-            Predicate isAPhi = f -> f.toString().equals(Formula.and(problem.goals(state, next)).toString()); // TODO: next needs to be "enhanced next", with lasso
+            Predicate isAPhi = f -> f.toString().equals(Formula.and(problem.goals(state, enext)).toString()); // TODO: enext needs to be "enhanced enext", with lasso
             reasons.removeIf(isAPhi);
             output(Level.INFO, "PROXIMAL CAUSE: "+reasons);
 
@@ -775,7 +780,7 @@ public class CEGISEngine {
                 }
                 localCause.removeAll(toRemove);
 
-                output(Level.FINER, "BLAME core (post filter): "+localCause);
+                output(Level.INFO, "BLAME core (post filter): "+localCause);
 
                 // If filtered core is empty, we've found a contradiction in the spec.
                 if(localCause.isEmpty()) {
@@ -797,7 +802,7 @@ public class CEGISEngine {
                 }
 
 
-                    Set<Formula> localCauseRewritten = new HashSet<>();
+                Set<Formula> localCauseRewritten = new HashSet<>();
                 for(Formula f : localCause) {
                     if(maxTraceLength(f) != 1) throw new RuntimeException("blame stage returned non-causal core fmla: "+f);
                     localCauseRewritten.add(rewriteStateLiteralDepth(f, mtl-1));
@@ -807,14 +812,19 @@ public class CEGISEngine {
 
                 // Finalize local causes that are about the initial state; add others to reasons and iterate
                 reasons.clear();
+                // Make sure there's no non-trace literals in delayedreasons (e.g., event literals)
+                // sadly .equals on the fmla isnt enough, so pretend and use .toString()
+                Predicate<Formula> isntTraceLiteral = f -> !isTraceLiteral(f);
+                delayedReasons.removeIf(isntTraceLiteral);
                 reasons.addAll(delayedReasons); // re-add reasons that happened earlier in the trace than current transition
                 for(Formula f: localCauseRewritten) {
                     // I can't believe I'm doing this...
-                    boolean needsMore = f.toString().contains("(first . next)");
+                    boolean needsMore = f.toString().contains(STR_FIRSTNEXT);
                     if(!needsMore) initialReasons.add(f);
                     else reasons.add(removeDoubleNegation(f));
                 }
-            }
+            } // continue moving toward true root cause
+
             output(Level.INFO, "Final blame set in initial state:"+initialReasons);
             Formula initialStateCause = Formula.and(initialReasons);
 

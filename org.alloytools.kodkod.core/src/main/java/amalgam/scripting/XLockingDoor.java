@@ -20,12 +20,22 @@ import java.util.*;
  */
 public class XLockingDoor implements SynthProblem {
 
-    private int minInt;
-    private int maxInt;
+    private boolean flipSignOfUnlocked;
 
-    XLockingDoor(int minInt, int maxInt) {
-        this.minInt = minInt;
-        this.maxInt = maxInt;
+    /**
+     * Initialize an instance of this problem.
+     * @param flipSignOfUnlocked Different solvers/computers may find different first initial configurations.
+     *                         Since we want this to be a *TEST*, we need to make sure CEGIS doesn't terminate
+     *                         after one iteration (as it will if the door starts unlocked).
+     *                         Flip the value of this boolean (or try both) to make sure this test actually tests.
+     */
+    XLockingDoor(boolean flipSignOfUnlocked) {
+        this.flipSignOfUnlocked = flipSignOfUnlocked;
+    }
+
+    Expression isUnlocked() {
+        if(!flipSignOfUnlocked) return bTrue; // unlocked? yes
+        return bFalse;  // !unlocked? no
     }
 
     // Event relations. Must contain "EVENT_"
@@ -55,7 +65,7 @@ public class XLockingDoor implements SynthProblem {
 
     @Override
     public Formula buildTransition(Expression s, Expression s2) {
-        Formula islocked = bFalse.in(s.join(doorUnlocked));
+        Formula islocked = isUnlocked().in(s.join(doorUnlocked)).not();
         Formula allowed = islocked.not().or(bTrue.in(s.join(doorOpen)));
         // If unlocked or open, allow the user to do whatever
         Formula transition1 = allowed.implies(s2.join(doorOpen).eq(s.join(next_door)));
@@ -115,7 +125,9 @@ public class XLockingDoor implements SynthProblem {
     @Override
     public String prettyConfigFromSynth(Solution sol) {
         if(sol.sat()) {
-            return "Door: " + sol.instance().relationTuples().get(doorOpen)+" Locked: "+sol.instance().relationTuples().get(doorUnlocked);
+            return "Door Open: " + sol.instance().relationTuples().get(doorOpen)+
+                    " Unlocked: "+sol.instance().relationTuples().get(doorUnlocked)+
+                    " Unlocked meaning flipped?: "+flipSignOfUnlocked;
         } else {
             return "UNSAT";
         }
@@ -148,6 +160,6 @@ public class XLockingDoor implements SynthProblem {
 
     @Override
     public String desc() {
-        return "door open? door locked? once closed+locked can't be opened or unlocked. X property. infer unlock to start.";
+        return "door open? door locked? once closed+locked can't be opened or unlocked. X property. infer unlock to start. flipped unlocked meaning: "+flipSignOfUnlocked;
     }
 }
