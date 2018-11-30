@@ -72,6 +72,19 @@ public class CEGISEngine {
       // TODO likely more checks to do here, but the interface/API are still very fluid, so not spending much time on it yet
     }
 
+    public static void run(SynthProblem problem) throws CEGISException {
+        CEGISEngine cegisSolver = new CEGISEngine(problem);
+
+        long startTime = System.currentTimeMillis();
+        output("\n\n===================================================================\nRunning problem: "+problem.desc());
+
+        output(cegisSolver.cegis());
+        output("Total time (ms): "+(System.currentTimeMillis()-startTime)+
+                ".\nTranslation: "+cegisSolver.transtotal+
+                ",\nsolve: "+cegisSolver.solvetotal+
+                ",\ncore minimization (note vulnerable to GC etc.): "+cegisSolver.coreMinTotal);
+    }
+
     public static void main(String[] args) throws CEGISException, IOException {
         LogManager.getLogManager().reset(); // disable default handler
         logger.setLevel(Level.ALL);
@@ -79,15 +92,8 @@ public class CEGISEngine {
         textHandler.setFormatter(new SimpleFormatter());
         logger.addHandler(textHandler);
 
-        SynthProblem problem = new OriginalTimTheoHack(minInt, maxInt);
-        CEGISEngine cegisSolver = new CEGISEngine(problem);
-
-        long startTime = System.currentTimeMillis();
-        output(cegisSolver.cegis());
-        output("Total time (ms): "+(System.currentTimeMillis()-startTime)+
-                ".\nTranslation: "+cegisSolver.transtotal+
-                ",\nsolve: "+cegisSolver.solvetotal+
-                ",\ncore minimization (note vulnerable to GC etc.): "+cegisSolver.coreMinTotal);
+       // run(new OriginalTimTheoHack(minInt, maxInt));
+        run(new XUnsat(minInt, maxInt));
     }
 
     SynthProblem problem;
@@ -145,7 +151,7 @@ public class CEGISEngine {
 
         // PROPERTIES: applies to CE and PROXIMAL phases
         // TODO: should we break goals down separately? maybe no need to at first
-        Formula property = Formula.and(problem.goals(state));
+        Formula property = Formula.and(problem.goals(state, next)); // TODO: next needs to be "enhanced" next, with lasso
         // In COUNTER phase: not in core phase means negate the property to generate a CE
         if(!corePhase) subs.add(property.not());
             // in ROOT phase; asking why did property fail---don't negate
@@ -185,7 +191,8 @@ public class CEGISEngine {
             }
             rows.add(Expression.product(cols));
         }
-        return Expression.union(rows);
+        if(!rows.isEmpty()) return Expression.union(rows);
+        return Expression.NONE; // Expression.union requires non-empty set
     }
 
 
@@ -609,7 +616,9 @@ public class CEGISEngine {
         int loopCount = 0;
         Bounds synthbounds = buildBounds(1);
         // Start with the basic constraints (may be some a priori limitations on what is a well-formed constraint)
-        Formula synthformula = Formula.and(problem.additionalInitialConstraintsP1P2(first));
+        // as well as structural constraints (don't produce a malformed cfg)
+        Formula synthformula = Formula.and(problem.additionalInitialConstraintsP1P2(first))
+                          .and(Formula.and(problem.structuralAxioms(state)));
 
         while(loopCount++<loopLimit) {
             output(Level.INFO, "------------------------- Loop:"+loopCount+"-------------------------");
@@ -661,7 +670,7 @@ public class CEGISEngine {
             Set<Formula> reasons = new HashSet(why.proof().highLevelCore().keySet());
             coreMinTotal += (System.currentTimeMillis() - beforeCore1);
             // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
-            Predicate isAPhi = f -> f.toString().equals(Formula.and(problem.goals(state)).toString());
+            Predicate isAPhi = f -> f.toString().equals(Formula.and(problem.goals(state, next)).toString()); // TODO: next needs to be "enhanced next", with lasso
             reasons.removeIf(isAPhi);
             output(Level.INFO, "PROXIMAL CAUSE: "+reasons);
 

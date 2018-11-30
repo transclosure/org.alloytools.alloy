@@ -21,14 +21,16 @@ public interface SynthProblem {
     Set<Relation> nondeployableRelations();
     /** relations that describe transition events (+1 arity for leftmost state column) */
     Set<Relation> eventRelations();
-    /** Constants. E.g., personA, personB, fileX, etc. (should be unary) */
+    /** Constants. E.g., personA, personB, fileX, etc. (should be unary)
+        NOTE: atom name given by bounds must be equal to the name of the relation */
     Set<Relation> constantSingletonRelations();
 
     // Constraints, axioms, etc.
 
     /** FOL translation of the temporal goals we have. These should use relations with a leftmost state column.
-        The "state" parameter gives the State relation (used for all and exists quantification for G and F etc.) */
-    Set<Formula> goals(Relation stateDomain);
+        The "state" parameter gives the State relation (used for all and exists quantification for G and F etc.)
+        The "enext" parameter gives the enhanced next relation (next with lasso) */
+    Set<Formula> goals(Relation stateDomain, Expression enext);
 
     /** Structure, like "this relation is a function" or "A is a subtype of B"
         The "state" parameter gives an expression to construct the fmlas around (usually the State relation) */
@@ -54,4 +56,7 @@ public interface SynthProblem {
         or many more for counterexample-generation.
         The problem object has control over what gets provided as bounds and what gets provided as constraints. */
     void setBounds(Bounds bounds, Collection<Tuple> stateExactly);
+
+    /** Simple string description of the problem, for display and logging */
+    String desc();
 }

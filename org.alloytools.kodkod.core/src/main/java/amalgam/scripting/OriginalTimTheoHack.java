@@ -46,7 +46,7 @@ public class OriginalTimTheoHack implements SynthProblem {
     private static Relation allowedTemp = Relation.binary("DCONF_allowedTemp");
 
     @Override
-    public Set<Formula> goals(Relation stateDomain) {
+    public Set<Formula> goals(Relation stateDomain, Expression enext) {
         Variable p = Variable.unary("p");
         Variable s = Variable.unary("s");
         Formula Gcomfy = s.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))).forAll(s.oneOf(stateDomain));
@@ -212,5 +212,10 @@ public class OriginalTimTheoHack implements SynthProblem {
         bounds.boundExactly(comfyAt, factory.setOf(comfyAts));
         bounds.boundExactly(personA, factory.setOf(factory.tuple("PersonA")));
         bounds.boundExactly(personB, factory.setOf(factory.tuple("PersonB")));
+    }
+
+    @Override
+    public String desc() {
+        return "Original canSet/allowed with backdoor";
     }
 }
