@@ -199,7 +199,7 @@ public class CEGISEngine {
     private Expression extractSynthExpression(Solution synthSol, Relation synthRel) {
         Set<Expression> rows = new HashSet<>();
         for(Tuple t : synthSol.instance().relationTuples().get(synthRel)) {
-            Set<Expression> cols = new HashSet<>();
+            List<Expression> cols = new ArrayList<>(t.arity());
             // Leftmost column is state
             if(!t.atom(0).toString().startsWith("State")) throw new RuntimeException("extractSynthExpression: "+t);
             for(int ii = 1; ii<t.arity(); ii++) {

@@ -34,6 +34,13 @@ public class RoadsAndRoutes implements SynthProblem {
         this.numCities = numGood + numBad;
         this.numGood = numGood;
         this.numBad = numBad;
+
+        for(int i = 0; i<numGood; i++) {
+            cities.add(Relation.unary("Good"+i));
+        }
+        for(int i = 0; i<numBad; i++) {
+            cities.add(Relation.unary("Bad"+i));
+        }
     }
 
 
@@ -45,8 +52,11 @@ public class RoadsAndRoutes implements SynthProblem {
     private static Relation good = Relation.unary("GoodCity");
     private static Relation bad = Relation.unary("BadCity");
 
+    // Constants: individual names for the cities
+    private static Set<Relation> cities = new HashSet<>();
+
     // Deployable configuration: we have power over the *initial* value of these
-    private static Relation roads = Relation.binary("DCONF_roads");
+    private static Relation roads = Relation.nary("DCONF_roads", 3);
     private static Relation location = Relation.binary("DCONF_location");
 
     @Override
@@ -62,7 +72,8 @@ public class RoadsAndRoutes implements SynthProblem {
                 .forAll(gc.oneOf(good));
         // Bad cities never visited
         Formula prop2 = s1.join(location).eq(bc).not()
-                .forAll(s1.oneOf(stateDomain));
+                .forAll(s1.oneOf(stateDomain))
+                .forAll(bc.oneOf(bad));
         return Collections.singleton(prop1.and(prop2)); // immutable
     }
 
@@ -74,8 +85,7 @@ public class RoadsAndRoutes implements SynthProblem {
 
     @Override
     public Formula buildTransition(Expression s, Expression s2) {
-
-        Formula validMove = s.join(next_city).in(s.join(location).join(roads));
+        Formula validMove = s.join(next_city).in(s.join(location).join(s.join(roads)));
         Formula transition1 = validMove.implies(s2.join(location).eq(s.join(next_city)));
         Formula transition2 = validMove.not().implies(s2.join(location).eq(s.join(location)));
         Formula roadsConstant = s2.join(roads).eq(s.join(roads));
@@ -122,8 +132,7 @@ public class RoadsAndRoutes implements SynthProblem {
 
     @Override
     public Set<Relation> constantSingletonRelations() {
-        Set<Relation> result = new HashSet<>();
-        return result;
+        return cities;
     }
 
     @Override
