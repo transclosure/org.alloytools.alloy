@@ -700,29 +700,29 @@ public class CEGISEngine {
             // It's also possible to get cores that point to things in the same state. Because of this, we create a problem
             // that fixes the prestate literals but only the (negated) reason literals in the poststate.
 
-            /////////////////////
-            // Finally, because the set of reasons may involve multiple states, we should be (TODO: not yet done!)
-            // starting with the latest reasons, re-sorting every iteration. I believe it's OK to combine reasons
-            //  from the same state.
-            // Because this isn't done yet, confirm that all reasons have the same mtl:
-            int sharedmtl = 0;
-            for(Formula f: reasons) {
-                if(sharedmtl == 0) sharedmtl = maxTraceLength(f);
-                else if(sharedmtl != maxTraceLength(f))
-                    throw new UnsupportedOperationException("Proximal cause contained literals with differing state depth (enhancement needed to support more complex properties): "+reasons);
-            }
-            /////////////////////
-
             // TODO: separate solver, single step per invocation? want push/pop!
 
             Set<Formula> initialReasons = new HashSet<>();
+
             // until all blame obligations are discharged, keep moving toward initial state
             int lastMTL = Integer.MAX_VALUE;
             while(!reasons.isEmpty()) {
                 output(Level.INFO, "Deriving blame for: "+reasons+"; mtl: "+maxTraceLength(reasons));
-                int mtl = maxTraceLength(reasons);
 
-                // Prevent looping forever in case the blame process is not making progress
+                // We have a set of reasons to derive root-cause for.
+                // Because this set of reasons may involve multiple states, we should be starting with the latest
+                // reasons, re-sorting every iteration. (It should be OK to combine reasons from the same state.)
+                // If we don't do this, we'll get unsound results from looking at individual pre/post state windows.
+                int mtl = maxTraceLength(reasons);
+                Set<Formula> delayedReasons = new HashSet<>();
+                for(Formula f: reasons) {
+                    int fmtl = maxTraceLength(f);
+                    if(fmtl < mtl) delayedReasons.add(f);
+                }
+                reasons.removeAll(delayedReasons); // Obligation to re-add this set at end
+                if(!delayedReasons.isEmpty()) output(Level.INFO, "Delaying finding root causes for: "+delayedReasons);
+
+                // Prevent looping forever in case the blame process is not making progress; should always reduce mtl
                 if(mtl >= lastMTL) {
                     throw new RuntimeException("Potentially malformed or anti-causal transition relation. Reasons: "+reasons);
                 } else {
@@ -758,8 +758,8 @@ public class CEGISEngine {
                 HashSet<Formula> localCause = new HashSet<>(blame.proof().highLevelCore().keySet());
                 coreMinTotal += (System.currentTimeMillis() - beforeCore2);
 
-                output(Level.FINER, "BLAME core (all fmlas, NOT rewritten): "+localCause);
-                System.out.println("BLAME core (all fmlas, NOT rewritten): "+localCause);
+                output(Level.FINER, "BLAME core (all MTL fmlas, NOT rewritten): "+localCause);
+                System.out.println("BLAME core (all MTL fmlas, NOT rewritten): "+localCause);
                 // Strip out local causes that aren't trace literals
                 HashSet<Formula> toRemove = new HashSet<>();
                 for(Formula f: localCause) {
@@ -806,6 +806,7 @@ public class CEGISEngine {
 
                 // Finalize local causes that are about the initial state; add others to reasons and iterate
                 reasons.clear();
+                reasons.addAll(delayedReasons); // re-add reasons that happened earlier in the trace than current transition
                 for(Formula f: localCauseRewritten) {
                     // I can't believe I'm doing this...
                     boolean needsMore = f.toString().contains("(first . next)");
