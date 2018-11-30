@@ -10,16 +10,20 @@ import java.util.*;
 
 /**
  * Unsatisfiable synthesis problem involving an "X" safety property.
- * One config var: is the door open or closed?
- * We control the initial value of the door, but people can open/close it at will.
- * Property: G(open -> X closed)   ...which is entirely out of our control.
+ * Two config vars:
+ *   (1) is the door open or closed?
+ *   (2) is the door locked?
+ * People can (try to) open/close the door at will.
+ * Once the door is closed, if it's locked, it can't be reopened or unlocked.
+ * Property: G(trying-to-open -> X opened)
+ * Expect to deduce door must be unlocked.
  */
-public class XUnsat implements SynthProblem {
+public class XLockingDoor implements SynthProblem {
 
     private int minInt;
     private int maxInt;
 
-    XUnsat(int minInt, int maxInt) {
+    XLockingDoor(int minInt, int maxInt) {
         this.minInt = minInt;
         this.maxInt = maxInt;
     }
@@ -28,7 +32,8 @@ public class XUnsat implements SynthProblem {
     private static Relation next_door = Relation.binary("EVENT_next_door");
 
     // Deployable configuration: we have power over the *initial* value of these
-    private static Relation door = Relation.binary("DCONF_door");
+    private static Relation doorOpen = Relation.binary("DCONF_doorOpen");
+    private static Relation doorUnlocked = Relation.binary("DCONF_doorUnlocked");
 
     // Booleans
     private static Relation bTrue = Relation.unary("TRUE");
@@ -37,7 +42,8 @@ public class XUnsat implements SynthProblem {
     @Override
     public Set<Formula> goals(Relation stateDomain, Expression enext) {
         Variable s = Variable.unary("s");
-        Formula prop = bTrue.in(s.join(door)).implies(bFalse.in(s.join(enext).join(door))).forAll(s.oneOf(stateDomain));
+        // If the user is trying to open the door, it'l be open in next state
+        Formula prop = bTrue.in(s.join(next_door)).implies(bTrue.in(s.join(enext).join(doorOpen))).forAll(s.oneOf(stateDomain));
         return Collections.singleton(prop); // immutable
     }
 
@@ -49,14 +55,26 @@ public class XUnsat implements SynthProblem {
 
     @Override
     public Formula buildTransition(Expression s, Expression s2) {
-        Formula transition = s2.join(door).eq(s.join(next_door));
-        return transition;
+        Formula islocked = bFalse.in(s.join(doorUnlocked));
+        Formula allowed = islocked.not().or(bTrue.in(s.join(doorOpen)));
+        // If unlocked or open, allow the user to do whatever
+        Formula transition1 = allowed.implies(s2.join(doorOpen).eq(s.join(next_door)));
+        // If locked and closed, nothing changes
+        Formula transition2 = allowed.not().implies(s2.join(doorOpen).eq(s.join(doorOpen)));
+        // Locked/Unlocked can't be changed
+        Formula lockedConstant = s2.join(doorUnlocked).eq(s.join(doorUnlocked));
+        return transition1.and(transition2).and(lockedConstant);
     }
 
     @Override
     public Set<Formula> structuralAxioms(Expression state) {
         Set<Formula> subs = new HashSet<>();
-        subs.add(door.function(state, bTrue.union(bFalse)));
+        subs.add(doorOpen.function(state, bTrue.union(bFalse)));
+        subs.add(doorUnlocked.function(state, bTrue.union(bFalse)));
+
+        // Event is also functional.
+        // TODO very easy to forget this (I did) and then get told "Error: Root-cause extraction step returned SAT for transition; expected unsat."
+        subs.add(next_door.function(state, bTrue.union(bFalse)));
         return subs;
     }
 
@@ -69,7 +87,7 @@ public class XUnsat implements SynthProblem {
     @Override
     public Set<Relation> deployableRelations() {
         Set<Relation> result = new HashSet<>();
-        result.add(door);
+        result.add(doorOpen); result.add(doorUnlocked);
         return result;
     }
 
@@ -97,7 +115,7 @@ public class XUnsat implements SynthProblem {
     @Override
     public String prettyConfigFromSynth(Solution sol) {
         if(sol.sat()) {
-            return "Door: " + sol.instance().relationTuples().get(door);
+            return "Door: " + sol.instance().relationTuples().get(doorOpen)+" Locked: "+sol.instance().relationTuples().get(doorUnlocked);
         } else {
             return "UNSAT";
         }
@@ -109,16 +127,20 @@ public class XUnsat implements SynthProblem {
 
         List<Tuple> next_doorUpper = new ArrayList<>();
         List<Tuple> doorUpper = new ArrayList<>();
+        List<Tuple> lockedUpper = new ArrayList<>();
 
         for(Tuple st: stateExactly) {
             next_doorUpper.add(st.product(factory.tuple("TRUE")));
             next_doorUpper.add(st.product(factory.tuple("FALSE")));
             doorUpper.add(st.product(factory.tuple("TRUE")));
             doorUpper.add(st.product(factory.tuple("FALSE")));
+            lockedUpper.add(st.product(factory.tuple("TRUE")));
+            lockedUpper.add(st.product(factory.tuple("FALSE")));
 
         }
 
-        bounds.bound(door, factory.setOf(doorUpper));
+        bounds.bound(doorUnlocked, factory.setOf(lockedUpper));
+        bounds.bound(doorOpen, factory.setOf(doorUpper));
         bounds.bound(next_door, factory.setOf(next_doorUpper));
         bounds.boundExactly(bTrue, factory.setOf(factory.tuple("TRUE")));
         bounds.boundExactly(bFalse, factory.setOf(factory.tuple("FALSE")));
@@ -126,6 +148,6 @@ public class XUnsat implements SynthProblem {
 
     @Override
     public String desc() {
-        return "door open/close with open->Xclosed. unsat.";
+        return "door open? door locked? once closed+locked can't be opened or unlocked. X property. infer unlock to start.";
     }
 }

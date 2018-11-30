@@ -92,8 +92,8 @@ public class CEGISEngine {
         textHandler.setFormatter(new SimpleFormatter());
         logger.addHandler(textHandler);
 
-        run(new OriginalTimTheoHack(minInt, maxInt));
-        run(new XUnsat(minInt, maxInt));
+        //run(new OriginalTimTheoHack(minInt, maxInt));
+        run(new XLockingDoor(minInt, maxInt));
     }
 
     SynthProblem problem;
@@ -742,11 +742,12 @@ public class CEGISEngine {
                 Set<Formula> blameTransitionFormula = fixPreTransitionAsFormula(ce, buildStateExpr(mtl-1), first,false, rewrittenReasons);
 
                 Bounds blamebounds = buildBounds(2); // include ONLY TWO STATES
+                //System.out.println("BTF: "+blameTransitionFormula);
                 Solution blame = execNonincrementalCE(blameCEFormula.and(Formula.and(blameTransitionFormula)), blamebounds);
                 stats(blame, CEGISPHASE.ROOT);
                 if(blame.sat()) {
                     output(Level.INFO, "\n"+blame.instance().relationTuples());
-                    return "Error: counterexample-blame step returned SAT for property on CE trace.";
+                    return "Error: Root-cause extraction step returned SAT for transition; expected unsat.";
                 }
 
                 // HybridStrategy is producing vastly non-minimal cores on Theo+hack. Use RCE to get guaranteed minimum.
