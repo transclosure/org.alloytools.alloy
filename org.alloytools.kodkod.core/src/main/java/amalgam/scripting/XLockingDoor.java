@@ -9,7 +9,7 @@ import kodkod.instance.TupleFactory;
 import java.util.*;
 
 /**
- * Unsatisfiable synthesis problem involving an "X" safety property.
+ * Synthesis problem involving an "X" safety property.
  * Two config vars:
  *   (1) is the door open or closed?
  *   (2) is the door locked?

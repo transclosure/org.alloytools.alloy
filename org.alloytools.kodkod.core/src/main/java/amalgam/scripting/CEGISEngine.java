@@ -97,6 +97,7 @@ public class CEGISEngine {
         run(new OriginalTimTheoHack(minInt, maxInt));
         run(new XLockingDoor(false));
         run(new XLockingDoor(true));
+        run(new RoadsAndRoutes(5, 5));
     }
 
     SynthProblem problem;
