@@ -177,6 +177,10 @@ public class RoadsAndRoutes implements SynthProblem {
             stateSet.add(st);
         }
 
+        for(Relation r : cities) {
+            bounds.boundExactly(r, factory.setOf(factory.tuple(r.name())));
+        }
+
         bounds.boundExactly(city, factory.setOf(cityExact));
         bounds.boundExactly(good, factory.setOf(goodExact));
         bounds.boundExactly(bad, factory.setOf(badExact));

@@ -97,7 +97,7 @@ public class CEGISEngine {
         run(new OriginalTimTheoHack(minInt, maxInt));
         run(new XLockingDoor(false));
         run(new XLockingDoor(true));
-        run(new RoadsAndRoutes(5, 5));
+        //run(new RoadsAndRoutes(5, 5));
     }
 
     SynthProblem problem;
@@ -208,7 +208,12 @@ public class CEGISEngine {
             rows.add(Expression.product(cols));
         }
         if(!rows.isEmpty()) return Expression.union(rows);
-        return Expression.NONE; // Expression.union requires non-empty set
+
+        // No rows but Expression.union requires non-empty set. Need to construct a NONE expression of correct arity.
+        Expression none = Expression.NONE; // 0th column was state; start for 1th column
+        for(int ii=2;ii<synthRel.arity();ii++) // for 2th ++ column
+            none = none.product(Expression.NONE);
+        return none;
     }
 
 
