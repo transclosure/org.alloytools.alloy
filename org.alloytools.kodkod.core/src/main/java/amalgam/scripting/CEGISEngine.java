@@ -92,7 +92,7 @@ public class CEGISEngine {
         textHandler.setFormatter(new SimpleFormatter());
         logger.addHandler(textHandler);
 
-       // run(new OriginalTimTheoHack(minInt, maxInt));
+        run(new OriginalTimTheoHack(minInt, maxInt));
         run(new XUnsat(minInt, maxInt));
     }
 
@@ -132,7 +132,7 @@ public class CEGISEngine {
         Variable s = Variable.unary("s");
         Set<Formula> subs = new HashSet<>();
 
-        // STRUCTURAL CONSTRAINTS and TRANSITION SEMANTICS
+        // STRUCTURAL CONSTRAINTS and TRANSITION SEMANTICS: doesn't apply for proximal-cause generation
         if(!corePhase || !corePhasePhi) {
             // setting, next_p, next_target relations are functional
             // the other config settings are not (might imagine NOBODY being allowed to change temp in a state)
@@ -140,7 +140,17 @@ public class CEGISEngine {
 
             // This is a concrete trace of the system
             Formula transition = problem.buildTransition(s, s.join(next));
+            // Consecution from s->s.next for all except s=last.
             subs.add(transition.forAll(s.oneOf(state.difference(last))));
+
+            // Lasso constraints:
+            // (1) lone point that last state progresses to (may not progress if finiteness reqd)
+            // TODO: should this stutter instead if no progress is possible?
+            Formula loneLoop = last.join(next).lone();
+            // (2) If last does step forward, must obey the transition predicate
+            Formula loopObeys = problem.buildTransition(last, last.join(next));
+            subs.add(loneLoop);
+            subs.add(loopObeys);
         }
 
         // ASSUMPTIONS: applies to CE generation only, not core phases
@@ -440,20 +450,27 @@ public class CEGISEngine {
         // TODO: add lasso cycle point as another singleton unary relation, require transition (in fmlas)
         // if make non-exact, be sure to add containment axioms
         List<Tuple> stateExactly = new ArrayList<>();
-        List<Tuple> nextExactly = new ArrayList<>();
+        List<Tuple> nextUpper = new ArrayList<>();
+        List<Tuple> nextLower = new ArrayList<>();
+
+        String lastAtom = "State"+(includeStates-1);
 
         // Bound the state infrastructure, but defer the rest to the problem
         for(int i=0;i<includeStates;i++) {
             stateExactly.add(factory.tuple("State" + i));
             if (i < includeStates - 1) {
-                nextExactly.add(factory.tuple("State" + i, "State" + (i + 1)));
+                nextUpper.add(factory.tuple("State" + i, "State" + (i + 1)));
+                nextLower.add(factory.tuple("State" + i, "State" + (i + 1)));
             }
+            // Add "enhanced" next bounds: permit lasso if numStates > 1
+            if(includeStates > 1)
+                nextUpper.add(factory.tuple(lastAtom, "State"+i)); // might loop back here
         }
         bounds.boundExactly(state, factory.setOf(stateExactly));
         bounds.boundExactly(first, factory.setOf(factory.tuple("State0")));
-        bounds.boundExactly(last, factory.setOf(factory.tuple("State"+(includeStates-1))));
-        if(!nextExactly.isEmpty()) {
-            bounds.boundExactly(next, factory.setOf(nextExactly));
+        bounds.boundExactly(last, factory.setOf(factory.tuple(lastAtom)));
+        if(!nextUpper.isEmpty()) {
+            bounds.bound(next, factory.setOf(nextLower), factory.setOf(nextUpper));
         } else {
             bounds.boundExactly(next, factory.noneOf(2));
         }
