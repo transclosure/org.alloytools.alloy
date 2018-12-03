@@ -135,8 +135,8 @@ public class CEGISEngine {
             Solution why = execNonincrementalCE(whyCEFormula.and(whyTFormula), cebounds);
             stats(why, CEGISPHASE.PROXIMAL);
             if(why.sat()) {
-                output(Level.INFO, "\n"+why.instance());
-                return "Error: counterexample-why step returned SAT for property on CE trace.";
+                output(Level.INFO, "\nSAT (expected unsat): "+why.instance().relationTuples());
+                return "Error: proximal-cause extraction step returned SAT for property on CE trace.";
             }
             // HybridStrategy is giving non-minimal cores, so use RCE
             long beforeCore1 = System.currentTimeMillis();
@@ -145,6 +145,7 @@ public class CEGISEngine {
             coreMinTotal += (System.currentTimeMillis() - beforeCore1);
             // Sadly, .equals on the fmla isnt enough, so pretend and use .toString()
             // Note we need to check *every goal separately*, because the core may remove un-needed conjuncts in the overall /\goals.
+            output(Level.INFO, "(Pre-filter) PROXIMAL CAUSE: "+reasons);
             Set<String> goalStrings = new HashSet<>();
             for(Formula g : problem.goals(state, enext)) {
                 goalStrings.add(g.toString());
@@ -169,8 +170,19 @@ public class CEGISEngine {
             // TODO: separate solver, single step per invocation? want push/pop!
 
             Set<Formula> initialReasons = new HashSet<>();
+            // First, remove any initial-state reasons (we don't need to trace them back)
+            for(Formula f: reasons) {
+                // I can't believe I'm doing this... TODO also: duplicate code with end of loop below
+                boolean needsMore = f.toString().contains(STR_FIRSTNEXT);
+                if(!needsMore) initialReasons.add(f);
+            }
+            if(!initialReasons.isEmpty()) output(Level.INFO, "Some reasons already initial, removing them: "+initialReasons);
+            reasons.removeAll(initialReasons);
+            // Keep only if it's a trace literal (otherwise may loop forever)
+            Predicate<Formula> isntTraceLiteral = f -> !isTraceLiteral(f);
+            initialReasons.removeIf(isntTraceLiteral);
 
-            // until all blame obligations are discharged, keep moving toward initial state
+            // Now iterate until all blame obligations are discharged. Keep moving toward initial state
             int lastMTL = Integer.MAX_VALUE;
             while(!reasons.isEmpty()) {
                 output(Level.INFO, "Deriving blame for: "+reasons+"; mtl: "+maxTraceLength(reasons));
@@ -186,7 +198,10 @@ public class CEGISEngine {
                     if(fmtl < mtl) delayedReasons.add(f);
                 }
                 reasons.removeAll(delayedReasons); // Obligation to re-add this set at end
-                if(!delayedReasons.isEmpty()) output(Level.INFO, "Delaying finding root causes for: "+delayedReasons);
+                if(!delayedReasons.isEmpty()) {
+                    output(Level.INFO, "Delaying finding root causes for: " + delayedReasons);
+                    output(Level.INFO, "Immediate reasons to justify: " + reasons + "; mtl: " + maxTraceLength(reasons));
+                }
 
                 // Prevent looping forever in case the blame process is not making progress; should always reduce mtl
                 if(mtl >= lastMTL) {
@@ -275,7 +290,6 @@ public class CEGISEngine {
                 reasons.clear();
                 // Make sure there's no non-trace literals in delayedreasons (e.g., event literals)
                 // sadly .equals on the fmla isnt enough, so pretend and use .toString()
-                Predicate<Formula> isntTraceLiteral = f -> !isTraceLiteral(f);
                 delayedReasons.removeIf(isntTraceLiteral);
                 reasons.addAll(delayedReasons); // re-add reasons that happened earlier in the trace than current transition
                 for(Formula f: localCauseRewritten) {

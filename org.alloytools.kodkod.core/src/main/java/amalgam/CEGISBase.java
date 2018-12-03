@@ -86,8 +86,14 @@ public class CEGISBase {
         Set<Expression> result = new HashSet<>();
 
         // For everything in the upper bound of r, find its associated expression. If none found, problem is ill-formed.
+        // Don't add duplicates. We really want to iterate over bounds.upperbound(r).dropLeftColumn...
+        Set<String> seen = new HashSet<>();
         for(Tuple t : bounds.upperBound(r)) {
             result.add(tupleToExpressionSkipLeftmost(t));
+            Expression toAdd = tupleToExpressionSkipLeftmost(t);
+            if(!seen.contains(toAdd.toString()))
+                result.add(toAdd);
+            seen.add(toAdd.toString());
         }
 
         return result;
@@ -168,6 +174,24 @@ public class CEGISBase {
             subs.addAll(fixPreTransitionAsFormula(ce, bounds, s, s, forceIncludePost, negateThese));
             s = s.join(enext);
         }
+
+        /////////////////////////////////////////////////////////////////////
+        // If we're doing a lasso, need to make sure the loop remains the same. Without this, we could get a CE:
+        // S0->S1->S2->S1, but end up allowing here: S0->S1->S2->S0. This is because the final enext is not exact-bounded.
+
+        int cycleIndex = 0;
+        for(Tuple t : ce.instance().relationTuples().get(enext)) {
+            int pre = Integer.parseInt(t.atom(0).toString().replace("State", ""));
+            int post = Integer.parseInt(t.atom(1).toString().replace("State", ""));
+            if(pre >= post) { // found cycle index!
+                cycleIndex = post;
+                break;
+            }
+        }
+        Formula lastCycle = last.join(enext).eq(buildStateExpr(cycleIndex+1)); // cycleIndex is 0 based, buildStateExpr is 1 based
+        //System.out.println("lastCycle="+lastCycle);
+        subs.add(lastCycle);
+
         return Formula.and(subs);
     }
 
