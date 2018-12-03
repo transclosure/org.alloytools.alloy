@@ -45,7 +45,6 @@ public class CEGISEngine {
 
     /**
      * TODO
-     * @param problem
      * @throws CEGISException
      */
     public void run() throws CEGISException {
@@ -87,7 +86,7 @@ public class CEGISEngine {
      * TODO
      * @return
      */
-    private String cegis() {
+    private String cegis() throws CEGISException {
         int loopCount = 0;
         Bounds synthbounds = base.buildBounds(1);
         // Start with the basic constraints (may be some a priori limitations on what is a well-formed constraint)
@@ -113,7 +112,7 @@ public class CEGISEngine {
             ////////////////////////////////////////////////
             // Step 2: verify
             Bounds cebounds = base.buildBounds(numStates);
-            Solution ce =  execNonincrementalCE(base.ceFormula(false, false, sol), cebounds);
+            Solution ce =  execNonincrementalCE(base.ceFormula(cebounds,false, false, sol), cebounds);
             stats(ce, CEGISPHASE.COUNTER);
             if(ce.unsat()) return "Success in "+loopCount+" iterations!";
             else {
@@ -128,9 +127,9 @@ public class CEGISEngine {
             //  be used in the core at all, because those variables will be eliminated! instead, encode the trace as a fmla.
 
             // Include phi, but not system axioms.
-            Formula whyCEFormula = base.ceFormula(true, true, sol);
+            Formula whyCEFormula = base.ceFormula(cebounds,true, true, sol);
             // Also include the entire trace from start to finish
-            Formula whyTFormula = base.fixTraceAsFormula(ce, new HashSet<>(), numStates);
+            Formula whyTFormula = base.fixTraceAsFormula(ce, cebounds, new HashSet<>(), numStates);
             output(Level.FINER, "S3: whyCEFormula="+whyCEFormula);
             output(Level.FINER, "S3: whyTFormula="+whyTFormula);
             Solution why = execNonincrementalCE(whyCEFormula.and(whyTFormula), cebounds);
@@ -195,11 +194,11 @@ public class CEGISEngine {
                 output(Level.FINER, "Rewritten reasons: "+rewrittenReasons);
 
                 // Negate the trace literals we want explained
-                Formula blameCEFormula = base.ceFormula(true, false, sol);
-                // Include this prestate (reason -1 depth) and negated reasons
-                Set<Formula> blameTransitionFormula = base.fixPreTransitionAsFormula(ce, buildStateExpr(mtl-1), first,false, rewrittenReasons);
-
                 Bounds blamebounds = base.buildBounds(2); // include ONLY TWO STATES
+                Formula blameCEFormula = base.ceFormula(blamebounds,true, false, sol);
+                // Include this prestate (reason -1 depth) and negated reasons
+                Set<Formula> blameTransitionFormula = base.fixPreTransitionAsFormula(ce, blamebounds, buildStateExpr(mtl-1), first,false, rewrittenReasons);
+
                 //System.out.println("BTF: "+blameTransitionFormula);
                 Solution blame = execNonincrementalCE(blameCEFormula.and(Formula.and(blameTransitionFormula)), blamebounds);
                 stats(blame, CEGISPHASE.ROOT);

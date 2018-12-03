@@ -15,8 +15,8 @@ import java.util.Set;
  */
 public class CEGISTransition {
     private Solution ce;
-    private Object preatom;
-    private Object postatom;
+    private Object prestateatom;
+    private Object poststateatom;
     public Map<Relation, Set<Expression>> preValues = new HashMap<>();
     public Map<Relation, Set<Expression>> postValues = new HashMap<>();
     public Map<Relation, Set<Expression>> evValues = new HashMap<>();
@@ -24,15 +24,15 @@ public class CEGISTransition {
     /**
      * TODO
      * @param ce
-     * @param preatom
-     * @param postatom
+     * @param prestateatom
+     * @param poststateatom
      * @param problem
      * @param base
      */
-    public CEGISTransition(Solution ce, Object preatom, Object postatom, SynthProblem problem, CEGISBase base) {
+    public CEGISTransition(Solution ce, Object prestateatom, Object poststateatom, SynthProblem problem, CEGISBase base) throws CEGISException {
         this.ce = ce;
-        this.preatom = preatom;
-        this.postatom = postatom;
+        this.prestateatom = prestateatom;
+        this.poststateatom = poststateatom;
         // Casting/comparisons to null necessary because raw atoms are just Object :-(
         for(Relation sr : problem.deployableRelations()) {
             processStateRelation(sr, base);
@@ -50,18 +50,18 @@ public class CEGISTransition {
      * @param r
      * @param base
      */
-    private void processStateRelation(Relation r, CEGISBase base) {
+    private void processStateRelation(Relation r, CEGISBase base) throws CEGISException {
         if(r.arity() > 2)
             throw new UnsupportedOperationException("state predicates of arity >2 (w/ state column) currently unsupported");
         for(Tuple s : ce.instance().relationTuples().get(r)) {
             Object sstate = s.atom(0);
-            if(sstate.equals(preatom)) {
+            if(sstate.equals(prestateatom)) {
                 preValues.putIfAbsent(r, new HashSet<>());
-                preValues.get(r).add(base.atomToExpression(s.atom(1)));
+                preValues.get(r).add(base.tupleToExpressionSkipLeftmost(s));
             }
-            if(sstate.equals(postatom)) {
+            if(sstate.equals(poststateatom)) {
                 postValues.putIfAbsent(r, new HashSet<>());
-                postValues.get(r).add(base.atomToExpression(s.atom(1)));
+                postValues.get(r).add(base.tupleToExpressionSkipLeftmost(s));
             }
         }
     }
@@ -71,15 +71,14 @@ public class CEGISTransition {
      * @param r
      * @param base
      */
-    private void processEventRelation(Relation r, CEGISBase base) {
+    private void processEventRelation(Relation r, CEGISBase base) throws CEGISException {
         if(r.arity() > 2)
             throw new UnsupportedOperationException("event predicates of arity >2 (w/ state column) currently unsupported");
         for(Tuple s : ce.instance().relationTuples().get(r)) {
             Object sstate = s.atom(0);
-            if (sstate.equals(preatom)) {
-                Object pa = s.atom(1);
+            if (sstate.equals(prestateatom)) {
                 evValues.putIfAbsent(r, new HashSet<>());
-                evValues.get(r).add(base.atomToExpression(pa));
+                evValues.get(r).add(base.tupleToExpressionSkipLeftmost(s));
             }
         }
     }

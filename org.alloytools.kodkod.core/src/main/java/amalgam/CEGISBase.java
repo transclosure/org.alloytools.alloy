@@ -49,29 +49,47 @@ public class CEGISBase {
      * @param at
      * @return
      */
-    public Expression atomToExpression(Object at) {
+    public Expression atomToExpression(Object at) throws CEGISException {
         if(at instanceof Integer) return IntConstant.constant((Integer)at).toExpression();
         else if(atom2Rel.containsKey(at)) return atom2Rel.get(at);
-        else throw new IllegalArgumentException("no expression built for atom "+at.toString());
+        else throw new CEGISException("Tried to convert atom to expression, but no integer or "+
+                    "declared constant expression found for atom: "+at);
     }
 
     /**
      * TODO
-     * @return
+     * @param t Tuple to convert to expression (leftmost column is ignored and assumed to be State)
+     * @return an Expression for this tuple (via constant relations, ints, etc.)
+     * @throws CEGISException
      */
-    public Set<Expression> buildDomain() {
+    public Expression tupleToExpressionSkipLeftmost(Tuple t) throws CEGISException {
+        if(!t.atom(0).toString().contains("State"))
+            throw new CEGISException("Tried call tupleToExpressionSkipLeftmost on non-stateful tuple: "+t);
+        if(t.arity() < 2)
+            throw new CEGISException("Tried call tupleToExpressionSkipLeftmost on tuple with arity <2: "+t);
+        List<Expression> cols = new ArrayList<>(t.arity()-1);
+        for(int ii=1;ii<t.arity();ii++) { // ignore the state atom
+            cols.add(atomToExpression(t.atom(ii)));
+        }
+        return Expression.product(cols);
+    }
+
+    /**
+     * TODO
+     * @param r a stateful relation (leftmost column will be ignored!)
+     * @param bounds bounds object, used to provide actual domain
+     * @return set of expressions in the upper bound of r
+     */
+    public Set<Expression> buildDomain(Relation r, Bounds bounds) throws CEGISException {
         // Sadly, we can't say "Expression.INTS" because that won't expand.
         // Instead, we have to make it explicit:
         Set<Expression> result = new HashSet<>();
-        for(int i=minInt;i<=maxInt;i++) {
-            result.add(IntConstant.constant(i).toExpression());
-        }
-        for(Relation r : problem.constantSingletonRelations()) {
-            result.add(r);
+
+        // For everything in the upper bound of r, find its associated expression. If none found, problem is ill-formed.
+        for(Tuple t : bounds.upperBound(r)) {
+            result.add(tupleToExpressionSkipLeftmost(t));
         }
 
-        /* TODO: could do this much better: even things that are ill-typed will be considered by the caller of this
-        method, making the set of formulas bigger than it needs to be. */
         return result;
     }
 
@@ -134,7 +152,7 @@ public class CEGISBase {
      * @param includeStates Build a trace of this many states, including start state
      * @return
      */
-    public Formula fixTraceAsFormula(Solution ce, Set<Formula> negateThese, int includeStates) {
+    public Formula fixTraceAsFormula(Solution ce, Bounds bounds, Set<Formula> negateThese, int includeStates) throws CEGISException {
         List<Formula> subs = new ArrayList<>();
         if(numStates < includeStates) throw new UnsupportedOperationException("fixTraceAsFormula called with too many includeStates");
         if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
@@ -147,7 +165,7 @@ public class CEGISBase {
             boolean forceIncludePost = (iState == includeStates-1);
             // s prestate in ce, include everything in poststate even if not negated (but only for last state),
             // negate the conjunction of negateThese
-            subs.addAll(fixPreTransitionAsFormula(ce, s, s, forceIncludePost, negateThese));
+            subs.addAll(fixPreTransitionAsFormula(ce, bounds, s, s, forceIncludePost, negateThese));
             s = s.join(enext);
         }
         return Formula.and(subs);
@@ -156,12 +174,15 @@ public class CEGISBase {
     /**
      * TODO
      * @param ce
+     * @param bounds
      * @param s
      * @param includeAllNonNegatedPost
      * @param negateThese Will be included in the negated-conjunct even if not present in the trace; beware
      * @return
      */
-    public Set<Formula> fixPreTransitionAsFormula(Solution ce, Expression s, Expression sInFmlas, boolean includeAllNonNegatedPost, Set<Formula> negateThese) {
+    public Set<Formula> fixPreTransitionAsFormula(Solution ce, Bounds bounds, Expression s, Expression sInFmlas,
+                                                  boolean includeAllNonNegatedPost, Set<Formula> negateThese)
+    throws CEGISException {
         // s is prestate expression (e.g., first.enext.enext for 3rd state)
         Evaluator eval = new Evaluator(ce.instance());
         Object pre=null, post=null;
@@ -179,14 +200,14 @@ public class CEGISBase {
 
         // One sub-subformula for every state relation (pre and post)
         for(Relation r : problem.nondeployableRelations()) {
-            subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), buildDomain()));
+            subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), buildDomain(r, bounds)));
             if(includeAllNonNegatedPost) // handle last
-                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), Expression.union(tdata.postValues.get(r)), buildDomain()));
+                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), Expression.union(tdata.postValues.get(r)), buildDomain(r, bounds)));
         }
         for(Relation r : problem.deployableRelations()) {
-            subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), buildDomain()));
+            subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), buildDomain(r, bounds)));
             if(includeAllNonNegatedPost) // handle last
-                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), Expression.union(tdata.postValues.get(r)), buildDomain()));
+                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), Expression.union(tdata.postValues.get(r)), buildDomain(r, bounds)));
         }
 
         // One sub-subformula for event components (no post)
@@ -226,7 +247,7 @@ public class CEGISBase {
      * @param synthSol
      * @return
      */
-    public Formula ceFormula(boolean corePhase, boolean corePhasePhi, Solution synthSol) {
+    public Formula ceFormula(Bounds bounds, boolean corePhase, boolean corePhasePhi, Solution synthSol) throws CEGISException {
         // TODO: should use the enum, not a pair of booleans. it's modal.
         Variable s = Variable.unary("s");
         Set<Formula> subs = new HashSet<>();
@@ -275,7 +296,7 @@ public class CEGISBase {
         } else if(corePhasePhi) {
             // inefficient version for blame-generation: need to include the *negative* literals, too.
             for(Relation r : problem.deployableRelations()) {
-                synthliterals.addAll(desugarInUnion(first.join(r), extractSynthExpression(synthSol, r), buildDomain()));
+                synthliterals.addAll(desugarInUnion(first.join(r), extractSynthExpression(synthSol, r), buildDomain(r, bounds)));
             }
         } else {
             // Do nothing; this is a call for the 2-state
@@ -290,7 +311,8 @@ public class CEGISBase {
      * @param synthRel
      * @return
      */
-    public Expression extractSynthExpression(Solution synthSol, Relation synthRel) {
+    public Expression extractSynthExpression(Solution synthSol, Relation synthRel) throws CEGISException {
+        // TODO: dupe code, use tupleToExpression
         Set<Expression> rows = new HashSet<>();
         for(Tuple t : synthSol.instance().relationTuples().get(synthRel)) {
             List<Expression> cols = new ArrayList<>(t.arity());
