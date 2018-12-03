@@ -142,12 +142,12 @@ public class Relation extends LeafExpression {
 
     /**
      * Returns a formula stating that this relation is a total function with the
-     * specified domain and range.
+     * specified buildDomain and range.
      *
-     * @return {f: Formula | f <=> this in domain->range && all v: domain | one
+     * @return {f: Formula | f <=> this in buildDomain->range && all v: buildDomain | one
      *         v.this }
-     * @throws NullPointerException domain = null || range = null
-     * @throws IllegalArgumentException domain.arity != 1 || range.arity != 1
+     * @throws NullPointerException buildDomain = null || range = null
+     * @throws IllegalArgumentException buildDomain.arity != 1 || range.arity != 1
      * @throws IllegalArgumentException this.arity != 2
      */
     public Formula function(Expression domain, Expression range) {
@@ -156,12 +156,12 @@ public class Relation extends LeafExpression {
 
     /**
      * Returns a formula stating that this relation is a partial function with the
-     * specified domain and range.
+     * specified buildDomain and range.
      *
-     * @return {f: Formula | f <=> this in domain->range && all v: domain | lone
+     * @return {f: Formula | f <=> this in buildDomain->range && all v: buildDomain | lone
      *         v.this }
-     * @throws NullPointerException domain = null || range = null
-     * @throws IllegalArgumentException domain.arity != 1 || range.arity != 1
+     * @throws NullPointerException buildDomain = null || range = null
+     * @throws IllegalArgumentException buildDomain.arity != 1 || range.arity != 1
      * @throws IllegalArgumentException this.arity != 2
      */
     public Formula partialFunction(Expression domain, Expression range) {

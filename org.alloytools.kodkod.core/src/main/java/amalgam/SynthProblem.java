@@ -1,4 +1,4 @@
-package amalgam.scripting;
+package amalgam;
 
 import kodkod.ast.Expression;
 import kodkod.ast.Formula;

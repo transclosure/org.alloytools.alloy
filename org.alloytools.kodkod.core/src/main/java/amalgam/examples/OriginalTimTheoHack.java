@@ -1,5 +1,6 @@
-package amalgam.scripting;
+package amalgam.examples;
 
+import amalgam.SynthProblem;
 import kodkod.ast.*;
 import kodkod.engine.Solution;
 import kodkod.instance.Bounds;
@@ -18,7 +19,7 @@ public class OriginalTimTheoHack implements SynthProblem {
     private int minInt;
     private int maxInt;
 
-    OriginalTimTheoHack(int minInt, int maxInt) {
+    public OriginalTimTheoHack(int minInt, int maxInt) {
         this.minInt = minInt;
         this.maxInt = maxInt;
     }

@@ -422,7 +422,7 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
      * Otherwise does nothing.
      *
      * @ensures pred.relation.accept(this) && (pred.name = FUNCTION =>
-     *          pred.domain.accept(this) && pred.range.accept(this)) && (pred.name =
+     *          pred.buildDomain.accept(this) && pred.range.accept(this)) && (pred.name =
      *          TOTAL_ORDERING => pred.ordered.accept(this) &&
      *          pred.first.accept(this) && pred.last.accept(this) )
      */

@@ -557,7 +557,7 @@ public final class PrettyPrinter {
             keyword(node.quantifier());
             node.decls().accept(this);
             if (node.domain() != Formula.TRUE) {
-                infix("| domain{");
+                infix("| buildDomain{");
                 indent++;
                 newline();
                 node.domain().accept(this);

@@ -414,10 +414,10 @@ public abstract class Skolemizer extends AbstractReplacer {
     }
 
     /**
-     * Returns a formula that properly constrains the given skolem's domain.
+     * Returns a formula that properly constrains the given skolem's buildDomain.
      *
      * @requires !nonSkolems.isEmpty()
-     * @return a formula that properly constrains the given skolem's domain.
+     * @return a formula that properly constrains the given skolem's buildDomain.
      */
     private Formula domainConstraint(Decl skolemDecl, Relation skolem) {
         final Iterator<DeclInfo> itr = nonSkolems.iterator();

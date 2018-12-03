@@ -163,14 +163,14 @@ public abstract class RelationPredicate extends Formula {
     /**
      * Represents the function predicate. The predicate states that the given
      * <code>relation</code> is a total or partial function with the specified
-     * <code>domain</code> and <code>range</code>.
+     * <code>buildDomain</code> and <code>range</code>.
      *
      * @specfield relation: Relation
-     * @specfield domain, range: Expression
+     * @specfield buildDomain, range: Expression
      * @specfield targetMult: ONE + LONE
      * @invariant name = FUNCTION
-     * @invariant domain.arity = range.arity = 1
-     * @invariant children = 0->relation + 1->domain + 2->range
+     * @invariant buildDomain.arity = range.arity = 1
+     * @invariant children = 0->relation + 1->buildDomain + 2->range
      * @author Emina Torlak
      */
     public static final class Function extends RelationPredicate {
@@ -179,12 +179,12 @@ public abstract class RelationPredicate extends Formula {
         private final Multiplicity targetMult;
 
         /**
-         * Constructs a new function predicate over the given relation and domain, with
+         * Constructs a new function predicate over the given relation and buildDomain, with
          * the specified target multiplicity.
          *
-         * @ensures this.name' = FUNCTION && this.relation' = relation && this.domain' =
-         *          domain && this.range' = range
-         * @throws IllegalArgumentException relation.arity != 2 || domain.arity != 1 ||
+         * @ensures this.name' = FUNCTION && this.relation' = relation && this.buildDomain' =
+         *          buildDomain && this.range' = range
+         * @throws IllegalArgumentException relation.arity != 2 || buildDomain.arity != 1 ||
          *             range.arity != 1 || targetMult !in ONE + LONE
          */
         Function(Relation relation, Expression domain, Multiplicity targetMult, Expression range) {
@@ -218,9 +218,9 @@ public abstract class RelationPredicate extends Formula {
         }
 
         /**
-         * Returns the domain of this.relation.
+         * Returns the buildDomain of this.relation.
          *
-         * @return this.domain
+         * @return this.buildDomain
          */
         public Expression domain() {
             return domain;
@@ -242,12 +242,12 @@ public abstract class RelationPredicate extends Formula {
          */
         @Override
         public Formula toConstraints() {
-            // relation in domain->range
+            // relation in buildDomain->range
             final Formula domainConstraint = relation().in(domain.product(range));
-            // all v: domain | targetMult v.relation
+            // all v: buildDomain | targetMult v.relation
             final Variable v = Variable.unary("v" + relation().name());
             final Formula funConstraint = v.join(relation()).apply(targetMult).forAll(v.oneOf(domain));
-            // relation in domain->range && all v: domain | targetMult
+            // relation in buildDomain->range && all v: buildDomain | targetMult
             // v.relation
             return domainConstraint.and(funConstraint);
         }

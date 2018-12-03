@@ -1,5 +1,6 @@
-package amalgam.scripting;
+package amalgam.examples;
 
+import amalgam.SynthProblem;
 import kodkod.ast.*;
 import kodkod.engine.Solution;
 import kodkod.instance.Bounds;

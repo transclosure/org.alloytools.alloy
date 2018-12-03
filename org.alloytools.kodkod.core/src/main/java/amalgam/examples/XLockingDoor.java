@@ -1,5 +1,6 @@
-package amalgam.scripting;
+package amalgam.examples;
 
+import amalgam.SynthProblem;
 import kodkod.ast.*;
 import kodkod.engine.Solution;
 import kodkod.instance.Bounds;
@@ -29,7 +30,7 @@ public class XLockingDoor implements SynthProblem {
      *                         after one iteration (as it will if the door starts unlocked).
      *                         Flip the value of this boolean (or try both) to make sure this test actually tests.
      */
-    XLockingDoor(boolean flipSignOfUnlocked) {
+    public XLockingDoor(boolean flipSignOfUnlocked) {
         this.flipSignOfUnlocked = flipSignOfUnlocked;
     }
 

@@ -5,14 +5,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 
+import kodkod.ast.*;
 import kodkod.ast.visitor.ReturnVisitor;
 
 
-public class SubstituteVisitor implements ReturnVisitor<Expression, Formula, Decls, IntExpression> {
+public class AmalgamSubstituteVisitor implements ReturnVisitor<Expression, Formula, Decls, IntExpression> {
     Variable v;
     Expression with;
     
-    public SubstituteVisitor(Variable v, Expression with) {
+    public AmalgamSubstituteVisitor(Variable v, Expression with) {
         this.v = v;
         this.with = with;
     }

@@ -697,7 +697,7 @@ public abstract class AbstractReplacer implements ReturnVisitor<Expression,Formu
      *
      * @return { p: RelationPredicate | p.name = pred.name && p.relation =
      *         pred.relation.accept(delegate) && p.name = FUNCTION => p.targetMult =
-     *         pred.targetMult && p.domain = pred.domain.accept(delegate) && p.range
+     *         pred.targetMult && p.buildDomain = pred.buildDomain.accept(delegate) && p.range
      *         = pred.range.accept(delegate), p.name = TOTAL_ORDERING => p.ordered =
      *         pred.ordered.accept(delegate) && p.first =
      *         pred.first.accept(delegate) && p.last = pred.last.accept(delegate) }
