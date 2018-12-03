@@ -9,7 +9,7 @@ import kodkod.instance.TupleFactory;
 
 import java.util.*;
 
-public class OriginalTimTheoHack implements SynthProblem {
+public class OriginalTempBackdoor implements SynthProblem {
     private int backdoorTemperature = 75;
     private int minAComfy = 72;
     private int maxAComfy = 75;
@@ -19,7 +19,7 @@ public class OriginalTimTheoHack implements SynthProblem {
     private int minInt;
     private int maxInt;
 
-    public OriginalTimTheoHack(int minInt, int maxInt) {
+    public OriginalTempBackdoor(int minInt, int maxInt) {
         this.minInt = minInt;
         this.maxInt = maxInt;
     }

@@ -2,7 +2,7 @@ package amalgam.mains;
 
 import amalgam.CEGISEngine;
 import amalgam.CEGISException;
-import amalgam.examples.OriginalTimTheoHack;
+import amalgam.examples.OriginalTempBackdoor;
 import amalgam.examples.XLockingDoor;
 
 import java.io.IOException;
@@ -19,7 +19,7 @@ public class TestCEGIS {
      */
     public static void main(String[] args) throws CEGISException, IOException {
         CEGISEngine engine;
-        engine = new CEGISEngine(new OriginalTimTheoHack(minInt, maxInt));
+        engine = new CEGISEngine(new OriginalTempBackdoor(minInt, maxInt));
         engine.run();
         engine = new CEGISEngine(new XLockingDoor(false));
         engine.run();
