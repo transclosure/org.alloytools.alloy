@@ -312,16 +312,9 @@ public class CEGISBase {
      * @return
      */
     public Expression extractSynthExpression(Solution synthSol, Relation synthRel) throws CEGISException {
-        // TODO: dupe code, use tupleToExpression
         Set<Expression> rows = new HashSet<>();
         for(Tuple t : synthSol.instance().relationTuples().get(synthRel)) {
-            List<Expression> cols = new ArrayList<>(t.arity());
-            // Leftmost column is state
-            if(!t.atom(0).toString().startsWith("State")) throw new RuntimeException("extractSynthExpression: "+t);
-            for(int ii = 1; ii<t.arity(); ii++) {
-                cols.add(atomToExpression(t.atom(ii)));
-            }
-            rows.add(Expression.product(cols));
+            rows.add(tupleToExpressionSkipLeftmost(t));
         }
         if(!rows.isEmpty()) return Expression.union(rows);
 
