@@ -35,12 +35,17 @@ public class CEGISTransition {
         this.poststateatom = poststateatom;
         // Casting/comparisons to null necessary because raw atoms are just Object :-(
         for(Relation sr : problem.deployableRelations()) {
+            preValues.putIfAbsent(sr, new HashSet<>()); // may be no tuples, so create here, not inside processStateRelation
+            postValues.putIfAbsent(sr, new HashSet<>());
             processStateRelation(sr, base);
         }
         for(Relation sr : problem.nondeployableRelations()) {
+            preValues.putIfAbsent(sr, new HashSet<>()); // may be no tuples, so create here, not inside processStateRelation
+            postValues.putIfAbsent(sr, new HashSet<>());
             processStateRelation(sr, base);
         }
         for(Relation er : problem.eventRelations()) {
+            evValues.putIfAbsent(er, new HashSet<>()); // may be no tuples, so create here, not inside processStateRelation
             processEventRelation(er, base);
         }
     }
@@ -56,11 +61,9 @@ public class CEGISTransition {
         for(Tuple s : ce.instance().relationTuples().get(r)) {
             Object sstate = s.atom(0);
             if(sstate.equals(prestateatom)) {
-                preValues.putIfAbsent(r, new HashSet<>());
                 preValues.get(r).add(base.tupleToExpressionSkipLeftmost(s));
             }
             if(sstate.equals(poststateatom)) {
-                postValues.putIfAbsent(r, new HashSet<>());
                 postValues.get(r).add(base.tupleToExpressionSkipLeftmost(s));
             }
         }
@@ -77,7 +80,6 @@ public class CEGISTransition {
         for(Tuple s : ce.instance().relationTuples().get(r)) {
             Object sstate = s.atom(0);
             if (sstate.equals(prestateatom)) {
-                evValues.putIfAbsent(r, new HashSet<>());
                 evValues.get(r).add(base.tupleToExpressionSkipLeftmost(s));
             }
         }

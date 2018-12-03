@@ -29,7 +29,10 @@ public interface SynthProblem {
 
     /** FOL translation of the temporal goals we have. These should use relations with a leftmost state column.
         The "state" parameter gives the State relation (used for all and exists quantification for G and F etc.)
-        The "enext" parameter gives the enhanced next relation (next with lasso) */
+        The "enext" parameter gives the enhanced next relation (next with lasso)
+
+     VITAL: use the set, not outermost conjunction! Otherwise core-extraction may minimize and make it difficult to
+     recognize which portions of the core are goals and which are causes. */
     Set<Formula> goals(Relation stateDomain, Expression enext);
 
     /** Structure, like "this relation is a function" or "A is a subtype of B"

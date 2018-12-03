@@ -200,19 +200,19 @@ public class CEGISBase {
 
         // One sub-subformula for every state relation (pre and post)
         for(Relation r : problem.nondeployableRelations()) {
-            subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), buildDomain(r, bounds)));
+            subs.addAll(desugarInUnion(sInFmlas.join(r), safeUnion(tdata.preValues.get(r), r.arity()), buildDomain(r, bounds)));
             if(includeAllNonNegatedPost) // handle last
-                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), Expression.union(tdata.postValues.get(r)), buildDomain(r, bounds)));
+                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), safeUnion(tdata.postValues.get(r), r.arity()), buildDomain(r, bounds)));
         }
         for(Relation r : problem.deployableRelations()) {
-            subs.addAll(desugarInUnion(sInFmlas.join(r), Expression.union(tdata.preValues.get(r)), buildDomain(r, bounds)));
+            subs.addAll(desugarInUnion(sInFmlas.join(r), safeUnion(tdata.preValues.get(r), r.arity()), buildDomain(r, bounds)));
             if(includeAllNonNegatedPost) // handle last
-                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), Expression.union(tdata.postValues.get(r)), buildDomain(r, bounds)));
+                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), safeUnion(tdata.postValues.get(r), r.arity()), buildDomain(r, bounds)));
         }
 
         // One sub-subformula for event components (no post)
         for(Relation r : problem.eventRelations()) {
-            subs.add(sInFmlas.join(r).eq(Expression.union(tdata.evValues.get(r))));
+            subs.add(sInFmlas.join(r).eq(safeUnion(tdata.evValues.get(r), r.arity())));
         }
 
         //////////////////////////////////////////////////
@@ -316,11 +316,14 @@ public class CEGISBase {
         for(Tuple t : synthSol.instance().relationTuples().get(synthRel)) {
             rows.add(tupleToExpressionSkipLeftmost(t));
         }
-        if(!rows.isEmpty()) return Expression.union(rows);
+        return safeUnion(rows, synthRel.arity());
+    }
 
-        // No rows but Expression.union requires non-empty set. Need to construct a NONE expression of correct arity.
+    private Expression safeUnion(Collection<Expression> es, int arityWithState) {
+        if(!es.isEmpty()) return Expression.union(es);
+        // Expression.union requires non-empty set. Need to construct a NONE expression of correct arity.
         Expression none = Expression.NONE; // 0th column was state; start for 1th column
-        for(int ii=2;ii<synthRel.arity();ii++) // for 2th ++ column
+        for(int ii=2;ii<arityWithState;ii++) // for 2th ++ column
             none = none.product(Expression.NONE);
         return none;
     }

@@ -112,7 +112,10 @@ public class CEGISHelpers {
             ComparisonFormula cr = (ComparisonFormula) r;
             return Integer.max(maxTraceLength(cr.left()), maxTraceLength(cr.right()));
         } else {
-            throw new UnsupportedOperationException("maxTraceLength malformed: "+r);
+            throw new UnsupportedOperationException(
+                    "Tried to process a formula as if it were a state literal, but it wasn't. "+
+                    "This may be because the problem definition's goal() set contained formulas with "+
+                    "outermost conjunction rather than adding the conjuncts individually to the set. Formula was: "+r);
         }
 
     }

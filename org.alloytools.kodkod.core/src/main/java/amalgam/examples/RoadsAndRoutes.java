@@ -75,7 +75,10 @@ public class RoadsAndRoutes implements SynthProblem {
         Formula prop2 = s1.join(location).eq(bc).not()
                 .forAll(s1.oneOf(stateDomain))
                 .forAll(bc.oneOf(bad));
-        return Collections.singleton(prop1.and(prop2)); // immutable
+        Set<Formula> result = new HashSet<>();
+        result.add(prop1);
+        result.add(prop2);
+        return result;
     }
 
     @Override

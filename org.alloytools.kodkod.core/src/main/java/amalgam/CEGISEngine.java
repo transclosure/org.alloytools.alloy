@@ -143,9 +143,18 @@ public class CEGISEngine {
             why.proof().minimize(new RCEStrategy(why.proof().log()));
             Set<Formula> reasons = new HashSet(why.proof().highLevelCore().keySet());
             coreMinTotal += (System.currentTimeMillis() - beforeCore1);
-            // Trying new Java8 filter. sadly .equals on the fmla isnt enough, so pretend and use .toString()
-            Predicate isAPhi = f -> f.toString().equals(Formula.and(problem.goals(state, enext)).toString()); // TODO: enext needs to be "enhanced enext", with lasso
-            reasons.removeIf(isAPhi);
+            // Sadly, .equals on the fmla isnt enough, so pretend and use .toString()
+            // Note we need to check *every goal separately*, because the core may remove un-needed conjuncts in the overall /\goals.
+            Set<String> goalStrings = new HashSet<>();
+            for(Formula g : problem.goals(state, enext)) {
+                goalStrings.add(g.toString());
+            }
+            Set<Formula> removeReasons = new HashSet<>();
+            for(Formula f : reasons) {
+                if(goalStrings.contains(f.toString())) removeReasons.add(f);
+            }
+            reasons.removeAll(removeReasons);
+            System.out.println("Goals: "+goalStrings);
             output(Level.INFO, "PROXIMAL CAUSE: "+reasons);
 
 
