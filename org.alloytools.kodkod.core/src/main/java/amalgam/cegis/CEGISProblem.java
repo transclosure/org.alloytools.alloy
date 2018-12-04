@@ -1,4 +1,4 @@
-package amalgam;
+package amalgam.cegis;
 
 import kodkod.ast.Expression;
 import kodkod.ast.Formula;
@@ -10,7 +10,7 @@ import kodkod.instance.Tuple;
 import java.util.Collection;
 import java.util.Set;
 
-public interface SynthProblem {
+public interface CEGISProblem {
     // Relation declarations (use real Relation objects, since we have formulas)
 
     /** helper relations that help describe the problem (may be any arity) */

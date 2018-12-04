@@ -1,4 +1,4 @@
-package amalgam;
+package amalgam.cegis;
 
 import kodkod.ast.*;
 import kodkod.engine.Evaluator;
@@ -8,14 +8,14 @@ import kodkod.instance.*;
 import java.util.*;
 import java.util.logging.Level;
 
-import static amalgam.Logger.*;
-import static amalgam.CEGISHelpers.*;
+import static amalgam.cegis.Logger.*;
+import static amalgam.cegis.Util.*;
 
 /**
  * Given a synth problem, constructs the basis the CEGIS engine loops over
  */
-public class CEGISBase {
-    private SynthProblem problem;
+public class Base {
+    private CEGISProblem problem;
     public Universe universe;
     private TupleFactory factory;
     private Map<String, Expression> atom2Rel = new HashMap<>();
@@ -25,7 +25,7 @@ public class CEGISBase {
      * The CEGIS engine must do this, not the SynthProblem, since the engine is responsible for the state abstraction.
      * @param problem
      */
-    public CEGISBase(SynthProblem problem) {
+    public Base(CEGISProblem problem) {
         this.problem = problem;
         // Universe
         List<Object> atoms = new ArrayList<>();
@@ -220,7 +220,7 @@ public class CEGISBase {
         s = null; // defensive fail: force trigger a nasty exception if we accidentally build with s below instead of sInFmlas
 
         Set<Formula> subs = new HashSet<>();
-        CEGISTransition tdata = new CEGISTransition(ce, pre, post, problem, this);
+        Transition tdata = new Transition(ce, pre, post, problem, this);
 
         // One sub-subformula for every state relation (pre and post)
         for(Relation r : problem.nondeployableRelations()) {

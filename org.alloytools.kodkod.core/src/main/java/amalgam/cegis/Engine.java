@@ -1,12 +1,10 @@
-package amalgam;
+package amalgam.cegis;
 
 import kodkod.ast.*;
-import kodkod.ast.operator.ExprCompOperator;
 import kodkod.engine.IncrementalSolver;
 import kodkod.engine.Solution;
 import kodkod.engine.Solver;
 import kodkod.engine.config.Options;
-import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.ucore.RCEStrategy;
 import kodkod.instance.*;
 
@@ -14,17 +12,17 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.logging.*;
 
-import static amalgam.Logger.*;
-import static amalgam.CEGISHelpers.*;
+import static amalgam.cegis.Logger.*;
+import static amalgam.cegis.Util.*;
 
 /**
  * Prototype of 4-part CEGIS synthesis loop for finding initial deployable configurations.
  * Exclusion refers to excluding some slice of the potential deployable-initial-config space, NOT trace exclusion.
  */
-public class CEGISEngine {
+public class Engine {
     // CEGIS parameters (options in CEGISHelpers)
-    private SynthProblem problem;
-    private CEGISBase base;
+    private CEGISProblem problem;
+    private Base base;
     // CEGIS runtime
     private final Map<CEGISPHASE, Long> transtotal = new HashMap<>();
     private final Map<CEGISPHASE, Long> solvetotal = new HashMap<>();
@@ -36,9 +34,9 @@ public class CEGISEngine {
      * @param problem
      * @throws CEGISException
      */
-    public CEGISEngine(SynthProblem problem) throws CEGISException {
+    public Engine(CEGISProblem problem) throws CEGISException {
         this.problem = problem;
-        this.base = new CEGISBase(problem);
+        this.base = new Base(problem);
         Logger.init();
         validate();
     }

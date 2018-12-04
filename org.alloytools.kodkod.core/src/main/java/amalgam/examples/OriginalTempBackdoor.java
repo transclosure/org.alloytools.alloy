@@ -1,6 +1,6 @@
 package amalgam.examples;
 
-import amalgam.SynthProblem;
+import amalgam.cegis.CEGISProblem;
 import kodkod.ast.*;
 import kodkod.engine.Solution;
 import kodkod.instance.Bounds;
@@ -9,7 +9,7 @@ import kodkod.instance.TupleFactory;
 
 import java.util.*;
 
-public class OriginalTempBackdoor implements SynthProblem {
+public class OriginalTempBackdoor implements CEGISProblem {
     private int backdoorTemperature = 75;
     private int minAComfy = 72;
     private int maxAComfy = 75;

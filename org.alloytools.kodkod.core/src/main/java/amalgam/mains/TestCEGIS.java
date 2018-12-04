@@ -1,14 +1,14 @@
 package amalgam.mains;
 
-import amalgam.CEGISEngine;
-import amalgam.CEGISException;
+import amalgam.cegis.Engine;
+import amalgam.cegis.CEGISException;
 import amalgam.examples.OriginalTempBackdoor;
 import amalgam.examples.XLockingDoor;
 
 import java.io.IOException;
 
-import static amalgam.CEGISHelpers.maxInt;
-import static amalgam.CEGISHelpers.minInt;
+import static amalgam.cegis.Util.maxInt;
+import static amalgam.cegis.Util.minInt;
 
 public class TestCEGIS {
 
@@ -18,12 +18,12 @@ public class TestCEGIS {
      *
      */
     public static void main(String[] args) throws CEGISException, IOException {
-        CEGISEngine engine;
-        engine = new CEGISEngine(new OriginalTempBackdoor(minInt, maxInt));
+        Engine engine;
+        engine = new Engine(new OriginalTempBackdoor(minInt, maxInt));
         engine.run();
-        engine = new CEGISEngine(new XLockingDoor(false));
+        engine = new Engine(new XLockingDoor(false));
         engine.run();
-        engine = new CEGISEngine(new XLockingDoor(true));
+        engine = new Engine(new XLockingDoor(true));
         engine.run();
     }
 }

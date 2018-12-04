@@ -1,6 +1,6 @@
 package amalgam.examples;
 
-import amalgam.SynthProblem;
+import amalgam.cegis.CEGISProblem;
 import kodkod.ast.*;
 import kodkod.engine.Solution;
 import kodkod.instance.Bounds;
@@ -25,7 +25,7 @@ import java.util.*;
  * a liveness property, potentially non-trivial trace length, etc.
  * */
 
-public class RoadsAndRoutes implements SynthProblem {
+public class RoadsAndRoutes implements CEGISProblem {
 
     int numCities;
     int numGood;

@@ -1,4 +1,4 @@
-package amalgam;
+package amalgam.cegis;
 
 /**
  * A CEGIS engine exception

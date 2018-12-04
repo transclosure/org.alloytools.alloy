@@ -1,4 +1,4 @@
-package amalgam;
+package amalgam.cegis;
 
 import kodkod.ast.Expression;
 import kodkod.ast.Relation;
@@ -13,7 +13,7 @@ import java.util.Set;
 /**
  * Internal representation for a concrete state transition
  */
-public class CEGISTransition {
+public class Transition {
     private Solution ce;
     private Object prestateatom;
     private Object poststateatom;
@@ -29,7 +29,7 @@ public class CEGISTransition {
      * @param problem
      * @param base
      */
-    public CEGISTransition(Solution ce, Object prestateatom, Object poststateatom, SynthProblem problem, CEGISBase base) throws CEGISException {
+    public Transition(Solution ce, Object prestateatom, Object poststateatom, CEGISProblem problem, Base base) throws CEGISException {
         this.ce = ce;
         this.prestateatom = prestateatom;
         this.poststateatom = poststateatom;
@@ -55,7 +55,7 @@ public class CEGISTransition {
      * @param r
      * @param base
      */
-    private void processStateRelation(Relation r, CEGISBase base) throws CEGISException {
+    private void processStateRelation(Relation r, Base base) throws CEGISException {
         if(r.arity() > 2)
             throw new UnsupportedOperationException("state predicates of arity >2 (w/ state column) currently unsupported");
         for(Tuple s : ce.instance().relationTuples().get(r)) {
@@ -74,7 +74,7 @@ public class CEGISTransition {
      * @param r
      * @param base
      */
-    private void processEventRelation(Relation r, CEGISBase base) throws CEGISException {
+    private void processEventRelation(Relation r, Base base) throws CEGISException {
         if(r.arity() > 2)
             throw new UnsupportedOperationException("event predicates of arity >2 (w/ state column) currently unsupported");
         for(Tuple s : ce.instance().relationTuples().get(r)) {

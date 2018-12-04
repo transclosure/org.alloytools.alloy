@@ -1,28 +1,21 @@
-package amalgam;
+package amalgam.cegis;
 
 import kodkod.ast.*;
 import kodkod.ast.operator.ExprCompOperator;
 import kodkod.ast.operator.ExprOperator;
-import kodkod.engine.IncrementalSolver;
-import kodkod.engine.Solution;
-import kodkod.engine.Solver;
-import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
-import kodkod.instance.Bounds;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 
-import static amalgam.Logger.*;
+import static amalgam.cegis.Logger.*;
 
 /**
  * Collection of static constants and helpers for the CEGIS engine
  * DO NOT CREATE STATIC METHODS ANYWHERE ELSE
  */
-public class CEGISHelpers {
+public class Util {
     // CEGIS options
     public static final SATFactory incrementalSolver = SATFactory.MiniSat;
     public static final SATFactory coreSolver = SATFactory.MiniSatProver;
@@ -33,6 +26,7 @@ public class CEGISHelpers {
     public static final int maxInt = 127;
     // CEGIS constants
     public static enum CEGISPHASE {SYNTH, COUNTER, PROXIMAL, ROOT};
+    public static enum RelationType {Helper, Deployable, Nondeployable, Event, Singleton};
     public static final String STR_FIRSTNEXT = "(first . next)";
     public static final Relation state = Relation.unary("State");
     public static final Relation enext = Relation.binary("next");
