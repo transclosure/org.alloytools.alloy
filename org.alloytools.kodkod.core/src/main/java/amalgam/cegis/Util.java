@@ -26,7 +26,6 @@ class Util {
     static final int maxInt = 127;
     // CEGIS constants
     static enum CEGISPHASE {SYNTH, COUNTER, PROXIMAL, ROOT};
-    static enum RelationType {Helper, Deployable, Nondeployable, Event, Singleton};
     static final String STR_FIRSTNEXT = "(first . next)";
     static final Relation state = Relation.unary("State");
     static final Relation enext = Relation.binary("next");

@@ -3,6 +3,7 @@ package amalgam.mains;
 import amalgam.cegis.Engine;
 import amalgam.cegis.CEGISException;
 import amalgam.examples.OriginalTempBackdoor;
+import amalgam.examples.RoadsAndRoutes;
 import amalgam.examples.XLockingDoor;
 
 import java.io.IOException;
@@ -26,5 +27,8 @@ public class TestCEGIS {
         cegis.run();
         cegis = new Engine(new XLockingDoor(true));
         cegis.run();
+        // FIXME java.lang.UnsupportedOperationException: state predicates of arity >2 (w/ state column) currently unsupported
+        //cegis = new Engine(new RoadsAndRoutes(3, 3));
+        //cegis.run();
     }
 }
