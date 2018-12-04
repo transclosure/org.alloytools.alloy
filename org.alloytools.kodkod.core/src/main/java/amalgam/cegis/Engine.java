@@ -22,10 +22,6 @@ import static amalgam.cegis.Util.*;
 public class Engine {
     // CEGIS parameters (options in CEGISHelpers)
     private Base base;
-    // CEGIS runtime
-    private final Map<CEGISPHASE, Long> transtotal = new HashMap<>();
-    private final Map<CEGISPHASE, Long> solvetotal = new HashMap<>();
-    private long coreMinTotal = 0;
     private IncrementalSolver synthSolver = null;
 
     /**
@@ -61,18 +57,16 @@ public class Engine {
      * @throws CEGISException
      */
     public void run() throws CEGISException {
-        long startTime = System.currentTimeMillis();
+        startTime();
         log(Level.INFO, "\n\n===================================================================\nRunning...");
         log(Level.INFO, cegis());
-        log(Level.INFO, "Total time (ms): "+(System.currentTimeMillis()-startTime)+
-                ".\nTranslation: "+transtotal+
-                ",\nsolve: "+solvetotal+
-                ",\ncore minimization (note vulnerable to GC etc.): "+coreMinTotal);
+        log(Level.INFO, endTime());
     }
 
     /**
      * TODO
      * @return
+     * FIXME break cegis steps into private methods
      */
     private String cegis() throws CEGISException {
         int loopCount = 0;
@@ -85,7 +79,7 @@ public class Engine {
             ////////////////////////////////////////////////
             // Step 1: synthesize
             Solution sol = execIncrementalSynth(synthformula, synthbounds);
-            stats(sol, CEGISPHASE.SYNTH);
+            updateTime(sol, CEGISPHASE.SYNTH);
             if(sol.sat()) {
                 log(Level.INFO, "Candidate: "+base.buildConfig(sol)+"\n");
             }
@@ -97,7 +91,7 @@ public class Engine {
             // Step 2: verify
             Bounds cebounds = base.buildBounds(numStates);
             Solution ce =  execNonincrementalCE(base.buildCounterFormula(cebounds,false, false, sol), cebounds);
-            stats(ce, CEGISPHASE.COUNTER);
+            updateTime(ce, CEGISPHASE.COUNTER);
             if(ce.unsat()) return "Success in "+loopCount+" iterations!";
             else {
                 log(Level.INFO, "Counterexample:\n"+ce.instance().relationTuples()+"\n");
@@ -114,16 +108,16 @@ public class Engine {
             log(Level.FINER, "S3: whyCEFormula="+whyCEFormula);
             log(Level.FINER, "S3: whyTFormula="+whyTFormula);
             Solution why = execNonincrementalCE(whyCEFormula.and(whyTFormula), cebounds);
-            stats(why, CEGISPHASE.PROXIMAL);
+            updateTime(why, CEGISPHASE.PROXIMAL);
             if(why.sat()) {
                 log(Level.INFO, "\nSAT (expected unsat): "+why.instance().relationTuples());
                 return "Error: proximal-cause extraction step returned SAT for property on CE trace.";
             }
             // HybridStrategy is giving non-minimal cores, so use RCE
-            long beforeCore1 = System.currentTimeMillis();
+            startCore();
             why.proof().minimize(new RCEStrategy(why.proof().log()));
             Set<Formula> reasons = new HashSet(why.proof().highLevelCore().keySet());
-            coreMinTotal += (System.currentTimeMillis() - beforeCore1);
+            endCore();
             // Sadly, .equals on the fmla isnt enough, so pretend and use .toString()
             // Note we need to check *every goal separately*, because the core may remove un-needed conjuncts in the overall /\goals.
             log(Level.INFO, "(Pre-filter) PROXIMAL CAUSE: "+reasons);
@@ -196,19 +190,19 @@ public class Engine {
                 Set<Formula> blameTransitionFormula = base.buildPretransitionAsFormula(ce, blamebounds, buildStateExpr(mtl-1), first,false, rewrittenReasons);
                 //System.out.println("BTF: "+blameTransitionFormula);
                 Solution blame = execNonincrementalCE(blameCEFormula.and(Formula.and(blameTransitionFormula)), blamebounds);
-                stats(blame, CEGISPHASE.ROOT);
+                updateTime(blame, CEGISPHASE.ROOT);
                 if(blame.sat()) {
                     log(Level.INFO, "\n"+blame.instance().relationTuples());
                     return "Error: Root-cause extraction step returned SAT for transition; expected unsat.";
                 }
                 // HybridStrategy is producing vastly non-minimal cores on Theo+hack. Use RCE to get guaranteed minimum.
                 //blame.proof().minimize(new HybridStrategy(blame.proof().log()));
-                long beforeCore2 = System.currentTimeMillis();
+                startCore();
                 blame.proof().minimize(new RCEStrategy(blame.proof().log()));
                 // Slower than RCEStrategy for this problem
                 //blame.proof().minimize(new DynamicRCEStrategy(blame.proof().log()));
                 HashSet<Formula> localCause = new HashSet<>(blame.proof().highLevelCore().keySet());
-                coreMinTotal += (System.currentTimeMillis() - beforeCore2);
+                endCore();
                 log(Level.FINER, "BLAME core (all MTL fmlas, NOT rewritten): "+localCause);
                 System.out.println("BLAME core (all MTL fmlas, NOT rewritten): "+localCause);
                 // Strip out local causes that aren't trace literals
@@ -271,35 +265,6 @@ public class Engine {
             // To measure performance vs. non-incremental, just restore original fmla/bnds and call normal exec
         }
         return "TIMEOUT: loop limit of "+loopLimit+" exceeded.";
-    }
-
-    /**
-     * TODO
-     * @param sol
-     * @param phase
-     */
-    private void stats(Solution sol, CEGISPHASE phase) {
-        // Core minimization time is recorded elsewhere
-        String sat = sol.sat() ? "sat" : "unsat";
-        long trans = sol.stats().translationTime();
-        long solve = sol.stats().solvingTime();
-        log(Level.FINE, phase+" trans ms: " + trans + "\tsolve ms: "+ solve + "\t sat: " + sat);
-        updateTimeMap(transtotal, phase, trans);
-        updateTimeMap(solvetotal, phase, solve);
-    }
-
-    /**
-     * TODO
-     * @param m
-     * @param p
-     * @param add
-     */
-    private void updateTimeMap(Map<CEGISPHASE, Long> m, CEGISPHASE p, long add) {
-        if(!m.keySet().contains(CEGISPHASE.SYNTH)) m.put(CEGISPHASE.SYNTH, Long.valueOf(0));
-        if(!m.keySet().contains(CEGISPHASE.COUNTER)) m.put(CEGISPHASE.COUNTER, Long.valueOf(0));
-        if(!m.keySet().contains(CEGISPHASE.PROXIMAL)) m.put(CEGISPHASE.PROXIMAL, Long.valueOf(0));
-        if(!m.keySet().contains(CEGISPHASE.ROOT)) m.put(CEGISPHASE.ROOT, Long.valueOf(0));
-        m.put(p, m.get(p)+add);
     }
 
     /**
