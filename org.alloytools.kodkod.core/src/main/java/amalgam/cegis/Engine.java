@@ -105,13 +105,18 @@ public class Engine {
             Formula whyCEFormula = base.buildCounterFormula(cebounds,true, true, sol);
             // Also include the entire trace from start to finish
             Formula whyTFormula = base.buildTraceAsFormula(ce, cebounds, new HashSet<>(), numStates);
-            log(Level.FINER, "S3: whyCEFormula="+whyCEFormula);
-            log(Level.FINER, "S3: whyTFormula="+whyTFormula);
+            log(Level.INFO, "S3: whyCEFormula="+whyCEFormula);
+            log(Level.INFO, "S3: whyTFormula="+whyTFormula);
             Solution why = execNonincrementalCE(whyCEFormula.and(whyTFormula), cebounds);
             updateTime(why, CEGISPHASE.PROXIMAL);
             if(why.sat()) {
                 log(Level.INFO, "\nSAT (expected unsat): "+why.instance().relationTuples());
-                return "Error: proximal-cause extraction step returned SAT for property on CE trace.";
+                String errormsg = "Error: proximal-cause extraction step returned SAT for property on CE trace. "+
+                        "If CEGIS is using linear traces, rather than lassos (see `lasso` setting) this may be because "+
+                        "some goal given is saying `for all states` rather than `for all states, except the last one`.";
+                log(Level.INFO, errormsg);
+                return errormsg;
+
             }
             // HybridStrategy is giving non-minimal cores, so use RCE
             startCore();

@@ -24,6 +24,9 @@ class Util {
     static final int bitwidth = 8;
     static final int minInt =  -128;
     static final int maxInt = 127;
+    static final boolean lasso = true;
+    //static final boolean lasso = false;
+
     // CEGIS constants
     static enum CEGISPHASE {SYNTH, COUNTER, PROXIMAL, ROOT};
     static final String STR_FIRSTNEXT = "(first . next)";

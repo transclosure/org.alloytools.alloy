@@ -63,7 +63,6 @@ class Base {
             }
             // Create an explicit trace (if only one includeStates, we're doing initial synthesis, not really a "trace")
             // TODO: exact bound = a weakness in the model, because might miss a shorter trace!
-            // TODO: add lasso cycle point as another singleton unary relation, require transition (in fmlas)
             // if make non-exact, be sure to add containment axioms
             List<Tuple> stateExactly = new ArrayList<>();
             List<Tuple> nextUpper = new ArrayList<>();
@@ -76,9 +75,12 @@ class Base {
                     nextUpper.add(factory.tuple("State" + i, "State" + (i + 1)));
                     nextLower.add(factory.tuple("State" + i, "State" + (i + 1)));
                 }
-                // Add "enhanced" enext bounds: permit lasso if numStates > 1
-                if (includeStates > 1)
-                    nextUpper.add(factory.tuple(lastAtom, "State" + i)); // might loop back here
+
+                if(lasso) {
+                    // Add "enhanced" enext bounds: permit lasso if numStates > 1
+                    if (includeStates > 1)
+                        nextUpper.add(factory.tuple(lastAtom, "State" + i)); // might loop back here
+                }
             }
             bounds.boundExactly(state, factory.setOf(stateExactly));
             bounds.boundExactly(first, factory.setOf(factory.tuple("State0")));
@@ -95,7 +97,7 @@ class Base {
     }
 
     /**
-     * TODO
+     * Convert a tuple from a stateful relation to an expression.
      * @param t Tuple to convert to expression (leftmost column is ignored and assumed to be State)
      * @return an Expression for this tuple (via constant relations, ints, etc.)
      * @throws CEGISException
@@ -140,6 +142,7 @@ class Base {
     /**
      * Build a formula that expresses a counterexample trace, including values of all state relations and events (Moore style)
      * @param ce The counterexample being expressed as a formula
+     * @param bounds The bounds being used (may vary depending on CEGIS stage)
      * @param negateThese A set of formulas to be negated, if they appear (used by blame-extraction)
      * @param includeStates Build a trace of this many states, including start state
      * @return
@@ -151,38 +154,57 @@ class Base {
         // don't do this: assumes the iteration order matches the true ordering!
         //for(Tuple nxt : ce.instance().relationTuples().get(enext)) {
         Expression s = first;
-        // Loop through all except last:
-        for(int iState=1;iState<includeStates;iState++) {
-            boolean forceIncludePost = (iState == includeStates-1);
-            // s prestate in ce, include everything in poststate even if not negated (but only for last state),
-            // negate the conjunction of negateThese
-            subs.addAll(buildPretransitionAsFormula(ce, bounds, s, s, forceIncludePost, negateThese));
-            s = s.join(enext);
+        // If no lasso, loop through all except last:
+        if(!lasso) {
+            // Loop through all except last:
+            for (int iState = 1; iState < includeStates; iState++) {
+                boolean forceIncludePost = (iState == includeStates - 1);
+                // For the <s> prestate in ce, if <s> transitions to <last> include everything in poststate even if not negated.
+                // (see Javadoc for fixTransitionAsFormula). Also negate the conjunction of negateThese
+                subs.addAll(buildPretransitionAsFormula(ce, bounds, s, s, forceIncludePost, negateThese));
+                s = s.join(enext);
+            }
+        } else {
+            // Otherwise, write every prestate, including last:
+            for (int iState = 1; iState <= includeStates; iState++) {
+                subs.addAll(buildPretransitionAsFormula(ce, bounds, s, s, false, negateThese));
+                s = s.join(enext);
+            }
         }
         /////////////////////////////////////////////////////////////////////
         // If we're doing a lasso, need to make sure the loop remains the same. Without this, we could get a CE:
         // S0->S1->S2->S1, but end up allowing here: S0->S1->S2->S0. This is because the final enext is not exact-bounded.
-        int cycleIndex = 0;
-        for(Tuple t : ce.instance().relationTuples().get(enext)) {
-            int pre = Integer.parseInt(t.atom(0).toString().replace("State", ""));
-            int post = Integer.parseInt(t.atom(1).toString().replace("State", ""));
-            if(pre >= post) { // found cycle index!
-                cycleIndex = post;
-                break;
+        if(lasso) {
+            int cycleIndex = 0;
+            for (Tuple t : ce.instance().relationTuples().get(enext)) {
+                int pre = Integer.parseInt(t.atom(0).toString().replace("State", ""));
+                int post = Integer.parseInt(t.atom(1).toString().replace("State", ""));
+                if (pre >= post) { // found cycle index!
+                    cycleIndex = post;
+                    break;
+                }
             }
+            Formula lastCycle = last.join(enext).eq(buildStateExpr(cycleIndex + 1)); // cycleIndex is 0 based, buildStateExpr is 1 based
+            //System.out.println("lastCycle="+lastCycle);
+            subs.add(lastCycle);
         }
-        Formula lastCycle = last.join(enext).eq(buildStateExpr(cycleIndex+1)); // cycleIndex is 0 based, buildStateExpr is 1 based
-        //System.out.println("lastCycle="+lastCycle);
-        subs.add(lastCycle);
+
         return Formula.and(subs);
     }
 
     /**
      * TODO
-     * @param ce
-     * @param bounds
-     * @param s
-     * @param includeAllNonNegatedPost
+     * @param ce The counterexample being expressed as a formula
+     * @param bounds The bounds being used (may vary depending on CEGIS stage)
+     * @param s The *true* prestate for the transition we're encoding
+     * @param sInFmlas When generating formulas, use this expression instead of s. This is useful for the root-cause
+     *                 phase, because we want to construct a 2-state problem which means a prestate of
+     *                 first.next.next needs to be referred to as first.
+     * @param includeAllNonNegatedPost If true, enforce everything in post-state. Default is to only encode the
+     *                                 prestate literals (including events) and explicitly negated poststate literals
+     *                                 (negateThese). The default is here so that successive
+     *                                 calls to this method can encode an entire trace without doubling up, e.g., in
+     *                                 S0->S1->S2 the S1 state is both a pre and a poststate.
      * @param negateThese Will be included in the negated-conjunct even if not present in the trace; beware
      * @return
      */
@@ -259,14 +281,18 @@ class Base {
             Formula transition = problem.buildTransition(s, s.join(enext));
             // Consecution from s->s.enext for all except s=last.
             subs.add(transition.forAll(s.oneOf(state.difference(last))));
+
             // Lasso constraints:
-            // (1) lone point that last state progresses to (may not progress if finiteness reqd)
-            // TODO: should this stutter instead if no progress is possible?
-            Formula loneLoop = last.join(enext).lone();
-            // (2) If last does step forward, must obey the transition predicate
-            Formula loopObeys = problem.buildTransition(last, last.join(enext));
-            subs.add(loneLoop);
-            subs.add(loopObeys);
+            if(lasso) {
+                // (1) lone point that last state progresses to (may not progress if finiteness reqd)
+                // TODO: should this stutter instead if no progress is possible?
+                Formula loneLoop = last.join(enext).lone();
+                // (2) If last does step forward, must obey the transition predicate
+                Formula loopObeys = problem.buildTransition(last, last.join(enext));
+                subs.add(loneLoop);
+                subs.add(loopObeys);
+            }
+
         }
         // ASSUMPTIONS: applies to CE generation only, not core phases
         if(!corePhase) {
@@ -355,9 +381,9 @@ class Base {
     }
 
     /**
-     * TODO
-     * @param at
-     * @return
+      * Convert a Kodkod atom to a corresponding expression
+      * @param at The Kodkod atom (really a String object)
+      * @return The corresponding expression (either an IntConstant or a Relation)
      */
     private Expression convertAtomToExpression(Object at) throws CEGISException {
         if(at instanceof Integer) return IntConstant.constant((Integer)at).toExpression();

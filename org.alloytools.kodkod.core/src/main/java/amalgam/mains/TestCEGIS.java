@@ -27,8 +27,7 @@ public class TestCEGIS {
         cegis.run();
         cegis = new Engine(new XLockingDoor(true));
         cegis.run();
-        // FIXME java.lang.UnsupportedOperationException: state predicates of arity >2 (w/ state column) currently unsupported
-        //cegis = new Engine(new RoadsAndRoutes(3, 3));
-        //cegis.run();
+        cegis = new Engine(new RoadsAndRoutes(2, 1));
+        cegis.run();
     }
 }

@@ -56,8 +56,6 @@ class Transition {
      * @param base
      */
     private void processStateRelation(Relation r, Base base) throws CEGISException {
-        if(r.arity() > 2)
-            throw new UnsupportedOperationException("state predicates of arity >2 (w/ state column) currently unsupported");
         for(Tuple s : ce.instance().relationTuples().get(r)) {
             Object sstate = s.atom(0);
             if(sstate.equals(prestateatom)) {
@@ -75,8 +73,6 @@ class Transition {
      * @param base
      */
     private void processEventRelation(Relation r, Base base) throws CEGISException {
-        if(r.arity() > 2)
-            throw new UnsupportedOperationException("event predicates of arity >2 (w/ state column) currently unsupported");
         for(Tuple s : ce.instance().relationTuples().get(r)) {
             Object sstate = s.atom(0);
             if (sstate.equals(prestateatom)) {
