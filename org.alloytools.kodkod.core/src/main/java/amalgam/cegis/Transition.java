@@ -13,13 +13,13 @@ import java.util.Set;
 /**
  * Internal representation for a concrete state transition
  */
-public class Transition {
+class Transition {
     private Solution ce;
     private Object prestateatom;
     private Object poststateatom;
-    public Map<Relation, Set<Expression>> preValues = new HashMap<>();
-    public Map<Relation, Set<Expression>> postValues = new HashMap<>();
-    public Map<Relation, Set<Expression>> evValues = new HashMap<>();
+    Map<Relation, Set<Expression>> preValues = new HashMap<>();
+    Map<Relation, Set<Expression>> postValues = new HashMap<>();
+    Map<Relation, Set<Expression>> evValues = new HashMap<>();
 
     /**
      * TODO
@@ -29,7 +29,7 @@ public class Transition {
      * @param problem
      * @param base
      */
-    public Transition(Solution ce, Object prestateatom, Object poststateatom, CEGISProblem problem, Base base) throws CEGISException {
+    Transition(Solution ce, Object prestateatom, Object poststateatom, Problem problem, Base base) throws CEGISException {
         this.ce = ce;
         this.prestateatom = prestateatom;
         this.poststateatom = poststateatom;
@@ -61,10 +61,10 @@ public class Transition {
         for(Tuple s : ce.instance().relationTuples().get(r)) {
             Object sstate = s.atom(0);
             if(sstate.equals(prestateatom)) {
-                preValues.get(r).add(base.tupleToExpressionSkipLeftmost(s));
+                preValues.get(r).add(base.buildTupleAsExpression(s));
             }
             if(sstate.equals(poststateatom)) {
-                postValues.get(r).add(base.tupleToExpressionSkipLeftmost(s));
+                postValues.get(r).add(base.buildTupleAsExpression(s));
             }
         }
     }
@@ -80,7 +80,7 @@ public class Transition {
         for(Tuple s : ce.instance().relationTuples().get(r)) {
             Object sstate = s.atom(0);
             if (sstate.equals(prestateatom)) {
-                evValues.get(r).add(base.tupleToExpressionSkipLeftmost(s));
+                evValues.get(r).add(base.buildTupleAsExpression(s));
             }
         }
     }

@@ -1,6 +1,6 @@
 package amalgam.examples;
 
-import amalgam.cegis.CEGISProblem;
+import amalgam.cegis.Problem;
 import kodkod.ast.*;
 import kodkod.engine.Solution;
 import kodkod.instance.Bounds;
@@ -25,7 +25,7 @@ import java.util.*;
  * a liveness property, potentially non-trivial trace length, etc.
  * */
 
-public class RoadsAndRoutes implements CEGISProblem {
+public class RoadsAndRoutes implements Problem {
 
     int numCities;
     int numGood;

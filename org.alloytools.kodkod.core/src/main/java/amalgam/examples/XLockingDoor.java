@@ -1,6 +1,6 @@
 package amalgam.examples;
 
-import amalgam.cegis.CEGISProblem;
+import amalgam.cegis.Problem;
 import kodkod.ast.*;
 import kodkod.engine.Solution;
 import kodkod.instance.Bounds;
@@ -19,7 +19,7 @@ import java.util.*;
  * Property: G(trying-to-open -> X opened)
  * Expect to deduce door must be unlocked.
  */
-public class XLockingDoor implements CEGISProblem {
+public class XLockingDoor implements Problem {
 
     private boolean flipSignOfUnlocked;
 

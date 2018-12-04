@@ -10,7 +10,7 @@ import kodkod.instance.Tuple;
 import java.util.Collection;
 import java.util.Set;
 
-public interface CEGISProblem {
+public interface Problem {
     // Relation declarations (use real Relation objects, since we have formulas)
 
     /** helper relations that help describe the problem (may be any arity) */

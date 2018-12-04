@@ -7,23 +7,24 @@ import amalgam.examples.XLockingDoor;
 
 import java.io.IOException;
 
-import static amalgam.cegis.Util.maxInt;
-import static amalgam.cegis.Util.minInt;
-
+/**
+ * Test CEGIS on current suite of examples
+ */
 public class TestCEGIS {
 
-    /** Requires runtime parameters:
+    /**
+     * Requires runtime parameters:
      *
      * -Djava.library.path="<repo location>/org.alloytools.kodkod.nativesat/jni/<platform specific jni folder>"
      *
      */
     public static void main(String[] args) throws CEGISException, IOException {
-        Engine engine;
-        engine = new Engine(new OriginalTempBackdoor(minInt, maxInt));
-        engine.run();
-        engine = new Engine(new XLockingDoor(false));
-        engine.run();
-        engine = new Engine(new XLockingDoor(true));
-        engine.run();
+        Engine cegis;
+        cegis = new Engine(new OriginalTempBackdoor(-128, 127));
+        cegis.run();
+        cegis = new Engine(new XLockingDoor(false));
+        cegis.run();
+        cegis = new Engine(new XLockingDoor(true));
+        cegis.run();
     }
 }

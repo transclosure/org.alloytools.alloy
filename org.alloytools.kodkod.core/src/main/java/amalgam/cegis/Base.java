@@ -14,9 +14,9 @@ import static amalgam.cegis.Util.*;
 /**
  * Given a synth problem, constructs the basis the CEGIS engine loops over
  */
-public class Base {
-    private CEGISProblem problem;
-    public Universe universe;
+class Base {
+    private Problem problem;
+    private Universe universe;
     private TupleFactory factory;
     private Map<String, Expression> atom2Rel = new HashMap<>();
 
@@ -25,7 +25,7 @@ public class Base {
      * The CEGIS engine must do this, not the SynthProblem, since the engine is responsible for the state abstraction.
      * @param problem
      */
-    public Base(CEGISProblem problem) {
+    Base(Problem problem) {
         this.problem = problem;
         // Universe
         List<Object> atoms = new ArrayList<>();
@@ -46,14 +46,52 @@ public class Base {
 
     /**
      * TODO
-     * @param at
+     * @param includeStates indicates how many states to instantiate (up to numStates), for use by blaming via cores.
+     *                      Without something like this, following cores can be cyclic. Problem: this strategy won't be
+     *                      incremental, since we have to re-translate for every step backward in time.
      * @return
      */
-    public Expression atomToExpression(Object at) throws CEGISException {
-        if(at instanceof Integer) return IntConstant.constant((Integer)at).toExpression();
-        else if(atom2Rel.containsKey(at)) return atom2Rel.get(at);
-        else throw new CEGISException("Tried to convert atom to expression, but no integer or "+
-                    "declared constant expression found for atom: "+at);
+    Bounds buildBounds(int includeStates) {
+        if(includeStates > numStates) throw new UnsupportedOperationException("buildBounds called with bad first/last state");
+        //if(includeStates < 1) throw new UnsupportedOperationException("Must have at least one includestate, had "+includeStates);
+        Bounds bounds = new Bounds(universe);
+        // if we're building non-empty bounds
+        if(includeStates > 0) {
+            // Set up integers as integers (this is the way Alloy does it)
+            for (int i = minInt; i <= maxInt; i++) {
+                bounds.boundExactly(i, factory.setOf(factory.tuple(i)));
+            }
+            // Create an explicit trace (if only one includeStates, we're doing initial synthesis, not really a "trace")
+            // TODO: exact bound = a weakness in the model, because might miss a shorter trace!
+            // TODO: add lasso cycle point as another singleton unary relation, require transition (in fmlas)
+            // if make non-exact, be sure to add containment axioms
+            List<Tuple> stateExactly = new ArrayList<>();
+            List<Tuple> nextUpper = new ArrayList<>();
+            List<Tuple> nextLower = new ArrayList<>();
+            String lastAtom = "State" + (includeStates - 1);
+            // Bound the state infrastructure, but defer the rest to the problem
+            for (int i = 0; i < includeStates; i++) {
+                stateExactly.add(factory.tuple("State" + i));
+                if (i < includeStates - 1) {
+                    nextUpper.add(factory.tuple("State" + i, "State" + (i + 1)));
+                    nextLower.add(factory.tuple("State" + i, "State" + (i + 1)));
+                }
+                // Add "enhanced" enext bounds: permit lasso if numStates > 1
+                if (includeStates > 1)
+                    nextUpper.add(factory.tuple(lastAtom, "State" + i)); // might loop back here
+            }
+            bounds.boundExactly(state, factory.setOf(stateExactly));
+            bounds.boundExactly(first, factory.setOf(factory.tuple("State0")));
+            bounds.boundExactly(last, factory.setOf(factory.tuple(lastAtom)));
+            if (!nextUpper.isEmpty()) {
+                bounds.bound(enext, factory.setOf(nextLower), factory.setOf(nextUpper));
+            } else {
+                bounds.boundExactly(enext, factory.noneOf(2));
+            }
+            // FIXME set here????
+            problem.setBounds(bounds, stateExactly);
+        }
+        return bounds;
     }
 
     /**
@@ -62,93 +100,41 @@ public class Base {
      * @return an Expression for this tuple (via constant relations, ints, etc.)
      * @throws CEGISException
      */
-    public Expression tupleToExpressionSkipLeftmost(Tuple t) throws CEGISException {
+    Expression buildTupleAsExpression(Tuple t) throws CEGISException {
         if(!t.atom(0).toString().contains("State"))
-            throw new CEGISException("Tried call tupleToExpressionSkipLeftmost on non-stateful tuple: "+t);
+            throw new CEGISException("Tried call buildTupleAsExpression on non-stateful tuple: "+t);
         if(t.arity() < 2)
-            throw new CEGISException("Tried call tupleToExpressionSkipLeftmost on tuple with arity <2: "+t);
+            throw new CEGISException("Tried call buildTupleAsExpression on tuple with arity <2: "+t);
         List<Expression> cols = new ArrayList<>(t.arity()-1);
         for(int ii=1;ii<t.arity();ii++) { // ignore the state atom
-            cols.add(atomToExpression(t.atom(ii)));
+            cols.add(convertAtomToExpression(t.atom(ii)));
         }
         return Expression.product(cols);
     }
 
     /**
      * TODO
-     * @param r a stateful relation (leftmost column will be ignored!)
-     * @param bounds bounds object, used to provide actual domain
-     * @return set of expressions in the upper bound of r
+     * @return
      */
-    public Set<Expression> buildDomain(Relation r, Bounds bounds) throws CEGISException {
-        // Sadly, we can't say "Expression.INTS" because that won't expand.
-        // Instead, we have to make it explicit:
-        Set<Expression> result = new HashSet<>();
-
-        // For everything in the upper bound of r, find its associated expression. If none found, problem is ill-formed.
-        // Don't add duplicates. We really want to iterate over bounds.upperbound(r).dropLeftColumn...
-        Set<String> seen = new HashSet<>();
-        for(Tuple t : bounds.upperBound(r)) {
-            result.add(tupleToExpressionSkipLeftmost(t));
-            Expression toAdd = tupleToExpressionSkipLeftmost(t);
-            if(!seen.contains(toAdd.toString()))
-                result.add(toAdd);
-            seen.add(toAdd.toString());
-        }
-
-        return result;
+    Formula buildSynthFormula() {
+        return Formula.and(problem.additionalInitialConstraintsP1P2(first)).and(Formula.and(problem.structuralAxioms(state)));
     }
 
     /**
      * TODO
-     * @param includeStates indicates how many states to instantiate (up to numStates), for use by blaming via cores.
-     *                      Without something like this, following cores can be cyclic. Problem: this strategy won't be
-     *                      incremental, since we have to re-translate for every step backward in time.
+     * @param sol
      * @return
      */
-    public Bounds buildBounds(int includeStates) {
-        if(numStates < includeStates) throw new UnsupportedOperationException("buildBounds called with bad first/last state");
-        if(includeStates < 1) throw new UnsupportedOperationException("Must have at least one includestate, had "+includeStates);
+    String buildConfig(Solution sol) {
+        return problem.prettyConfigFromSynth(sol);
+    }
 
-        Bounds bounds = new Bounds(universe);
-
-        // Set up integers as integers (this is the way Alloy does it)
-        for(int i=minInt; i<=maxInt; i++) {
-            bounds.boundExactly(i, factory.setOf(factory.tuple(i)));
-        }
-
-        // Create an explicit trace (if only one includeStates, we're doing initial synthesis, not really a "trace")
-        // TODO: exact bound = a weakness in the model, because might miss a shorter trace!
-        // TODO: add lasso cycle point as another singleton unary relation, require transition (in fmlas)
-        // if make non-exact, be sure to add containment axioms
-        List<Tuple> stateExactly = new ArrayList<>();
-        List<Tuple> nextUpper = new ArrayList<>();
-        List<Tuple> nextLower = new ArrayList<>();
-
-        String lastAtom = "State"+(includeStates-1);
-
-        // Bound the state infrastructure, but defer the rest to the problem
-        for(int i=0;i<includeStates;i++) {
-            stateExactly.add(factory.tuple("State" + i));
-            if (i < includeStates - 1) {
-                nextUpper.add(factory.tuple("State" + i, "State" + (i + 1)));
-                nextLower.add(factory.tuple("State" + i, "State" + (i + 1)));
-            }
-            // Add "enhanced" enext bounds: permit lasso if numStates > 1
-            if(includeStates > 1)
-                nextUpper.add(factory.tuple(lastAtom, "State"+i)); // might loop back here
-        }
-        bounds.boundExactly(state, factory.setOf(stateExactly));
-        bounds.boundExactly(first, factory.setOf(factory.tuple("State0")));
-        bounds.boundExactly(last, factory.setOf(factory.tuple(lastAtom)));
-        if(!nextUpper.isEmpty()) {
-            bounds.bound(enext, factory.setOf(nextLower), factory.setOf(nextUpper));
-        } else {
-            bounds.boundExactly(enext, factory.noneOf(2));
-        }
-
-        problem.setBounds(bounds, stateExactly);
-        return bounds;
+    /**
+     * TODO
+     * @return
+     */
+    Set<Formula> buildGoalsAsFormula() {
+        return problem.goals(state, enext);
     }
 
     /**
@@ -158,11 +144,10 @@ public class Base {
      * @param includeStates Build a trace of this many states, including start state
      * @return
      */
-    public Formula fixTraceAsFormula(Solution ce, Bounds bounds, Set<Formula> negateThese, int includeStates) throws CEGISException {
+    Formula buildTraceAsFormula(Solution ce, Bounds bounds, Set<Formula> negateThese, int includeStates) throws CEGISException {
         List<Formula> subs = new ArrayList<>();
-        if(numStates < includeStates) throw new UnsupportedOperationException("fixTraceAsFormula called with too many includeStates");
+        if(numStates < includeStates) throw new UnsupportedOperationException("buildTraceAsFormula called with too many includeStates");
         if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
-
         // don't do this: assumes the iteration order matches the true ordering!
         //for(Tuple nxt : ce.instance().relationTuples().get(enext)) {
         Expression s = first;
@@ -171,14 +156,12 @@ public class Base {
             boolean forceIncludePost = (iState == includeStates-1);
             // s prestate in ce, include everything in poststate even if not negated (but only for last state),
             // negate the conjunction of negateThese
-            subs.addAll(fixPreTransitionAsFormula(ce, bounds, s, s, forceIncludePost, negateThese));
+            subs.addAll(buildPretransitionAsFormula(ce, bounds, s, s, forceIncludePost, negateThese));
             s = s.join(enext);
         }
-
         /////////////////////////////////////////////////////////////////////
         // If we're doing a lasso, need to make sure the loop remains the same. Without this, we could get a CE:
         // S0->S1->S2->S1, but end up allowing here: S0->S1->S2->S0. This is because the final enext is not exact-bounded.
-
         int cycleIndex = 0;
         for(Tuple t : ce.instance().relationTuples().get(enext)) {
             int pre = Integer.parseInt(t.atom(0).toString().replace("State", ""));
@@ -191,7 +174,6 @@ public class Base {
         Formula lastCycle = last.join(enext).eq(buildStateExpr(cycleIndex+1)); // cycleIndex is 0 based, buildStateExpr is 1 based
         //System.out.println("lastCycle="+lastCycle);
         subs.add(lastCycle);
-
         return Formula.and(subs);
     }
 
@@ -204,8 +186,8 @@ public class Base {
      * @param negateThese Will be included in the negated-conjunct even if not present in the trace; beware
      * @return
      */
-    public Set<Formula> fixPreTransitionAsFormula(Solution ce, Bounds bounds, Expression s, Expression sInFmlas,
-                                                  boolean includeAllNonNegatedPost, Set<Formula> negateThese)
+    Set<Formula> buildPretransitionAsFormula(Solution ce, Bounds bounds, Expression s, Expression sInFmlas,
+                                             boolean includeAllNonNegatedPost, Set<Formula> negateThese)
     throws CEGISException {
         // s is prestate expression (e.g., first.enext.enext for 3rd state)
         Evaluator eval = new Evaluator(ce.instance());
@@ -215,13 +197,10 @@ public class Base {
         TupleSet posts = eval.evaluate(s.join(enext));
         for(Tuple t : posts) {post = t.atom(0);}
         if(pre == null || post == null) throw new RuntimeException("fixTrace: unable to resolve pre/post: "+pres+"; "+posts);
-
-        output(Level.FINER, "fixPreTransitionAsFormula: "+s+"; negate="+negateThese);
+        log(Level.FINER, "buildPretransitionAsFormula: "+s+"; negate="+negateThese);
         s = null; // defensive fail: force trigger a nasty exception if we accidentally build with s below instead of sInFmlas
-
         Set<Formula> subs = new HashSet<>();
         Transition tdata = new Transition(ce, pre, post, problem, this);
-
         // One sub-subformula for every state relation (pre and post)
         for(Relation r : problem.nondeployableRelations()) {
             subs.addAll(desugarInUnion(sInFmlas.join(r), safeUnion(tdata.preValues.get(r), r.arity()), buildDomain(r, bounds)));
@@ -233,12 +212,10 @@ public class Base {
             if(includeAllNonNegatedPost) // handle last
                 subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), safeUnion(tdata.postValues.get(r), r.arity()), buildDomain(r, bounds)));
         }
-
         // One sub-subformula for event components (no post)
         for(Relation r : problem.eventRelations()) {
             subs.add(sInFmlas.join(r).eq(safeUnion(tdata.evValues.get(r), r.arity())));
         }
-
         //////////////////////////////////////////////////
         // We've collected all state literals. Now negate as needed.
         // First remove any of toNegate that are present in subs
@@ -253,14 +230,12 @@ public class Base {
                 toFlip.add(f);
         }
         subs.removeAll(toFlip); // this is OK because we switched over to the original objects
-
-        output(Level.FINER, "toFlip: "+toFlip+"; strNegate was: "+strsNegate+"\nsubs: "+subs);
+        log(Level.FINER, "toFlip: "+toFlip+"; strNegate was: "+strsNegate+"\nsubs: "+subs);
         if(!negateThese.isEmpty()) {
             // Now add the negation of the conjunction of set to negate:
             subs.add(Formula.and(negateThese).not());
-            output(Level.FINER, "negated: "+negateThese);
+            log(Level.FINER, "negated: "+negateThese);
         }
-
         return subs;
     }
 
@@ -271,7 +246,7 @@ public class Base {
      * @param synthSol
      * @return
      */
-    public Formula ceFormula(Bounds bounds, boolean corePhase, boolean corePhasePhi, Solution synthSol) throws CEGISException {
+    Formula buildCounterFormula(Bounds bounds, boolean corePhase, boolean corePhasePhi, Solution synthSol) throws CEGISException {
         // TODO: should use the enum, not a pair of booleans. it's modal.
         Variable s = Variable.unary("s");
         Set<Formula> subs = new HashSet<>();
@@ -280,12 +255,10 @@ public class Base {
             // setting, next_p, next_target relations are functional
             // the other config settings are not (might imagine NOBODY being allowed to change temp in a state)
             subs.addAll(problem.structuralAxioms(state));
-
             // This is a concrete trace of the system
             Formula transition = problem.buildTransition(s, s.join(enext));
             // Consecution from s->s.enext for all except s=last.
             subs.add(transition.forAll(s.oneOf(state.difference(last))));
-
             // Lasso constraints:
             // (1) lone point that last state progresses to (may not progress if finiteness reqd)
             // TODO: should this stutter instead if no progress is possible?
@@ -331,18 +304,47 @@ public class Base {
 
     /**
      * TODO
+     * @param r a stateful relation (leftmost column will be ignored!)
+     * @param bounds bounds object, used to provide actual domain
+     * @return set of expressions in the upper bound of r
+     */
+    private Set<Expression> buildDomain(Relation r, Bounds bounds) throws CEGISException {
+        // Sadly, we can't say "Expression.INTS" because that won't expand.
+        // Instead, we have to make it explicit:
+        Set<Expression> result = new HashSet<>();
+        // For everything in the upper bound of r, find its associated expression. If none found, problem is ill-formed.
+        // Don't add duplicates. We really want to iterate over bounds.upperbound(r).dropLeftColumn...
+        Set<String> seen = new HashSet<>();
+        for(Tuple t : bounds.upperBound(r)) {
+            result.add(buildTupleAsExpression(t));
+            Expression toAdd = buildTupleAsExpression(t);
+            if(!seen.contains(toAdd.toString()))
+                result.add(toAdd);
+            seen.add(toAdd.toString());
+        }
+        return result;
+    }
+
+    /**
+     * TODO
      * @param synthSol
      * @param synthRel
      * @return
      */
-    public Expression extractSynthExpression(Solution synthSol, Relation synthRel) throws CEGISException {
+    private Expression extractSynthExpression(Solution synthSol, Relation synthRel) throws CEGISException {
         Set<Expression> rows = new HashSet<>();
         for(Tuple t : synthSol.instance().relationTuples().get(synthRel)) {
-            rows.add(tupleToExpressionSkipLeftmost(t));
+            rows.add(buildTupleAsExpression(t));
         }
         return safeUnion(rows, synthRel.arity());
     }
 
+    /**
+     * TODO
+     * @param es
+     * @param arityWithState
+     * @return
+     */
     private Expression safeUnion(Collection<Expression> es, int arityWithState) {
         if(!es.isEmpty()) return Expression.union(es);
         // Expression.union requires non-empty set. Need to construct a NONE expression of correct arity.
@@ -350,5 +352,17 @@ public class Base {
         for(int ii=2;ii<arityWithState;ii++) // for 2th ++ column
             none = none.product(Expression.NONE);
         return none;
+    }
+
+    /**
+     * TODO
+     * @param at
+     * @return
+     */
+    private Expression convertAtomToExpression(Object at) throws CEGISException {
+        if(at instanceof Integer) return IntConstant.constant((Integer)at).toExpression();
+        else if(atom2Rel.containsKey(at)) return atom2Rel.get(at);
+        else throw new CEGISException("Tried to convert atom to expression, but no integer or "+
+                    "declared constant expression found for atom: "+at);
     }
 }
