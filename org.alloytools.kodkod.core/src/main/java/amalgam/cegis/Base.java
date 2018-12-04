@@ -301,7 +301,7 @@ class Base {
         }
         // PROPERTIES: applies to CE and PROXIMAL phases
         // TODO: should we break goals down separately? maybe no need to at first
-        Formula property = Formula.and(problem.goals(state, enext)); // TODO: enext needs to be "enhanced" enext, with lasso
+        Formula property = Formula.and(problem.goals(state, enext));
         // In COUNTER phase: not in core phase means negate the property to generate a CE
         if(!corePhase) subs.add(property.not());
             // in ROOT phase; asking why did property fail---don't negate

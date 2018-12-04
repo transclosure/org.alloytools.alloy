@@ -64,8 +64,8 @@ public class Engine {
     }
 
     /**
-     * TODO
-     * @return
+     * Outer blame-extracting CEGIS loop
+     * @return result string (TODO: should call method in problem with result)
      * FIXME break cegis steps into private methods
      */
     private String cegis() throws CEGISException {
@@ -273,9 +273,9 @@ public class Engine {
     }
 
     /**
-     * TODO
-     * @param f
-     * @param b
+     * Solve function for *incremental* queries, without support for cores.
+     * @param f The formula to satisfy
+     * @param b The bounds to solve under
      * @return
      */
     private Solution execIncrementalSynth(Formula f, Bounds b) {
@@ -305,10 +305,10 @@ public class Engine {
     }
 
     /**
-     * TODO
-     * @param f
-     * @param b
-     * @return
+     * Solve function for *non*-incremental, *core-enabled* queries.
+     * @param f The formula to satisfy
+     * @param b The bounds to solve under
+     * @return Solution (SAT or UNSAT)
      */
     private Solution execNonincrementalCE(Formula f, Bounds b) {
         // TODO (OPT): ideally we could clone copies of a base solver state to avoid re-translation
