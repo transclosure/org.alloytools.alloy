@@ -203,14 +203,14 @@ class Base {
         Transition tdata = new Transition(ce, pre, post, problem, this);
         // One sub-subformula for every state relation (pre and post)
         for(Relation r : problem.nondeployableRelations()) {
-            subs.addAll(desugarInUnion(sInFmlas.join(r), safeUnion(tdata.preValues.get(r), r.arity()), buildDomain(r, bounds)));
+            subs.addAll(desugarInUnion(sInFmlas.join(r), safeUnion(tdata.preValues.get(r), r.arity()), domain(r, bounds)));
             if(includeAllNonNegatedPost) // handle last
-                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), safeUnion(tdata.postValues.get(r), r.arity()), buildDomain(r, bounds)));
+                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), safeUnion(tdata.postValues.get(r), r.arity()), domain(r, bounds)));
         }
         for(Relation r : problem.deployableRelations()) {
-            subs.addAll(desugarInUnion(sInFmlas.join(r), safeUnion(tdata.preValues.get(r), r.arity()), buildDomain(r, bounds)));
+            subs.addAll(desugarInUnion(sInFmlas.join(r), safeUnion(tdata.preValues.get(r), r.arity()), domain(r, bounds)));
             if(includeAllNonNegatedPost) // handle last
-                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), safeUnion(tdata.postValues.get(r), r.arity()), buildDomain(r, bounds)));
+                subs.addAll(desugarInUnion(sInFmlas.join(enext).join(r), safeUnion(tdata.postValues.get(r), r.arity()), domain(r, bounds)));
         }
         // One sub-subformula for event components (no post)
         for(Relation r : problem.eventRelations()) {
@@ -293,7 +293,7 @@ class Base {
         } else if(corePhasePhi) {
             // inefficient version for blame-generation: need to include the *negative* literals, too.
             for(Relation r : problem.deployableRelations()) {
-                synthliterals.addAll(desugarInUnion(first.join(r), extractSynthExpression(synthSol, r), buildDomain(r, bounds)));
+                synthliterals.addAll(desugarInUnion(first.join(r), extractSynthExpression(synthSol, r), domain(r, bounds)));
             }
         } else {
             // Do nothing; this is a call for the 2-state
@@ -308,7 +308,7 @@ class Base {
      * @param bounds bounds object, used to provide actual domain
      * @return set of expressions in the upper bound of r
      */
-    private Set<Expression> buildDomain(Relation r, Bounds bounds) throws CEGISException {
+    private Set<Expression> domain(Relation r, Bounds bounds) throws CEGISException {
         // Sadly, we can't say "Expression.INTS" because that won't expand.
         // Instead, we have to make it explicit:
         Set<Expression> result = new HashSet<>();
