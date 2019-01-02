@@ -61,7 +61,7 @@ public class RoadsAndRoutes implements Problem {
     private static Relation location = Relation.binary("DCONF_location");
 
     @Override
-    public Set<Formula> goals(Relation stateDomain, Expression enext) {
+    public Set<Formula> goals(Relation stateDomain, Expression enext, Expression lastState) {
         Variable s1 = Variable.unary("s1");
         Variable s2 = Variable.unary("s2");
         Variable gc = Variable.unary("gc"); // "good city"

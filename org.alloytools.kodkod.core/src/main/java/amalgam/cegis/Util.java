@@ -19,13 +19,16 @@ class Util {
     // CEGIS options
     static final SATFactory incrementalSolver = SATFactory.MiniSat;
     static final SATFactory coreSolver = SATFactory.MiniSatProver;
-    static final int loopLimit = 100;
-    static final int numStates = 5;
+    static final int loopLimit = 500;
+    static final int numStates = 7;
     static final int bitwidth = 8;
     static final int minInt =  -128;
     static final int maxInt = 127;
-    static final boolean lasso = true;
-    //static final boolean lasso = false;
+    //static final boolean lasso = true;
+    // restricting attention to safety properties for now.
+    // note this means that properties like "all states, next state..." will need to be written as
+    //  "all states but last, next state..."
+    static final boolean lasso = false;
 
     // CEGIS constants
     static enum CEGISPHASE {SYNTH, COUNTER, PROXIMAL, ROOT};

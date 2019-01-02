@@ -47,7 +47,7 @@ public class OriginalTempBackdoor implements Problem {
     private static Relation allowedTemp = Relation.binary("DCONF_allowedTemp");
 
     @Override
-    public Set<Formula> goals(Relation stateDomain, Expression enext) {
+    public Set<Formula> goals(Relation stateDomain, Expression enext, Expression lastState) {
         Variable p = Variable.unary("p");
         Variable s = Variable.unary("s");
         Formula Gcomfy = s.join(setting).in(p.join(comfyAt)).forAll(p.oneOf(personA.union(personB))).forAll(s.oneOf(stateDomain));

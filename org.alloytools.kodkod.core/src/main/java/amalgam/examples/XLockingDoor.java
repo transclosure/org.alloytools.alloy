@@ -51,10 +51,11 @@ public class XLockingDoor implements Problem {
     private static Relation bFalse = Relation.unary("FALSE");
 
     @Override
-    public Set<Formula> goals(Relation stateDomain, Expression enext) {
+    public Set<Formula> goals(Relation stateDomain, Expression enext, Expression lastState) {
         Variable s = Variable.unary("s");
         // If the user is trying to open the door, it'l be open in next state
-        Formula prop = bTrue.in(s.join(next_door)).implies(bTrue.in(s.join(enext).join(doorOpen))).forAll(s.oneOf(stateDomain));
+        Formula prop = bTrue.in(s.join(next_door)).implies(bTrue.in(s.join(enext).join(doorOpen)))
+                .forAll(s.oneOf(stateDomain.difference(lastState)));
         return Collections.singleton(prop); // immutable
     }
 

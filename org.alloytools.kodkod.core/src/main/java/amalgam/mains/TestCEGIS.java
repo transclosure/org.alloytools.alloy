@@ -4,6 +4,7 @@ import amalgam.cegis.Engine;
 import amalgam.cegis.CEGISException;
 import amalgam.examples.OriginalTempBackdoor;
 import amalgam.examples.RoadsAndRoutes;
+import amalgam.examples.RoadsSafety;
 import amalgam.examples.XLockingDoor;
 
 import java.io.IOException;
@@ -27,7 +28,11 @@ public class TestCEGIS {
         cegis.run();
         cegis = new Engine(new XLockingDoor(true));
         cegis.run();
-        cegis = new Engine(new RoadsAndRoutes(2, 1));
+        cegis = new Engine(new RoadsSafety(5, 2));
         cegis.run();
+
+        // Old liveness-property prototype. Disregard for now.
+        //cegis = new Engine(new RoadsAndRoutes(2, 1));
+        //cegis.run();
     }
 }

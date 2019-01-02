@@ -29,11 +29,12 @@ public interface Problem {
 
     /** FOL translation of the temporal goals we have. These should use relations with a leftmost state column.
         The "state" parameter gives the State relation (used for all and exists quantification for G and F etc.)
-        The "enext" parameter gives the enhanced next relation (next with lasso)
+        The "enext" parameter gives the enhanced next relation (next *possibly* with lasso)
+        The "lastState" parameter gives the final state (for use in problems that don't want a lasso)
 
      VITAL: use the set, not outermost conjunction! Otherwise core-extraction may minimize and make it difficult to
      recognize which portions of the core are goals and which are causes. */
-    Set<Formula> goals(Relation stateDomain, Expression enext);
+    Set<Formula> goals(Relation stateDomain, Expression enext, Expression lastState);
 
     /** Structure, like "this relation is a function" or "A is a subtype of B"
         The "state" parameter gives an expression to construct the fmlas around (usually the State relation) */

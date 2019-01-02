@@ -48,7 +48,7 @@ public class RoadsSafety implements Problem {
     private static Relation location = Relation.binary("DCONF_location");
 
     @Override
-    public Set<Formula> goals(Relation stateDomain, Expression enext) {
+    public Set<Formula> goals(Relation stateDomain, Expression enext, Expression lastState) {
         Variable s1 = Variable.unary("s1");
         Variable sj = Variable.unary("sj");
         Variable sw = Variable.unary("sw");
@@ -73,7 +73,7 @@ public class RoadsSafety implements Problem {
         Formula consequent = option1.or(option2).forAll(sw.oneOf(sx.join(enext.closure()))); // for every state after sx
         // Absorb stuttering in case of "denied" event: loc=x /\ X(loc!=x), not just loc=x.
         Formula prop1 = s1.join(location).eq(gc1).and(sx.join(location).eq(gc1).not()).implies(consequent)
-                .forAll(s1.oneOf(stateDomain))
+                .forAll(s1.oneOf(stateDomain.difference(lastState)))
                 .forAll(gc2.oneOf(good.difference(gc1))).forAll(gc1.oneOf(good));
 
 
