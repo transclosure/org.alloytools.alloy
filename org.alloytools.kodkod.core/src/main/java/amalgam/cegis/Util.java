@@ -19,8 +19,8 @@ class Util {
     // CEGIS options
     static final SATFactory incrementalSolver = SATFactory.MiniSat;
     static final SATFactory coreSolver = SATFactory.MiniSatProver;
-    static final int loopLimit = 500;
-    static final int numStates = 7;
+    static final int loopLimit = 2000;
+    static final int numStates = 5; // 7 // 8
     static final int bitwidth = 8;
     static final int minInt =  -128;
     static final int maxInt = 127;
