@@ -91,12 +91,12 @@ public class WorkersTempBackdoor implements Problem {
         Expression posttemp = s2.join(setting);
         Expression postCanSet = s2.join(canSet);
         Expression postAllowedTemp = s2.join(allowedTemp);
-        Expression p = s.join(next_p);
+        Expression nextp = s.join(next_p); // Called this p to start, had a silent failure w/ var p 8-)
         Expression targ = s.join(next_target);
         Expression preOccupants = s.join(occupants);
         Expression postOccupants = s2.join(occupants);
 
-        Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp));
+        Formula ante = nextp.in(preCanSet).and(targ.in(preAllowedTemp));
         // TEST ANTE: require setting to be an odd number to go through
         //Formula ante = p.in(preCanSet).and(targ.in(preAllowedTemp))
         //        .and(targ.sum().modulo(IntConstant.constant(2)).eq(IntConstant.constant(1)));
@@ -113,10 +113,11 @@ public class WorkersTempBackdoor implements Problem {
 
         // For each person, they leave (and don't return) if uncomfy
         // Exercise IFF
+        Variable p = Variable.unary("p");
         ante = pretemp.in(p.join(comfyAt));
         thenf = ante.implies(p.in(postOccupants).iff(p.in(preOccupants)));
         elsef = ante.not().implies(p.in(postOccupants).not());
-        Formula locationChange = thenf.and(elsef);
+        Formula locationChange = thenf.and(elsef).forAll(p.oneOf(personA.union(personB)));
 
         Formula transition = settingChange.and(policyChange).and(locationChange);
         return transition;
