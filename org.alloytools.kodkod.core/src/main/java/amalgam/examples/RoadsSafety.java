@@ -18,6 +18,9 @@ public class RoadsSafety implements Problem {
     int numGood;
     int numBad;
 
+    // Constants: individual names for the cities
+    private Set<Relation> cities = new HashSet<>();
+
     public RoadsSafety(int numGood, int numBad) {
         this.numCities = numGood + numBad;
         this.numGood = numGood;
@@ -39,9 +42,6 @@ public class RoadsSafety implements Problem {
     private static Relation city = Relation.unary("City");
     private static Relation good = Relation.unary("GoodCity");
     private static Relation bad = Relation.unary("BadCity");
-
-    // Constants: individual names for the cities
-    private static Set<Relation> cities = new HashSet<>();
 
     // Deployable configuration: we have power over the *initial* value of these
     private static Relation roads = Relation.nary("DCONF_roads", 3);

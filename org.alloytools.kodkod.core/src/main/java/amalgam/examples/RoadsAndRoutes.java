@@ -1,5 +1,6 @@
 package amalgam.examples;
 
+import amalgam.cegis.CEGISException;
 import amalgam.cegis.Problem;
 import kodkod.ast.*;
 import kodkod.engine.Solution;
@@ -11,6 +12,8 @@ import kodkod.instance.TupleSet;
 import java.util.*;
 
 /**
+ * DISREGARD THIS EXAMPLE! It uses a liveness property!
+ *
  * Given N cities, partitioned into "good" and "bad" subsets, synthesize:
  *   (1) some one-way roads to build; and
  *   (2) a starting city
@@ -31,7 +34,10 @@ public class RoadsAndRoutes implements Problem {
     int numGood;
     int numBad;
 
-    public RoadsAndRoutes(int numGood, int numBad) {
+    // Constants: individual names for the cities
+    private Set<Relation> cities = new HashSet<>();
+
+    public RoadsAndRoutes(int numGood, int numBad) throws CEGISException {
         this.numCities = numGood + numBad;
         this.numGood = numGood;
         this.numBad = numBad;
@@ -42,6 +48,8 @@ public class RoadsAndRoutes implements Problem {
         for(int i = 0; i<numBad; i++) {
             cities.add(Relation.unary("Bad"+i));
         }
+
+        throw new CEGISException("Do not use RoadsAndRoutes; it involves a liveness property.");
     }
 
 
@@ -52,9 +60,6 @@ public class RoadsAndRoutes implements Problem {
     private static Relation city = Relation.unary("City");
     private static Relation good = Relation.unary("GoodCity");
     private static Relation bad = Relation.unary("BadCity");
-
-    // Constants: individual names for the cities
-    private static Set<Relation> cities = new HashSet<>();
 
     // Deployable configuration: we have power over the *initial* value of these
     private static Relation roads = Relation.nary("DCONF_roads", 3);
@@ -195,6 +200,6 @@ public class RoadsAndRoutes implements Problem {
 
     @Override
     public String desc() {
-        return "build (static) roads and starting location, GF+G";
+        return "build (static) roads and starting location, GF+G; |good|="+numGood+"; |bad|="+numBad;
     }
 }

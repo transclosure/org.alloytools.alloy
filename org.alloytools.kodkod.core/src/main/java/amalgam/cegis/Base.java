@@ -30,7 +30,7 @@ class Base {
         this.options = options;
         this.problem = problem;
         // Universe
-        List<Object> atoms = new ArrayList<>();
+        List<Object> atoms = new ArrayList<>(); // List catches potential duplication errors in Problem spec
         for(Relation r : problem.constantSingletonRelations()) {
             atoms.add(r.name());
             atom2Rel.put(r.name(), r);
