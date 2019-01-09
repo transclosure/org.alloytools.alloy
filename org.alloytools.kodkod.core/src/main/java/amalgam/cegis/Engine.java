@@ -137,7 +137,7 @@ public class Engine {
                 if(goalStrings.contains(f.toString())) removeReasons.add(f);
             }
             reasons.removeAll(removeReasons);
-            System.out.println("Goals: "+goalStrings);
+            log(Level.FINER, "Goals: "+goalStrings);
             log(Level.INFO, "PROXIMAL CAUSE: "+reasons);
             ////////////////////////////////////////////////
             // Step 4: find root cause (in initial deployable config) of proximate cause
@@ -211,7 +211,6 @@ public class Engine {
                 HashSet<Formula> localCause = new HashSet<>(blame.proof().highLevelCore().keySet());
                 endCore();
                 log(Level.FINER, "BLAME core (all MTL fmlas, NOT rewritten): "+localCause);
-                System.out.println("BLAME core (all MTL fmlas, NOT rewritten): "+localCause);
                 // Strip out local causes that aren't trace literals
                 HashSet<Formula> toRemove = new HashSet<>();
                 for(Formula f: localCause) {

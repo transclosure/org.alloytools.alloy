@@ -1,11 +1,13 @@
 package amalgam.mains;
 
 import amalgam.cegis.CEGISOptions;
+import amalgam.cegis.CEGISResult;
 import amalgam.cegis.Engine;
 import amalgam.cegis.CEGISException;
 import amalgam.examples.*;
 
 import java.io.IOException;
+import java.util.logging.Level;
 
 /**
  * Test CEGIS on current suite of examples
@@ -21,26 +23,30 @@ public class TestCEGIS {
     public static void main(String[] args) throws CEGISException, IOException {
         Engine cegis;
         CEGISOptions options = new CEGISOptions();
-        options.setBitwidth(8);
-        options.setLoopLimit(1000);
-        options.setNumStates(5);
-        cegis = new Engine(new OriginalTempBackdoor(options), options);
-        cegis.run();
+
+
+        testTempBackdoor();
+        testXLocking();
+
+        //cegis = new Engine(new OriginalTempBackdoor(options), options);
+        //cegis.run();
         //cegis = new Engine(new WorkersTempBackdoor(options), options);
         //cegis.run();
-        cegis = new Engine(new XLockingDoor(false), options);
-        cegis.run();
-        cegis = new Engine(new XLockingDoor(true), options);
-        cegis.run();
+        //cegis = new Engine(new XLockingDoor(false), options);
+        //cegis.run();
+        //cegis = new Engine(new XLockingDoor(true), options);
+        //cegis.run();
 
         // Note: for RoadsSafety, soundness requires max num states >= |good|+|bad|.
-        cegis = new Engine(new RoadsSafety(4, 1), options);
+        options.setLoopLimit(2000);
+        options.setNumStates(6);
+        cegis = new Engine(new RoadsSafety(4, 2), options);
         cegis.run();
 
         // Correct with 371 iterations @ |states|=7 (Jan 8 '19)
-        options.setNumStates(7);
-        cegis = new Engine(new RoadsSafety(5, 2), options);
-        cegis.run();
+        //options.setNumStates(7);
+        //cegis = new Engine(new RoadsSafety(5, 2), options);
+        //cegis.run();
 
         // Correct with 927 iterations @ |states|=8 (Jan 2 '19)
         // options.setNumStates(8);
@@ -53,5 +59,42 @@ public class TestCEGIS {
         // Old liveness-property prototype. Disregard for now.
         //cegis = new Engine(new RoadsAndRoutes(2, 1));
         //cegis.run();
+    }
+
+    static void testXLocking() throws CEGISException {
+        Engine cegis;
+        CEGISOptions options = new CEGISOptions(); // defaults
+        options.setPrintLogLevel(Level.OFF.intValue());
+        System.out.println("Testing XLocking false");
+        cegis = new Engine(new XLockingDoor(false), options);
+        CEGISResult r;
+        r = cegis.run();
+        assertTrue(r.success());
+        System.out.println("Testing XLocking true");
+        cegis = new Engine(new XLockingDoor(true), options);
+        r = cegis.run();
+        assertTrue(r.success());
+    }
+
+    static void testTempBackdoor() throws CEGISException {
+        Engine cegis;
+        CEGISOptions options = new CEGISOptions(); // defaults
+        options.setPrintLogLevel(Level.OFF.intValue());
+        System.out.println("Testing Original temp/backdoor");
+        cegis = new Engine(new OriginalTempBackdoor(options), options);
+        CEGISResult r;
+        r = cegis.run();
+        assertTrue(r.success());
+        System.out.println("Testing workers temp/backdoor");
+        cegis = new Engine(new WorkersTempBackdoor(options), options);
+        r = cegis.run();
+        assertTrue(r.success());
+    }
+
+    static void assertTrue(boolean b) {
+        if(!b) {
+            throw new RuntimeException("Test failed, see stack");
+        }
+        // TODO: use JUnit
     }
 }
