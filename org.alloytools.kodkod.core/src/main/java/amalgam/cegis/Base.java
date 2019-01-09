@@ -15,8 +15,8 @@ import static amalgam.cegis.Util.*;
  * Given a synth problem, constructs the basis the CEGIS engine loops over
  */
 class Base {
-    private Problem problem;
-    CEGISOptions options;
+    final Problem problem;
+    final CEGISOptions options;
     private Universe universe;
     private TupleFactory factory;
     private Map<String, Expression> atom2Rel = new HashMap<>();

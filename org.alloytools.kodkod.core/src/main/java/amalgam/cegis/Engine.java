@@ -56,11 +56,13 @@ public class Engine {
      * TODO
      * @throws CEGISException
      */
-    public void run() throws CEGISException {
+    public CEGISResult run() throws CEGISException {
         startTime();
         log(Level.INFO, "\n\n===================================================================\nRunning...");
-        log(Level.INFO, cegis());
+        CEGISResult result = cegis();
+        log(Level.INFO, result.toString());
         log(Level.INFO, endTime());
+        return result;
     }
 
     /**
@@ -68,7 +70,7 @@ public class Engine {
      * @return result string (TODO: should call method in problem with result)
      * FIXME break cegis steps into private methods
      */
-    private String cegis() throws CEGISException {
+    private CEGISResult cegis() throws CEGISException {
         int loopCount = 0;
         Bounds synthbounds = base.buildBounds(1);
         // Start with the basic constraints (may be some a priori limitations on what is a well-formed constraint)
@@ -85,14 +87,14 @@ public class Engine {
             }
             else {
                 log(Level.INFO, "synth failed, unsat: "+sol.outcome());
-                return "Synthesis step failed with UNSAT";
+                return new CEGISResult(base.problem, CEGISResult.Result.SFAIL,"Synthesis step failed with UNSAT");
             }
             ////////////////////////////////////////////////
             // Step 2: verify
             Bounds cebounds = base.buildBounds(base.options.numStates());
             Solution ce =  execNonincrementalCE(base.buildCounterFormula(cebounds,false, false, sol), cebounds);
             updateTime(ce, CEGISPHASE.COUNTER);
-            if(ce.unsat()) return "Success in "+loopCount+" iterations!";
+            if(ce.unsat()) return new CEGISResult(base.problem, sol, "Success in "+loopCount+" iterations!");
             else {
                 log(Level.INFO, "Counterexample:\n"+ce.instance().relationTuples()+"\n");
             }
@@ -115,7 +117,7 @@ public class Engine {
                         "If CEGIS is using linear traces, rather than lassos (see `lasso` setting) this may be because "+
                         "some goal given is saying `for all states` rather than `for all states, except the last one`.";
                 log(Level.INFO, errormsg);
-                return errormsg;
+                return new CEGISResult(base.problem, CEGISResult.Result.SERROR, errormsg);
 
             }
             // HybridStrategy is giving non-minimal cores, so use RCE
@@ -198,7 +200,7 @@ public class Engine {
                 updateTime(blame, CEGISPHASE.ROOT);
                 if(blame.sat()) {
                     log(Level.INFO, "\n"+blame.instance().relationTuples());
-                    return "Error: Root-cause extraction step returned SAT for transition; expected unsat.";
+                    return new CEGISResult(base.problem, CEGISResult.Result.SERROR, "Error: Root-cause extraction step returned SAT for transition; expected unsat.");
                 }
                 // HybridStrategy is producing vastly non-minimal cores on Theo+hack. Use RCE to get guaranteed minimum.
                 //blame.proof().minimize(new HybridStrategy(blame.proof().log()));
@@ -236,10 +238,11 @@ public class Engine {
                             "because the problematic behavior cannot be prevented by any initial deployable config.\n"+
                             "Pre-filter core was *independent* of prestate. It was: \n"+prettyCore+"\n"+
                             "Remember that these are rewritten formulas; mtl was: "+mtl);
-                    return "==========================================================================\n"+
+                    return new CEGISResult(base.problem, CEGISResult.Result.SERROR,
+                            "==========================================================================\n"+
                             "Synthesis failed due to contradiction in backtracing to root cause. "+
                             "It is possible that the synthesizer identified problematic behavior that "+
-                            "cannot be prevented by any initial deployable config. See logs for more information.";
+                            "cannot be prevented by any initial deployable config. See logs for more information.");
                 }
                 Set<Formula> localCauseRewritten = new HashSet<>();
                 for(Formula f : localCause) {
@@ -269,7 +272,8 @@ public class Engine {
             synthbounds = base.buildBounds(0);
             // To measure performance vs. non-incremental, just restore original fmla/bnds and call normal exec
         }
-        return "TIMEOUT: loop limit of "+base.options.loopLimit()+" exceeded.";
+        return new CEGISResult(base.problem, CEGISResult.Result.STIMEOUT,
+                "TIMEOUT: loop limit of "+base.options.loopLimit()+" exceeded.");
     }
 
     /**
