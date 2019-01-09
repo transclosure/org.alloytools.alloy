@@ -3,7 +3,6 @@ package amalgam.cegis;
 import kodkod.ast.*;
 import kodkod.ast.operator.ExprCompOperator;
 import kodkod.ast.operator.ExprOperator;
-import kodkod.engine.satlab.SATFactory;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -16,19 +15,7 @@ import static amalgam.cegis.Logger.*;
  * DO NOT CREATE STATIC METHODS ANYWHERE ELSE
  */
 class Util {
-    // CEGIS options
-    static final SATFactory incrementalSolver = SATFactory.MiniSat;
-    static final SATFactory coreSolver = SATFactory.MiniSatProver;
-    static final int loopLimit = 2000;
-    static final int numStates = 5; // 7 // 8
-    static final int bitwidth = 8;
-    static final int minInt =  -128;
-    static final int maxInt = 127;
-    //static final boolean lasso = true;
-    // restricting attention to safety properties for now.
-    // note this means that properties like "all states, next state..." will need to be written as
-    //  "all states but last, next state..."
-    static final boolean lasso = false;
+    // CEGIS Options now live in CEGISOptions, to allow configurability.
 
     // CEGIS constants
     static enum CEGISPHASE {SYNTH, COUNTER, PROXIMAL, ROOT};

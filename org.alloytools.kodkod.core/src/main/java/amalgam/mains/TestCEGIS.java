@@ -1,5 +1,6 @@
 package amalgam.mains;
 
+import amalgam.cegis.CEGISOptions;
 import amalgam.cegis.Engine;
 import amalgam.cegis.CEGISException;
 import amalgam.examples.*;
@@ -19,24 +20,32 @@ public class TestCEGIS {
      */
     public static void main(String[] args) throws CEGISException, IOException {
         Engine cegis;
-       /* cegis = new Engine(new OriginalTempBackdoor(-128, 127));
+        CEGISOptions options = new CEGISOptions();
+        options.setBitwidth(8);
+        options.setLoopLimit(1000);
+        options.setNumStates(5);
+        cegis = new Engine(new OriginalTempBackdoor(options), options);
         cegis.run();
-        cegis = new Engine(new XLockingDoor(false));
+        cegis = new Engine(new WorkersTempBackdoor(options), options);
         cegis.run();
-        cegis = new Engine(new XLockingDoor(true));
+        cegis = new Engine(new XLockingDoor(false), options);
+        cegis.run();
+        cegis = new Engine(new XLockingDoor(true), options);
         cegis.run();
 
         // Note: soundness requires max num states >= |good|+|bad|.
-        cegis = new Engine(new RoadsSafety(5, 2));
+        cegis = new Engine(new RoadsSafety(4, 1), options);
+        cegis.run();
+        options.setNumStates(7);
+        cegis = new Engine(new RoadsSafety(5, 2), options);
         cegis.run();
 
         // Correct with 927 iterations @ |states|=8 (Jan 2 '19)
         // Before trying these, make sure |states| is big enough!
         //cegis = new Engine(new RoadsSafety(6, 2));
         //cegis.run();
-*/
-        cegis = new Engine(new WorkersTempBackdoor(-128, 127));
-        cegis.run();
+
+
 
         // Old liveness-property prototype. Disregard for now.
         //cegis = new Engine(new RoadsAndRoutes(2, 1));

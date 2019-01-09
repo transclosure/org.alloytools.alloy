@@ -16,6 +16,7 @@ import static amalgam.cegis.Util.*;
  */
 class Base {
     private Problem problem;
+    CEGISOptions options;
     private Universe universe;
     private TupleFactory factory;
     private Map<String, Expression> atom2Rel = new HashMap<>();
@@ -25,7 +26,8 @@ class Base {
      * The CEGIS engine must do this, not the SynthProblem, since the engine is responsible for the state abstraction.
      * @param problem
      */
-    Base(Problem problem) {
+    Base(Problem problem, CEGISOptions options) {
+        this.options = options;
         this.problem = problem;
         // Universe
         List<Object> atoms = new ArrayList<>();
@@ -34,10 +36,10 @@ class Base {
             atom2Rel.put(r.name(), r);
         }
         // Add atoms for each integer. This is the way Alloy->Kodkod does it.
-        for(int i=minInt; i<=maxInt; i++) {
+        for(int i=options.minint(); i<=options.maxint(); i++) {
             atoms.add(Integer.valueOf(i));
         }
-        for(int i=0;i<numStates;i++) {
+        for(int i=0;i<options.numStates();i++) {
             atoms.add("State" + i);
         }
         universe = new Universe(atoms);
@@ -52,13 +54,13 @@ class Base {
      * @return
      */
     Bounds buildBounds(int includeStates) {
-        if(includeStates > numStates) throw new UnsupportedOperationException("buildBounds called with bad first/last state");
+        if(includeStates > options.numStates()) throw new UnsupportedOperationException("buildBounds called with bad first/last state");
         //if(includeStates < 1) throw new UnsupportedOperationException("Must have at least one includestate, had "+includeStates);
         Bounds bounds = new Bounds(universe);
         // if we're building non-empty bounds
         if(includeStates > 0) {
             // Set up integers as integers (this is the way Alloy does it)
-            for (int i = minInt; i <= maxInt; i++) {
+            for (int i = options.minint(); i <= options.maxint(); i++) {
                 bounds.boundExactly(i, factory.setOf(factory.tuple(i)));
             }
             // Create an explicit trace (if only one includeStates, we're doing initial synthesis, not really a "trace")
@@ -76,7 +78,7 @@ class Base {
                     nextLower.add(factory.tuple("State" + i, "State" + (i + 1)));
                 }
 
-                if(lasso) {
+                if(options.lasso) {
                     // Add "enhanced" enext bounds: permit lasso if numStates > 1
                     if (includeStates > 1)
                         nextUpper.add(factory.tuple(lastAtom, "State" + i)); // might loop back here
@@ -149,13 +151,13 @@ class Base {
      */
     Formula buildTraceAsFormula(Solution ce, Bounds bounds, Set<Formula> negateThese, int includeStates) throws CEGISException {
         List<Formula> subs = new ArrayList<>();
-        if(numStates < includeStates) throw new UnsupportedOperationException("buildTraceAsFormula called with too many includeStates");
+        if(options.numStates() < includeStates) throw new UnsupportedOperationException("buildTraceAsFormula called with too many includeStates");
         if(includeStates < 2) throw new UnsupportedOperationException("Must have at least two includestates, had "+includeStates);
         // don't do this: assumes the iteration order matches the true ordering!
         //for(Tuple nxt : ce.instance().relationTuples().get(enext)) {
         Expression s = first;
         // If no lasso, loop through all except last:
-        if(!lasso) {
+        if(!options.lasso) {
             // Loop through all except last:
             for (int iState = 1; iState < includeStates; iState++) {
                 boolean forceIncludePost = (iState == includeStates - 1);
@@ -174,7 +176,7 @@ class Base {
         /////////////////////////////////////////////////////////////////////
         // If we're doing a lasso, need to make sure the loop remains the same. Without this, we could get a CE:
         // S0->S1->S2->S1, but end up allowing here: S0->S1->S2->S0. This is because the final enext is not exact-bounded.
-        if(lasso) {
+        if(options.lasso) {
             int cycleIndex = 0;
             for (Tuple t : ce.instance().relationTuples().get(enext)) {
                 int pre = Integer.parseInt(t.atom(0).toString().replace("State", ""));
@@ -283,7 +285,7 @@ class Base {
             subs.add(transition.forAll(s.oneOf(state.difference(last))));
 
             // Lasso constraints:
-            if(lasso) {
+            if(options.lasso) {
                 // (1) lone point that last state progresses to (may not progress if finiteness reqd)
                 // TODO: should this stutter instead if no progress is possible?
                 Formula loneLoop = last.join(enext).lone();

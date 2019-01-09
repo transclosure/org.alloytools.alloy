@@ -1,9 +1,6 @@
 package amalgam.cegis;
 
-import amalgam.cegis.Engine;
-import amalgam.cegis.CEGISException;
 import kodkod.engine.Solution;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +13,6 @@ import java.util.logging.SimpleFormatter;
  * TODO
  */
 class Logger {
-    private final static boolean writeLogFile = false; // turn on for debugging
     private final static java.util.logging.Logger logger = java.util.logging.Logger.getLogger(Engine.class.getName());
     private static long startTime;
     private static long startCore;
@@ -24,11 +20,16 @@ class Logger {
     private final static Map<Util.CEGISPHASE, Long> solvetotal = new HashMap<>();
     private static long coreMinTotal;
 
+    private static boolean writeLogFile;
+    private static int printLogLevel;
+
     /**
      * TODO
      * @throws CEGISException
      */
-    static void init() throws CEGISException {
+    static void init(CEGISOptions o) throws CEGISException {
+        writeLogFile = o.writeLogFile();
+        printLogLevel = o.printLogLevel();
         LogManager.getLogManager().reset(); // disable default handler
         logger.setLevel(Level.ALL);
         FileHandler textHandler = null;
@@ -47,7 +48,7 @@ class Logger {
      * @param s
      */
     static void log(Level l, String s) {
-        if(l.intValue() >= Level.INFO.intValue()) {
+        if(l.intValue() >= printLogLevel) {
             // Print the string if it is INFO or more important
             System.out.println(s);
         }

@@ -29,9 +29,9 @@ public class Engine {
      * @param problem
      * @throws CEGISException
      */
-    public Engine(Problem problem) throws CEGISException {
-        this.base = new Base(problem);
-        Logger.init();
+    public Engine(Problem problem, CEGISOptions options) throws CEGISException {
+        this.base = new Base(problem, options);
+        Logger.init(options);
         log(Level.INFO, "\n\n===================================================================\nValidating problem: "+problem.desc());
         // Check that the problem given is well-formed. For instance, event relations must all contain "EVENT_" in their name.
         // TODO likely more checks to do here, but the interface/API are still very fluid, so not spending much time on it yet
@@ -74,7 +74,7 @@ public class Engine {
         // Start with the basic constraints (may be some a priori limitations on what is a well-formed constraint)
         // as well as structural constraints (don't produce a malformed cfg)
         Formula synthformula = base.buildSynthFormula();
-        while(loopCount++<loopLimit) {
+        while(loopCount++<base.options.loopLimit()) {
             log(Level.INFO, "------------------------- Loop:"+loopCount+"-------------------------");
             ////////////////////////////////////////////////
             // Step 1: synthesize
@@ -89,7 +89,7 @@ public class Engine {
             }
             ////////////////////////////////////////////////
             // Step 2: verify
-            Bounds cebounds = base.buildBounds(numStates);
+            Bounds cebounds = base.buildBounds(base.options.numStates());
             Solution ce =  execNonincrementalCE(base.buildCounterFormula(cebounds,false, false, sol), cebounds);
             updateTime(ce, CEGISPHASE.COUNTER);
             if(ce.unsat()) return "Success in "+loopCount+" iterations!";
@@ -104,9 +104,9 @@ public class Engine {
             // Include phi, but not system axioms.
             Formula whyCEFormula = base.buildCounterFormula(cebounds,true, true, sol);
             // Also include the entire trace from start to finish
-            Formula whyTFormula = base.buildTraceAsFormula(ce, cebounds, new HashSet<>(), numStates);
-            log(Level.INFO, "S3: whyCEFormula="+whyCEFormula);
-            log(Level.INFO, "S3: whyTFormula="+whyTFormula);
+            Formula whyTFormula = base.buildTraceAsFormula(ce, cebounds, new HashSet<>(), base.options.numStates());
+            log(Level.FINER, "S3: whyCEFormula="+whyCEFormula);
+            log(Level.FINER, "S3: whyTFormula="+whyTFormula);
             Solution why = execNonincrementalCE(whyCEFormula.and(whyTFormula), cebounds);
             updateTime(why, CEGISPHASE.PROXIMAL);
             if(why.sat()) {
@@ -152,7 +152,7 @@ public class Engine {
                 boolean needsMore = f.toString().contains(STR_FIRSTNEXT);
                 if(!needsMore) initialReasons.add(f);
             }
-            if(!initialReasons.isEmpty()) log(Level.INFO, "Some reasons already initial, removing them: "+initialReasons);
+            if(!initialReasons.isEmpty()) log(Level.FINE, "Some reasons already initial, removing them: "+initialReasons);
             reasons.removeAll(initialReasons);
             // Keep only if it's a trace literal (otherwise may loop forever)
             Predicate<Formula> isntTraceLiteral = f -> !isTraceLiteral(f);
@@ -173,8 +173,8 @@ public class Engine {
                 }
                 reasons.removeAll(delayedReasons); // Obligation to re-add this set at end
                 if(!delayedReasons.isEmpty()) {
-                    log(Level.INFO, "Delaying finding root causes for: " + delayedReasons);
-                    log(Level.INFO, "Immediate reasons to justify: " + reasons + "; mtl: " + maxTraceLength(reasons));
+                    log(Level.FINE, "Delaying finding root causes for: " + delayedReasons);
+                    log(Level.FINE, "Immediate reasons to justify: " + reasons + "; mtl: " + maxTraceLength(reasons));
                 }
                 // Prevent looping forever in case the blame process is not making progress; should always reduce mtl
                 if(mtl >= lastMTL) {
@@ -223,7 +223,7 @@ public class Engine {
                     }
                 }
                 localCause.removeAll(toRemove);
-                log(Level.INFO, "BLAME core (post filter): "+localCause);
+                log(Level.FINE, "BLAME core (post filter): "+localCause);
                 // If filtered core is empty, we've found a contradiction in the spec.
                 if(localCause.isEmpty()) {
                     String prettyCore = "";
@@ -269,7 +269,7 @@ public class Engine {
             synthbounds = base.buildBounds(0);
             // To measure performance vs. non-incremental, just restore original fmla/bnds and call normal exec
         }
-        return "TIMEOUT: loop limit of "+loopLimit+" exceeded.";
+        return "TIMEOUT: loop limit of "+base.options.loopLimit()+" exceeded.";
     }
 
     /**
@@ -281,11 +281,11 @@ public class Engine {
     private Solution execIncrementalSynth(Formula f, Bounds b) {
         if(synthSolver == null) {
             Options options = new Options();
-            options.setSolver(incrementalSolver);
+            options.setSolver(base.options.incrementalSolver());
             options.setSymmetryBreaking(20);
             options.setSkolemDepth(-1);
             options.setLogTranslation(0); // changed by TN from 2->0; MUST be 0 to use IncrementalSolver
-            options.setBitwidth(bitwidth);
+            options.setBitwidth(base.options.bitwidth());
             options.setNoOverflow(true); // added TN
             synthSolver = IncrementalSolver.solver(options);
         }
@@ -315,12 +315,12 @@ public class Engine {
         //  (indeed, SMT provides this very thing with pop/push)
         // TODO (OPT): trace minimization (iterative deepening? aluminum won't work due to snags)
         final Solver solver = new Solver();
-        solver.options().setSolver(coreSolver);
+        solver.options().setSolver(base.options.coreSolver());
         solver.options().setSymmetryBreaking(20);
         solver.options().setSkolemDepth(-1);
         solver.options().setLogTranslation(2);
         solver.options().setCoreGranularity(3); // max = 3
-        solver.options().setBitwidth(bitwidth);
+        solver.options().setBitwidth(base.options.bitwidth());
         solver.options().setNoOverflow(true); // added TN
         return solver.solve(f, b);
     }

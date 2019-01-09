@@ -1,5 +1,6 @@
 package amalgam.examples;
 
+import amalgam.cegis.CEGISOptions;
 import amalgam.cegis.Problem;
 import kodkod.ast.*;
 import kodkod.engine.Solution;
@@ -19,9 +20,9 @@ public class OriginalTempBackdoor implements Problem {
     private int minInt;
     private int maxInt;
 
-    public OriginalTempBackdoor(int minInt, int maxInt) {
-        this.minInt = minInt;
-        this.maxInt = maxInt;
+    public OriginalTempBackdoor(CEGISOptions options) {
+        this.minInt = options.minint();
+        this.maxInt = options.maxint();
     }
 
     // Problem-specification relations (there are 2 people, they have comfort ranges)
