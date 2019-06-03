@@ -55,6 +55,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -579,6 +580,17 @@ public abstract class AbstractCollector<T> implements ReturnVisitor<Set<T>,Set<T
         ret = newSet();
         ret.addAll(not.formula().accept(this));
         return cache(not, ret);
+    }
+
+    // AMALGAM
+    @Override
+    public Set<T> visit(SoftFormula soft) {
+        Set<T> ret = lookup(soft);
+        if (ret != null)
+            return ret;
+        ret = newSet();
+        ret.addAll(soft.formula().accept(this));
+        return cache(soft, ret);
     }
 
     /**

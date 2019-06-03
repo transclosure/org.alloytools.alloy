@@ -54,6 +54,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -475,6 +476,13 @@ public abstract class AbstractDetector implements ReturnVisitor<Boolean,Boolean,
     public Boolean visit(NotFormula not) {
         final Boolean ret = lookup(not);
         return (ret != null) ? ret : cache(not, not.formula().accept(this));
+    }
+
+    // AMALGAM
+    @Override
+    public Boolean visit(SoftFormula soft) {
+        final Boolean ret = lookup(soft);
+        return (ret != null) ? ret : cache(soft, soft.formula().accept(this));
     }
 
     /**

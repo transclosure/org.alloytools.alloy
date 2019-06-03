@@ -52,6 +52,7 @@ import static edu.mit.csail.sdg.parser.CompSym.LONE_ARROW_ONE;
 import static edu.mit.csail.sdg.parser.CompSym.LONE_ARROW_SOME;
 import static edu.mit.csail.sdg.parser.CompSym.LT;
 import static edu.mit.csail.sdg.parser.CompSym.LTE;
+import static edu.mit.csail.sdg.parser.CompSym.SOFT; // AMALGAM
 import static edu.mit.csail.sdg.parser.CompSym.SOFTALL;
 import static edu.mit.csail.sdg.parser.CompSym.SOFTALL2;
 import static edu.mit.csail.sdg.parser.CompSym.MAXSOME;
@@ -308,6 +309,9 @@ final class CompFilter implements Scanner {
                         return merge(x, y, NOTGT);
                     if (y.sym == GTE)
                         return merge(x, y, NOTGTE);
+                    undo = y;
+                } else if (x.sym == SOFT) {
+                    Symbol y = A.next_token();
                     undo = y;
                 } else if (x.sym == PRED) {
                     Symbol y = A.next_token();

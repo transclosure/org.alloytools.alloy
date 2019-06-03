@@ -34,6 +34,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -284,6 +285,13 @@ public class HOLTranslator implements ReturnVisitor<Expression,Proc,Decls,IntExp
         Formula f = not.formula();
         if (f instanceof BinaryFormula || f instanceof NaryFormula || f instanceof QuantifiedFormula)
             throw new IllegalStateException("Expected formula to be in NNF; got: " + not);
+    }
+
+    // AMALGAM
+    @Override
+    public Proc visit(SoftFormula soft) {
+        //assertNNF(soft);
+        return new Proc.FOL(bounds, soft);
     }
 
     public static Proc toProc(Formula formula, Bounds bounds, Options options) {

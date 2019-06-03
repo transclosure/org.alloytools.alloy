@@ -50,6 +50,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -382,6 +383,14 @@ public abstract class AbstractVoidVisitor implements VoidVisitor {
         if (visited(not))
             return;
         not.formula().accept(this);
+    }
+
+    // AMALGAM
+    @Override
+    public void visit(SoftFormula soft) {
+        if (visited(soft))
+            return;
+        soft.formula().accept(this);
     }
 
     /**

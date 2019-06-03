@@ -66,6 +66,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -849,6 +850,12 @@ public final class AnnotatedNode<N extends Node> {
 
         @Override
         public Boolean visit(NotFormula f) {
+            return checkVisitedThenAccumA(f, Boolean.FALSE, f.formula());
+        }
+
+        // AMALGAM
+        @Override
+        public Boolean visit(SoftFormula f) {
             return checkVisitedThenAccumA(f, Boolean.FALSE, f.formula());
         }
 

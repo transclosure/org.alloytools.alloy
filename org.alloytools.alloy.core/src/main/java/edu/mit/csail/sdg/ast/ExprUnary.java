@@ -162,6 +162,8 @@ public final class ExprUnary extends Expr {
                     NO("no"),
                     /** some x (where x is a set or relation) */
                     SOME("some"),
+                    /** AMALGAM soft f (where f is a formula) */
+                    SOFT("soft"),
                     /** AMALGAM maxsome x (where x is a set or relation) */
                     MAXSOME("maxsome"),
                     /** lone x (where x is a set or relation) */
@@ -260,6 +262,10 @@ public final class ExprUnary extends Expr {
                 case NOT :
                     sub = sub.typecheck_as_formula();
                     break;
+                // AMALGAM
+                case SOFT :
+                    sub = sub.typecheck_as_formula();
+                    break;
                 case CAST2SIGINT :
                     if (sub instanceof ExprUnary)
                         if (((ExprUnary) sub).op == CAST2SIGINT)
@@ -296,6 +302,7 @@ public final class ExprUnary extends Expr {
                             extraError = new ErrorType(sub.span(), "After the some/lone/one multiplicity symbol, " + "this expression must be a unary set.\nInstead, its possible type(s) are:\n" + sub.type);
                         break;
                     case NOT :
+                    case SOFT : //AMALGAM
                     case NO :
                     case SOME :
                     case LONE :
@@ -359,6 +366,10 @@ public final class ExprUnary extends Expr {
         Type s = p;
         switch (op) {
             case NOT :
+                s = Type.FORMULA;
+                break;
+            // AMALGAM
+            case SOFT :
                 s = Type.FORMULA;
                 break;
             case TRANSPOSE :

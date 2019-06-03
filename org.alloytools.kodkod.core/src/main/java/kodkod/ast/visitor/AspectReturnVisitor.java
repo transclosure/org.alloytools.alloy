@@ -26,6 +26,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -193,6 +194,13 @@ public abstract class AspectReturnVisitor<E, F, D, I> implements ReturnVisitor<E
     public F visit(NotFormula not) {
         start(not);
         return end(not, visitor.visit(not));
+    }
+
+    // AMALGAM
+    @Override
+    public F visit(SoftFormula soft) {
+        start(soft);
+        return end(soft, visitor.visit(soft));
     }
 
     @Override

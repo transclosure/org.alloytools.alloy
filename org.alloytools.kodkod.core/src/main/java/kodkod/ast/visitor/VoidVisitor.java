@@ -46,6 +46,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -177,6 +178,9 @@ public interface VoidVisitor {
      * Visits the given negation.
      **/
     public void visit(NotFormula not);
+
+    // AMALGAM
+    public void visit(SoftFormula soft);
 
     /**
      * Visits the given constant formula.

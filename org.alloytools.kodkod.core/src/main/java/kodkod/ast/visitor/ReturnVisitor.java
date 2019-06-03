@@ -46,6 +46,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -229,6 +230,9 @@ public interface ReturnVisitor<E, F, D, I> {
      * @return the result of visiting <code>not</code>
      **/
     public F visit(NotFormula not);
+
+    // AMALGAM
+    public F visit(SoftFormula soft);
 
     /**
      * Visits the given constant formula and returns the result.

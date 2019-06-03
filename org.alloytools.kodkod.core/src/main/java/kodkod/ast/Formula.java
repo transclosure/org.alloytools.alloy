@@ -321,6 +321,11 @@ public abstract class Formula extends Node {
         return new NotFormula(this);
     }
 
+    // AMALGAM
+    public final Formula soft() {
+        return new SoftFormula(this);
+    }
+
     public Formula fix(Formula condition) {
         return new FixFormula(this, condition);
     }

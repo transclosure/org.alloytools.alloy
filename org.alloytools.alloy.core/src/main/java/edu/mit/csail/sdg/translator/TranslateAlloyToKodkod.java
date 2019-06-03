@@ -832,6 +832,8 @@ public final class TranslateAlloyToKodkod extends VisitReturn<Object> {
                 return visitThis(x.sub);
             case NOT :
                 return k2pos(cform(x.sub).not(), x);
+            case SOFT : // AMALGAM
+                return k2pos(cform(x.sub).soft(), x);
             case SOME :
                 return k2pos(cset(x.sub).some(), x);
             case LONE :

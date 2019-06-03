@@ -54,6 +54,7 @@ import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
 import kodkod.ast.RelationPredicate.Function;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -115,6 +116,12 @@ public final class TranslateKodkodToJava implements VoidVisitor {
 
             @Override
             public Integer visit(NotFormula x) {
+                return 1 + x.formula().accept(this);
+            }
+
+            // AMALGAM
+            @Override
+            public Integer visit(SoftFormula x) {
                 return 1 + x.formula().accept(this);
             }
 
@@ -698,6 +705,16 @@ public final class TranslateKodkodToJava implements VoidVisitor {
             return;
         String sub = make(x.formula());
         file.printf("Formula %s=%s.not();%n", newname, sub);
+    }
+
+    /** {@inheritDoc} */ // AMALGAM
+    @Override
+    public void visit(SoftFormula x) {
+        String newname = makename(x);
+        if (newname == null)
+            return;
+        String sub = make(x.formula());
+        file.printf("Formula %s=%s.soft();%n", newname, sub);
     }
 
     /** {@inheritDoc} */

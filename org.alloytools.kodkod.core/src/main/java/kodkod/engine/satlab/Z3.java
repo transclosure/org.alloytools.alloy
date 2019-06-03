@@ -19,7 +19,7 @@ import kodkod.util.ints.IntIterator;
  */
 public class Z3 implements SATProver {
 
-    private final static boolean    debug = true;
+    private final static boolean    debug = false;
     private List<BoolExpr>          vars;
     private int                     clauses;
     private Context                 context;
@@ -77,6 +77,7 @@ public class Z3 implements SATProver {
                 String inTemp = File.createTempFile("debug-z3-", Instant.now()+".smt2").getAbsolutePath();
                 spec = new RandomAccessFile(inTemp, "rw");
                 spec.setLength(0);
+                spec.writeBytes(FOL2BoolCache.softcache.keySet().toString());
                 spec.writeBytes(solver.toString());
                 spec.close();
             } catch (IOException e) {
@@ -144,7 +145,7 @@ public class Z3 implements SATProver {
     /** Solver generic functionality */
     @Override
     public void sideEffects(Translation translation) throws SATAbortedException {
-        assertTargets(translation.bounds());
+        //assertTargets(translation.bounds());
     }
     @Override
     public int numberOfVariables() {

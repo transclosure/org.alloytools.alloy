@@ -53,6 +53,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -942,6 +943,17 @@ abstract class FOL2BoolTranslator implements ReturnVisitor<BooleanMatrix,Boolean
         env.negate();
         ret = cache(not, interpreter.factory().not(not.formula().accept(this)));
         env.negate();
+        return ret;
+    }
+
+    // AMALGAM
+    @Override
+    public final BooleanValue visit(SoftFormula soft) {
+        BooleanValue ret = cache(soft, soft.formula().accept(this));
+        Set<Integer> softclause = new HashSet<>();
+        softclause.add(ret.label());
+        cache.softkey(softclause);
+        cache.softvalue("softclause");
         return ret;
     }
 

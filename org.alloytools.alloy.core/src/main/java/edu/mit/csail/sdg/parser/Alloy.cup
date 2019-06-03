@@ -137,6 +137,8 @@ parser code {:
     ch.put(CompSym.ABSTRACT, "abstract");
     ch.put(CompSym.ALL, "all");
     ch.put(CompSym.ALL2, "all");
+    ch.put(CompSym.SOFT, "soft"); // AMALGAM
+    ch.put(CompSym.SOFT2, "soft"); // AMALGAM
     ch.put(CompSym.SOFTALL, "SOFTALL"); // AMALGAM
     ch.put(CompSym.SOFTALL2, "SOFTALL"); // AMALGAM
     ch.put(CompSym.AMPERSAND, "&");
@@ -396,8 +398,10 @@ terminal Pos TOTALORDER;
 terminal Pos ABSTRACT;         //  abstract
 terminal Pos ALL;              //  all      // The filter enables us to disambiguate
 terminal Pos ALL2;             //  all      // The filter enables us to disambiguate
-terminal Pos SOFTALL;			   //  SOFTALL     // AMALGAM
-terminal Pos SOFTALL2;			   //  SOFTALL     // AMALGAM
+terminal Pos SOFT;             // AMALGAM
+terminal Pos SOFT2;            // AMALGAM
+terminal Pos SOFTALL;          // AMALGAM
+terminal Pos SOFTALL2;	       // AMALGAM
 terminal Pos AMPERSAND;        //  &
 terminal Pos AND;              //  && and
 terminal Pos AS;               //  as
@@ -835,6 +839,7 @@ Bind ::= MAXSOME2:o Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.MAXSOME.make(o, n
 Bind ::= LONE2:o Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.LONE.make(o, null, a, b); :};
 Bind ::= ONE2:o  Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.ONE .make(o, null, a, b); :};
 Bind ::= SUM2:o  Declp:a SuperOrBar:b {: RESULT = ExprQt.Op.SUM .make(o, null, a, b); :};
+Bind ::= SOFT2:o Bind:b               {: RESULT = ExprUnary.Op.SOFT.make(o, b); :}; // AMALGAM
 
 OrExprA ::=                EquivExprA:a  {: RESULT=a;                                    :};
 OrExprA ::= OrExprB:a OR:o Bind:b        {: RESULT=ExprBinary.Op.OR.make(o, null, a, b); :};
@@ -891,6 +896,7 @@ CompareExprA ::= SOFTALL:o  ShiftExprA                          {: if (1==1) thr
 CompareExprA ::= NO:o   ShiftExprA:b                        {: RESULT=ExprUnary.Op.NO   .make(o, b);   :};
 CompareExprA ::= SOME:o ShiftExprA:b                        {: RESULT=ExprUnary.Op.SOME .make(o, b);   :};
 CompareExprA ::= MAXSOME:o ShiftExprA:b                        {: RESULT=ExprUnary.Op.MAXSOME .make(o, b);   :}; // AMALGAM
+CompareExprA ::= SOFT:o ShiftExprA:b                        {: RESULT=ExprUnary.Op.SOFT.make(o,b); :}; // AMALGAM
 CompareExprA ::= LONE:o ShiftExprA:b                        {: RESULT=ExprUnary.Op.LONE .make(o, b);   :};
 CompareExprA ::= ONE:o  ShiftExprA:b                        {: RESULT=ExprUnary.Op.ONE  .make(o, b);   :};
 CompareExprA ::= SET:o  ShiftExprA:b                        {: RESULT=ExprUnary.Op.SETOF.make(o, b);   :};
@@ -914,6 +920,7 @@ CompareExprB ::= SOFTALL:o  ShiftExprB                          {: if (1==1) thr
 CompareExprB ::= NO:o   ShiftExprB:b                        {: RESULT=ExprUnary.Op.NO   .make(o, b);   :};
 CompareExprB ::= SOME:o ShiftExprB:b                        {: RESULT=ExprUnary.Op.SOME .make(o, b);   :};
 CompareExprB ::= MAXSOME:o ShiftExprB:b                        {: RESULT=ExprUnary.Op.MAXSOME .make(o, b);   :};
+CompareExprB ::= SOFT:o ShiftExprB:b                        {: RESULT=ExprUnary.Op.SOFT.make(o, b);    :}; // AMALGAM
 CompareExprB ::= LONE:o ShiftExprB:b                        {: RESULT=ExprUnary.Op.LONE .make(o, b);   :};
 CompareExprB ::= ONE:o  ShiftExprB:b                        {: RESULT=ExprUnary.Op.ONE  .make(o, b);   :};
 CompareExprB ::= SET:o  ShiftExprB:b                        {: RESULT=ExprUnary.Op.SETOF.make(o, b);   :};

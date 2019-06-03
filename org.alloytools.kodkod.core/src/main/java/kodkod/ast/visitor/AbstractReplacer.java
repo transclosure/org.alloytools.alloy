@@ -54,6 +54,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -646,6 +647,19 @@ public abstract class AbstractReplacer implements ReturnVisitor<Expression,Formu
         ret = (child == not.formula()) ? not : child.not();
         return cache(not, ret);
     }
+
+    // AMALGAM
+    @Override
+    public Formula visit(SoftFormula soft) {
+        Formula ret = lookup(soft);
+        if (ret != null)
+            return ret;
+
+        final Formula child = soft.formula().accept(delegate);
+        ret = (child == soft.formula()) ? soft : child.soft();
+        return cache(soft, ret);
+    }
+
 
     /**
      * Calls lookup(compFormula) and returns the cached value, if any. If a

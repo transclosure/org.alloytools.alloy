@@ -56,6 +56,7 @@ import kodkod.ast.ProjectExpression;
 import kodkod.ast.QuantifiedFormula;
 import kodkod.ast.Relation;
 import kodkod.ast.RelationPredicate;
+import kodkod.ast.SoftFormula;
 import kodkod.ast.SumExpression;
 import kodkod.ast.UnaryExpression;
 import kodkod.ast.UnaryIntExpression;
@@ -367,6 +368,16 @@ public final class PrettyPrinter {
             indent += pchild ? 2 : 1;
             visitChild(node.formula(), parenthesize(node.formula()));
             indent -= pchild ? 2 : 1;
+        }
+
+        // AMALGAM
+        @Override
+        public void visit(SoftFormula node) {
+            append("soft");
+            final boolean pchild = parenthesize(node.formula());
+            indent += pchild ? 5 : 4;
+            visitChild(node.formula(), parenthesize(node.formula()));
+            indent -= pchild ? 5 : 4;
         }
 
         /**
@@ -978,6 +989,12 @@ public final class PrettyPrinter {
         @Override
         public void visit(NotFormula not) {
             visit(not, "not", not.formula());
+        }
+
+        // AMALGAM
+        @Override
+        public void visit(SoftFormula soft) {
+            visit(soft, "soft", soft.formula());
         }
 
         @Override
