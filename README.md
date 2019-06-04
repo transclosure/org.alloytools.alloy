@@ -1,8 +1,14 @@
-# Amalgam
-[![Build Status](https://travis-ci.org/transclosure/org.alloytools.alloy.svg?branch=master)](https://travis-ci.org/transclosure/org.alloytools.alloy)
+# Amalgam TNG
+[![Build Status](https://travis-ci.org/transclosure/org.alloytools.alloy.svg?branch=add-objectives)](https://travis-ci.org/transclosure/org.alloytools.alloy)
+- To run, simply run ./run.sh!
+- All packages should be installed automatically. There may be some issues with SATSolver installation (like z3), which may require manual download/install to get past runtime error messages. Contact me if you have issues. 
 - Mark all code modifications with AMALGAM
+- Run ./ignorecomp.sh before comitting
 - Merges to master should be large milestones or bug fixes, that pass the Travis CI Build
 - Keep feature addition history cleanly separated in individual branches, so we can contribute pull requests!
+<br />
+<br />
+<br />
 
 # Alloy
 ![Logo](https://avatars3.githubusercontent.com/u/30268214?v=4&s=200)
